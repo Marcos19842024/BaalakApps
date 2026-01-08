@@ -17,7 +17,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.baalak.checklist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,6 +37,9 @@
         "projectId": "56ab224e-f8fd-4d3b-a242-053cd5d032f0"
       }
     },
-    "owner": "marcos19842024s-organization"
+    "owner": "marcos19842024s-organization",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

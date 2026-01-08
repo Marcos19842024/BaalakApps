@@ -10,41 +10,49 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import Toast from 'react-native-toast-message';
 import Icon from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ChecklistData, ChecklistItem, ChecklistPhoto } from '../types/checklist';
-import { AREA_ORDER, CHECKLIST_TEMPLATE, getCurrentTime, getCurrentDate, initializeFormData } from '../utils/checklistData';
-import { generateChecklistPDF } from 'src/utils/pdfGenerator';
-
-const AREA_ICONS: Record<string, string> = {
-  'ESTACIONAMIENTO': '🚗',
-  'FACHADA': '🏢',
-  'PISOS': '🏗️',
-  'SANITARIOS': '🚿',
-  'ZONAS_COMUNES': '🏛️',
-};
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  AREA_ORDER,
+  getCurrentTime,
+  initializeFormData,
+  AREA_ICONS,
+  calculateAreaStats,
+} from '../utils/checklistData';
+import { generateChecklistPDF } from '../utils/pdfGenerator';
 
 export default function ChecklistScreen() {
   const [formData, setFormData] = useState<ChecklistData>(initializeFormData());
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentArea, setCurrentArea] = useState('ESTACIONAMIENTO');
   const [cameraVisible, setCameraVisible] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [photoDescription, setPhotoDescription] = useState('');
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
 
-  // Solicitar permisos de cámara
+  // Solicitar permisos
   useEffect(() => {
     (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasCameraPermission(status === 'granted');
+      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+      setHasCameraPermission(cameraStatus === 'granted');
+      
+      const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
+      if (mediaStatus !== 'granted') {
+        Alert.alert('Permiso necesario', 'Se necesita acceso a la galería para guardar fotos');
+      }
     })();
   }, []);
 
@@ -62,7 +70,7 @@ export default function ChecklistScreen() {
     return orderA - orderB;
   });
 
-  // Función para tomar foto
+  // Tomar foto
   const takePhoto = async () => {
     if (hasCameraPermission === false) {
       Alert.alert('Permiso denegado', 'Necesitas permitir el acceso a la cámara');
@@ -75,7 +83,7 @@ export default function ChecklistScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
-        base64: true,
+        base64: false,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -93,12 +101,17 @@ export default function ChecklistScreen() {
   };
 
   // Guardar foto
-  const savePhoto = () => {
-    if (tempPhoto) {
+  const savePhoto = async () => {
+    if (!tempPhoto) return;
+
+    try {
+      // Guardar en la galería
+      const asset = await MediaLibrary.createAssetAsync(tempPhoto);
+      
       const newPhoto: ChecklistPhoto = {
         id: `photo-${Date.now()}`,
         area: currentArea,
-        photoUri: tempPhoto,
+        photoUri: asset.uri,
         timestamp: getCurrentTime(),
         description: photoDescription,
       };
@@ -110,13 +123,20 @@ export default function ChecklistScreen() {
 
       Toast.show({
         type: 'success',
-        text1: 'Foto guardada',
+        text1: '✅ Foto guardada',
         text2: 'La foto se ha agregado al checklist',
       });
 
       setTempPhoto(null);
       setPhotoDescription('');
       setCameraVisible(false);
+    } catch (error) {
+      console.error('Error guardando foto:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo guardar la foto',
+      });
     }
   };
 
@@ -132,7 +152,7 @@ export default function ChecklistScreen() {
     });
   };
 
-  // Calcular porcentaje
+  // Calcular porcentajes
   const calculateBuenoPercentage = (area?: string): number => {
     const itemsToCheck = area 
       ? formData.items.filter(item => item.area === area)
@@ -144,6 +164,27 @@ export default function ChecklistScreen() {
     const totalEvaluated = itemsToCheck.filter(item => item.cumplimiento !== '').length;
     
     return totalEvaluated > 0 ? (buenoItems / totalEvaluated) * 100 : 0;
+  };
+
+  // Guardar JSON localmente - VERSIÓN CORREGIDA
+  const saveJsonLocally = async (data: ChecklistData): Promise<string> => {
+    try {
+      const key = `checklist_${data.responsable.replace(/\s+/g, '_')}_${Date.now()}`;
+      
+      // Guardar en AsyncStorage
+      await AsyncStorage.setItem(key, JSON.stringify(data));
+
+      Toast.show({
+        type: 'success',
+        text1: 'JSON guardado',
+        text2: `Checklist guardado localmente`,
+      });
+
+      return key; // Devuelve la clave como identificador
+    } catch (error) {
+      console.error('Error guardando JSON:', error);
+      throw error;
+    }
   };
 
   // Guardar checklist
@@ -160,16 +201,16 @@ export default function ChecklistScreen() {
     try {
       setIsLoading(true);
 
-      // Actualizar hora de fin
+      // Actualizar datos
       const updatedData = {
         ...formData,
         horaFin: getCurrentTime(),
       };
 
-      // 1. Guardar JSON localmente
+      // Guardar JSON
       const jsonUri = await saveJsonLocally(updatedData);
       
-      // 2. Generar PDF
+      // Generar PDF
       const pdfUri = await generateChecklistPDF(updatedData);
       
       Toast.show({
@@ -177,12 +218,21 @@ export default function ChecklistScreen() {
         text1: '✅ Checklist guardado',
         text2: 'PDF y JSON generados correctamente',
       });
-      
-      // 3. Opcional: Mostrar resumen
+
       Alert.alert(
         'Checklist Guardado',
-        `Se han guardado:\n• PDF: ${pdfUri.split('/').pop()}\n• JSON: ${jsonUri.split('/').pop()}`,
-        [{ text: 'OK' }]
+        '¿Deseas compartir el PDF por WhatsApp?',
+        [
+          { text: 'No', style: 'cancel' },
+          { 
+            text: 'Sí, compartir', 
+            onPress: () => shareViaWhatsApp(pdfUri, updatedData)
+          },
+          { 
+            text: 'Descargar PDF',
+            onPress: () => savePDFToDownloads(pdfUri, updatedData)
+          }
+        ]
       );
 
     } catch (error) {
@@ -197,104 +247,175 @@ export default function ChecklistScreen() {
     }
   };
 
-  // Generar PDF
-  const generatePDF = async (data: ChecklistData) => {
+  // Compartir por WhatsApp
+  const shareViaWhatsApp = async (pdfUri: string, data: ChecklistData) => {
     try {
-      const html = `
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              h1 { color: #0195a8; text-align: center; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #f2f2f2; }
-            </style>
-          </head>
-          <body>
-            <h1>Checklist de Supervisión</h1>
-            <p><strong>Fecha:</strong> ${data.fecha}</p>
-            <p><strong>Responsable:</strong> ${data.responsable}</p>
-            <!-- Agrega más contenido según necesites -->
-          </body>
-        </html>
-      `;
+      if (!await Sharing.isAvailableAsync()) {
+        Alert.alert('Error', 'La función de compartir no está disponible en este dispositivo');
+        return;
+      }
 
-      const { uri } = await Print.printToFileAsync({ html });
-      
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
+      // Para Android, podemos usar un intent directo
+      if (Platform.OS === 'android') {
+        const message = `*CHECKLIST DE SUPERVISIÓN*\n\n` +
+                       `*Responsable:* ${data.responsable}\n` +
+                       `*Fecha:* ${data.fecha}\n` +
+                       `*Hora:* ${data.horaInicio} - ${data.horaFin}\n` +
+                       `*Evaluación:* ${data.items.filter(item => item.cumplimiento !== '').length}/${data.items.length} items\n\n` +
+                       `Adjunto el reporte completo.`;
+
+        await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
-          dialogTitle: 'Compartir Checklist PDF',
+          dialogTitle: 'Compartir Checklist',
+          UTI: 'public.pdf',
         });
-      }
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      throw error;
-    }
-  };
 
-  // Guardar JSON localmente
-  const saveJsonLocally = async (data: ChecklistData): Promise<string> => {
-    try {
-      // Usar FileSystem.documentDirectory si está disponible
-      // Sino, usar cacheDirectory
-      let directory: string | null = null;
-      
-      const fileName = `checklist_${data.fecha.replace(/\//g, '-')}_${Date.now()}.json`;
-      const fileUri = `${directory}${fileName}`;
-      
-      console.log('Guardando en:', fileUri);
-      
-      // Escribir archivo
-      await FileSystem.writeAsStringAsync(
-        fileUri,
-        JSON.stringify(data, null, 2)
-      );
-      
-      // Verificar que se guardó
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (!fileInfo.exists) {
-        throw new Error('No se pudo verificar la creación del archivo');
+        Toast.show({
+          type: 'success',
+          text1: 'Compartiendo...',
+          text2: 'Selecciona WhatsApp para enviar',
+        });
+      } else {
+        // Para iOS
+        await Sharing.shareAsync(pdfUri);
       }
-      
-      console.log('Archivo guardado exitosamente:', fileInfo.uri);
-      console.log('Tamaño:', fileInfo.size, 'bytes');
-      
-      Toast.show({
-        type: 'success',
-        text1: 'Archivo guardado',
-        text2: `Checklist guardado como ${fileName}`,
-      });
-      
-      return fileUri;
     } catch (error) {
-      console.error('Error detallado guardando JSON:', error);
-      
+      console.error('Error compartiendo:', error);
       Toast.show({
         type: 'error',
-        text1: 'Error de guardado',
-        text2: 'No se pudo guardar el archivo localmente',
+        text1: 'Error',
+        text2: 'No se pudo compartir el archivo',
+      });
+    }
+  };
+
+  // Guardar PDF en descargas - VERSIÓN MÁS SIMPLE
+  const savePDFToDownloads = async (pdfUri: string, data: ChecklistData) => {
+    try {
+      // SOLUCIÓN SIMPLE: Solo compartir el archivo directamente
+      // Esto evita problemas con directorios temporales
+      
+      await Sharing.shareAsync(pdfUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Guardar Checklist PDF',
+        UTI: 'public.pdf',
+      });
+
+      Toast.show({
+        type: 'success',
+        text1: '✅ PDF listo',
+        text2: 'Usa el menú para guardar o compartir',
       });
       
-      throw error;
+    } catch (error) {
+      console.error('Error compartiendo PDF:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo abrir el PDF',
+      });
     }
   };
 
-  const getRatingStyle = (rating: string) => {
+  // Generar solo PDF
+  const handleGeneratePDF = async () => {
+    if (!formData.responsable.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Complete el campo responsable',
+      });
+      return;
+    }
+
+    try {
+      setIsGeneratingPDF(true);
+      
+      const updatedData = {
+        ...formData,
+        horaFin: getCurrentTime(),
+      };
+
+      const pdfUri = await generateChecklistPDF(updatedData);
+      
+      Alert.alert(
+        'PDF Generado',
+        '¿Qué deseas hacer con el PDF?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Compartir por WhatsApp', 
+            onPress: () => shareViaWhatsApp(pdfUri, updatedData)
+          },
+          { 
+            text: 'Descargar PDF',
+            onPress: () => savePDFToDownloads(pdfUri, updatedData)
+          },
+          { 
+            text: 'Ver PDF',
+            onPress: () => {
+              Alert.alert('PDF Listo', `Archivo generado exitosamente`);
+            }
+          }
+        ]
+      );
+
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo generar el PDF',
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Resetear checklist
+  const handleNewChecklist = () => {
+    Alert.alert(
+      'Nuevo Checklist',
+      '¿Estás seguro de que deseas crear un nuevo checklist? Se perderán los datos no guardados.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Sí, crear nuevo',
+          onPress: () => {
+            setFormData(initializeFormData());
+            setCurrentArea('ESTACIONAMIENTO');
+            Toast.show({
+              type: 'success',
+              text1: 'Nuevo checklist',
+              text2: 'Listo para comenzar',
+            });
+          }
+        }
+      ]
+    );
+  };
+
+  // Obtener estadísticas
+  const generalStats = calculateAreaStats(formData.items);
+  const currentAreaStats = calculateAreaStats(
+    formData.items.filter(item => item.area === currentArea)
+  );
+
+  const getRatingColor = (rating: string) => {
     switch (rating) {
-      case 'malo':
-        return styles.ratingButtonMalo;
-      case 'regular':
-        return styles.ratingButtonRegular;
-      case 'bueno':
-        return styles.ratingButtonBueno;
-      default:
-        return {};
+      case 'malo': return '#EF4444';
+      case 'regular': return '#F59E0B';
+      case 'bueno': return '#10B981';
+      default: return '#6B7280';
     }
   };
 
-  // Fotos del área actual
+  const getProgressColor = (percentage: number) => {
+    if (percentage >= 80) return '#10B981';
+    if (percentage >= 60) return '#F59E0B';
+    return '#EF4444';
+  };
+
   const areaPhotos = formData.photos?.filter(photo => photo.area === currentArea) || [];
 
   return (
@@ -302,62 +423,140 @@ export default function ChecklistScreen() {
       <ScrollView style={styles.scrollView}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>📋 Checklist App</Text>
-          <Text style={styles.subtitle}>Supervisión de instalaciones</Text>
+          <Text style={styles.title}>📋 CHECKLIST DE SUPERVISIÓN</Text>
+          <Text style={styles.subtitle}>COMERCIALIZADORA DE RESINAS Y ADITIVOS S DE RL DE CV</Text>
         </View>
 
         {/* Información general */}
         <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Fecha:</Text>
-            <Text style={styles.infoValue}>{formData.fecha}</Text>
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>FECHA:</Text>
+              <View style={styles.infoValueBox}>
+                <Text style={styles.infoValue}>{formData.fecha}</Text>
+              </View>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>HORA INICIO:</Text>
+              <View style={styles.infoValueBox}>
+                <Text style={styles.infoValue}>{formData.horaInicio} hrs.</Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Responsable:</Text>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>RESPONSABLE:</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Ingrese su nombre"
+              style={styles.responsableInput}
+              placeholder="Nombre del responsable"
               value={formData.responsable}
               onChangeText={(text) => setFormData(prev => ({ ...prev, responsable: text }))}
             />
           </View>
         </View>
 
-        {/* Selector de área */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Área a evaluar:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.areaScroll}>
-            {areas.map((area) => (
-              <TouchableOpacity
-                key={area}
-                style={[
-                  styles.areaButton,
-                  currentArea === area && styles.areaButtonActive
-                ]}
-                onPress={() => setCurrentArea(area)}
-              >
-                <Text style={styles.areaIcon}>{AREA_ICONS[area] || '📋'}</Text>
-                <Text style={[
-                  styles.areaButtonText,
-                  currentArea === area && styles.areaButtonTextActive
-                ]}>
-                  {area}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* Barra de progreso general */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Calificación General</Text>
+            <Text style={[
+              styles.progressPercentage,
+              { color: getProgressColor(generalStats.porcentajeBueno) }
+            ]}>
+              {Math.round(generalStats.porcentajeBueno)}% Bueno
+            </Text>
+          </View>
+          
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill,
+                { 
+                  width: `${generalStats.porcentajeBueno}%`,
+                  backgroundColor: getProgressColor(generalStats.porcentajeBueno)
+                }
+              ]}
+            />
+          </View>
+          
+          <View style={styles.progressFooter}>
+            <Text style={styles.progressText}>0%</Text>
+            <Text style={[
+              styles.progressText,
+              { color: getProgressColor(generalStats.porcentajeBueno), fontWeight: 'bold' }
+            ]}>
+              {Math.round(generalStats.porcentajeBueno)}% Bueno
+            </Text>
+            <Text style={styles.progressText}>100%</Text>
+          </View>
+          
+          <Text style={[
+            styles.progressStatus,
+            { color: getProgressColor(generalStats.porcentajeBueno) }
+          ]}>
+            {generalStats.porcentajeBueno >= 80 ? 'EXCELENTE' :
+             generalStats.porcentajeBueno >= 60 ? 'ACEPTABLE' : 'REQUIERE MEJORA'}
+          </Text>
+        </View>
+
+        {/* Selector de área y botón de cámara */}
+        <View style={styles.areaSection}>
+          <View style={styles.areaHeader}>
+            <Text style={styles.sectionTitle}>Área a evaluar:</Text>
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={takePhoto}
+              disabled={hasCameraPermission === false}
+            >
+              <MaterialCommunityIcons name="camera" size={24} color="white" />
+              <Text style={styles.cameraButtonText}>Tomar Foto</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.areaScroll}
+          >
+            {areas.map((area) => {
+              const areaPercentage = calculateBuenoPercentage(area);
+              return (
+                <TouchableOpacity
+                  key={area}
+                  style={[
+                    styles.areaButton,
+                    currentArea === area && styles.areaButtonActive
+                  ]}
+                  onPress={() => setCurrentArea(area)}
+                >
+                  <Text style={styles.areaIcon}>{AREA_ICONS[area] || '📋'}</Text>
+                  <Text style={[
+                    styles.areaButtonText,
+                    currentArea === area && styles.areaButtonTextActive
+                  ]}>
+                    {area.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
+                  </Text>
+                  <View style={[
+                    styles.areaBadge,
+                    { backgroundColor: getProgressColor(areaPercentage) }
+                  ]}>
+                    <Text style={styles.areaBadgeText}>
+                      {Math.round(areaPercentage)}%
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
-        {/* Botón para tomar foto */}
-        <TouchableOpacity style={styles.cameraButton} onPress={takePhoto}>
-          <Icon name="camera-alt" size={24} color="white" />
-          <Text style={styles.cameraButtonText}>Tomar Foto del Área</Text>
-        </TouchableOpacity>
-
-        {/* Galería de fotos */}
+        {/* Galería de fotos del área */}
         {areaPhotos.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Fotos de {currentArea}</Text>
+          <View style={styles.photosSection}>
+            <View style={styles.photosHeader}>
+              <Text style={styles.sectionTitle}>Fotos de {currentArea}</Text>
+              <Text style={styles.photosCount}>{areaPhotos.length} foto(s)</Text>
+            </View>
+            
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {areaPhotos.map((photo) => (
                 <View key={photo.id} style={styles.photoCard}>
@@ -368,32 +567,47 @@ export default function ChecklistScreen() {
                   >
                     <Icon name="delete" size={20} color="white" />
                   </TouchableOpacity>
-                  {photo.description && (
-                    <Text style={styles.photoDescription} numberOfLines={2}>
-                      {photo.description}
+                  <View style={styles.photoInfo}>
+                    {photo.description && (
+                      <Text style={styles.photoDescription} numberOfLines={2}>
+                        {photo.description}
+                      </Text>
+                    )}
+                    <Text style={styles.photoTimestamp}>
+                      {photo.timestamp}
                     </Text>
-                  )}
+                  </View>
                 </View>
               ))}
             </ScrollView>
           </View>
         )}
 
-        {/* Items del área */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{currentArea}</Text>
+        {/* Evaluación del área actual */}
+        <View style={styles.evaluationSection}>
+          <View style={styles.evaluationHeader}>
+            <Text style={styles.sectionTitle}>
+              {currentArea} - Calificación: {Math.round(currentAreaStats.porcentajeBueno)}% Bueno
+            </Text>
+            <Text style={styles.evaluationSubtitle}>
+              ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
+            </Text>
+          </View>
+          
           {(itemsByArea[currentArea] || []).map((item) => (
             <View key={item.id} style={styles.itemCard}>
               <Text style={styles.itemText}>{item.aspecto}</Text>
               
-              {/* Botones de calificación */}
               <View style={styles.ratingContainer}>
                 {['malo', 'regular', 'bueno'].map((rating) => (
                   <TouchableOpacity
                     key={rating}
                     style={[
                       styles.ratingButton,
-                      item.cumplimiento === rating && getRatingStyle(rating),
+                      item.cumplimiento === rating && {
+                        backgroundColor: `${getRatingColor(rating)}20`,
+                        borderColor: getRatingColor(rating),
+                      }
                     ]}
                     onPress={() => {
                       const newItems = formData.items.map(i =>
@@ -402,9 +616,22 @@ export default function ChecklistScreen() {
                       setFormData(prev => ({ ...prev, items: newItems }));
                     }}
                   >
+                    <View style={[
+                      styles.radioCircle,
+                      item.cumplimiento === rating && {
+                        borderColor: getRatingColor(rating),
+                      }
+                    ]}>
+                      {item.cumplimiento === rating && (
+                        <View style={[
+                          styles.radioInner,
+                          { backgroundColor: getRatingColor(rating) }
+                        ]} />
+                      )}
+                    </View>
                     <Text style={[
                       styles.ratingText,
-                      item.cumplimiento === rating && styles.ratingTextSelected
+                      { color: getRatingColor(rating) }
                     ]}>
                       {rating.toUpperCase()}
                     </Text>
@@ -412,7 +639,6 @@ export default function ChecklistScreen() {
                 ))}
               </View>
 
-              {/* Observaciones */}
               <TextInput
                 style={styles.observationsInput}
                 placeholder="Observaciones..."
@@ -430,7 +656,7 @@ export default function ChecklistScreen() {
         </View>
 
         {/* Comentarios adicionales */}
-        <View style={styles.section}>
+        <View style={styles.commentsSection}>
           <Text style={styles.sectionTitle}>Comentarios Adicionales</Text>
           <TextInput
             style={styles.commentsInput}
@@ -442,21 +668,53 @@ export default function ChecklistScreen() {
           />
         </View>
 
-        {/* Botón guardar */}
-        <TouchableOpacity
-          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Icon name="save" size={24} color="white" />
-              <Text style={styles.saveButtonText}>Guardar Checklist</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* Botones de acción */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.pdfButton]}
+            onPress={handleGeneratePDF}
+            disabled={isGeneratingPDF || !formData.responsable}
+          >
+            {isGeneratingPDF ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="file-pdf-box" size={24} color="white" />
+                <Text style={styles.actionButtonText}>Generar PDF</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.saveButton]}
+            onPress={handleSave}
+            disabled={isLoading || !formData.responsable}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <Icon name="save" size={24} color="white" />
+                <Text style={styles.actionButtonText}>Guardar Checklist</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.newButton]}
+            onPress={handleNewChecklist}
+          >
+            <Icon name="add-circle-outline" size={24} color="white" />
+            <Text style={styles.actionButtonText}>Nuevo</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Total áreas: {areas.length} | Total items: {formData.items.length} | 
+            Fotos: {formData.photos?.length || 0}
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Modal para vista previa de foto */}
@@ -464,9 +722,12 @@ export default function ChecklistScreen() {
         visible={cameraVisible}
         animationType="slide"
         transparent={true}
+        onRequestClose={() => setCameraVisible(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Vista previa de foto</Text>
+            
             {tempPhoto && (
               <Image source={{ uri: tempPhoto }} style={styles.previewImage} />
             )}
@@ -476,6 +737,7 @@ export default function ChecklistScreen() {
               placeholder="Descripción de la foto (opcional)"
               value={photoDescription}
               onChangeText={setPhotoDescription}
+              multiline
             />
             
             <View style={styles.modalButtons}>
@@ -508,7 +770,7 @@ export default function ChecklistScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f0f2f5',
   },
   scrollView: {
     flex: 1,
@@ -519,19 +781,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 5,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
   },
   infoCard: {
     backgroundColor: 'white',
-    margin: 16,
-    padding: 16,
+    margin: 15,
+    padding: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -539,34 +803,46 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  infoRow: {
+  infoGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  infoItem: {
+    marginBottom: 15,
   },
   infoLabel: {
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#374151',
-    width: 100,
-    fontSize: 16,
+    marginBottom: 5,
+  },
+  infoValueBox: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   infoValue: {
-    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  responsableInput: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
     color: '#111827',
   },
-  input: {
-    flex: 1,
-    borderBottomWidth: 1,
-    borderBottomColor: '#d1d5db',
-    paddingVertical: 8,
-    fontSize: 16,
-  },
-  section: {
+  progressCard: {
     backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 20,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -574,59 +850,160 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 12,
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  areaScroll: {
-    maxHeight: 50,
-  },
-  areaButton: {
-    backgroundColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  areaButtonActive: {
-    backgroundColor: '#3b82f6',
-  },
-  areaButtonText: {
-    color: '#374151',
+  progressLabel: {
+    fontSize: 16,
     fontWeight: '600',
+    color: '#374151',
   },
-  areaButtonTextActive: {
-    color: 'white',
+  progressPercentage: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  progressFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  progressStatus: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  areaSection: {
+    backgroundColor: 'white',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  areaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
   },
   cameraButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#10b981',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   cameraButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  areaScroll: {
+    maxHeight: 100,
+  },
+  areaButton: {
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginRight: 10,
+    width: 120,
+    position: 'relative',
+  },
+  areaButtonActive: {
+    backgroundColor: '#3b82f6',
+  },
+  areaIcon: {
+    fontSize: 24,
+    marginBottom: 5,
+  },
+  areaButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  areaButtonTextActive: {
+    color: 'white',
+  },
+  areaBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#10b981',
+    borderRadius: 10,
+    minWidth: 30,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  areaBadgeText: {
+    color: 'white',
+    fontSize: 10,
     fontWeight: 'bold',
-    marginLeft: 10,
+  },
+  photosSection: {
+    backgroundColor: 'white',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  photosHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  photosCount: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
   },
   photoCard: {
     position: 'relative',
     marginRight: 12,
     backgroundColor: '#f8f9fa',
     borderRadius: 8,
-    padding: 8,
+    padding: 10,
+    width: 140,
   },
   photo: {
     width: 120,
@@ -635,8 +1012,8 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 5,
+    right: 5,
     backgroundColor: 'rgba(239, 68, 68, 0.9)',
     borderRadius: 15,
     width: 30,
@@ -644,99 +1021,162 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  photoInfo: {
+    marginTop: 8,
+  },
   photoDescription: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6b7280',
-    marginTop: 4,
-    maxWidth: 120,
+    marginBottom: 4,
+  },
+  photoTimestamp: {
+    fontSize: 10,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+  },
+  evaluationSection: {
+    backgroundColor: 'white',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  evaluationHeader: {
+    marginBottom: 20,
+  },
+  evaluationSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 5,
   },
   itemCard: {
     backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
+    padding: 15,
+    borderRadius: 10,
     marginBottom: 12,
   },
   itemText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   ratingContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   ratingButton: {
-    flex: 1,
-    paddingVertical: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 6,
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     marginHorizontal: 4,
     borderWidth: 1,
     borderColor: '#d1d5db',
+    justifyContent: 'center',
   },
-  ratingButtonMalo: {
-    backgroundColor: '#fee2e2',
-    borderColor: '#ef4444',
+  radioCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  ratingButtonRegular: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#f59e0b',
-  },
-  ratingButtonBueno: {
-    backgroundColor: '#d1fae5',
-    borderColor: '#10b981',
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   ratingText: {
     fontSize: 12,
     fontWeight: 'bold',
   },
-  ratingTextSelected: {
-    color: '#1f2937',
-  },
   observationsInput: {
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 6,
-    padding: 8,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 14,
-    minHeight: 40,
+    minHeight: 50,
     backgroundColor: 'white',
+    textAlignVertical: 'top',
+  },
+  commentsSection: {
+    backgroundColor: 'white',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   commentsInput: {
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
-    padding: 12,
+    padding: 15,
     fontSize: 16,
-    minHeight: 100,
+    minHeight: 120,
     textAlignVertical: 'top',
     backgroundColor: 'white',
   },
-  saveButton: {
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
-    marginHorizontal: 16,
-    marginBottom: 32,
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 15,
+    borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  saveButtonDisabled: {
-    backgroundColor: '#9ca3af',
+  pdfButton: {
+    backgroundColor: '#EF4444',
   },
-  saveButtonText: {
+  saveButton: {
+    backgroundColor: '#3B82F6',
+  },
+  newButton: {
+    backgroundColor: '#6B7280',
+  },
+  actionButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  footer: {
+    padding: 15,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   modalContainer: {
     flex: 1,
@@ -749,13 +1189,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     width: '90%',
-    alignItems: 'center',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 15,
+    textAlign: 'center',
   },
   previewImage: {
     width: '100%',
-    height: 300,
+    height: 250,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 15,
   },
   descriptionInput: {
     width: '100%',
@@ -764,36 +1211,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 20,
+    minHeight: 60,
+    textAlignVertical: 'top',
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
+    gap: 10,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginHorizontal: 4,
   },
   cancelButton: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#E5E7EB',
   },
   savePhotoButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#10B981',
   },
   cancelButtonText: {
     color: '#374151',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   savePhotoButtonText: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  areaIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 16,
   },
 });
