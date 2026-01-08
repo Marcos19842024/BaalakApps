@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Checklist App",
+    "slug": "checklist",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0195a8",
+      "resizeMode": "contain"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0195a8"
+      },
+      "package": "com.baalak.checklist"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "56ab224e-f8fd-4d3b-a242-053cd5d032f0"
+      }
+    },
+    "owner": "marcos19842024s-organization"
+  }
+}
