@@ -1,9 +1,11 @@
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { ChecklistData } from '../types/checklist';
 import { calculateAreaStats } from './checklistData';
 
-export const generateChecklistPDF = async (data: ChecklistData): Promise<string> => {
+export const generateChecklistPDF = async (
+  data: ChecklistData, 
+  sucursal: string = 'Clínica Veterinaria Baalak (Central)'
+): Promise<string> => {
   try {
     // Agrupar items por área
     const itemsByArea = data.items.reduce((acc, item) => {
@@ -22,7 +24,7 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
       <html>
         <head>
           <meta charset="UTF-8">
-          <title>Checklist de Supervisión</title>
+          <title>Checklist de Supervisión - ${sucursal}</title>
           <style>
             @page {
               margin: 1cm;
@@ -45,10 +47,11 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
               font-weight: bold;
               margin: 0;
             }
-            .subtitle {
-              font-size: 14px;
-              color: #666;
-              margin: 5px 0;
+            .clinic-name {
+              font-size: 16px;
+              color: #333;
+              margin: 10px 0;
+              font-weight: bold;
             }
             .info-container {
               display: flex;
@@ -149,6 +152,19 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
               color: #92400e;
               margin-bottom: 10px;
             }
+            .photos-section {
+              margin-top: 20px;
+              padding: 15px;
+              background-color: #f0f9ff;
+              border: 1px solid #0ea5e9;
+              border-radius: 5px;
+            }
+            .photos-title {
+              font-size: 12px;
+              font-weight: bold;
+              color: #0369a1;
+              margin-bottom: 10px;
+            }
             .signature-section {
               margin-top: 40px;
               border-top: 1px solid #ccc;
@@ -172,16 +188,34 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
               border-top: 1px solid #eee;
               padding-top: 10px;
             }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 8px;
+              border-radius: 12px;
+              font-size: 9px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .status-excelente { background-color: #d4edda; color: #155724; }
+            .status-aceptable { background-color: #fff3cd; color: #856404; }
+            .status-mejora { background-color: #f8d7da; color: #721c24; }
           </style>
         </head>
         <body>
           <div class="header">
             <h1 class="title">CHECKLIST DE SUPERVISIÓN</h1>
-            <div class="subtitle">COMERCIALIZADORA DE RESINAS Y ADITIVOS S DE RL DE CV</div>
+            <div class="clinic-name">${sucursal}</div>
+            <div style="font-size: 12px; color: #666; margin-top: 5px;">
+              Sistema de Control de Calidad
+            </div>
           </div>
 
           <div class="info-container">
             <div class="info-column">
+              <div class="info-row">
+                <span class="info-label">Sucursal:</span>
+                <span><strong>${sucursal}</strong></span>
+              </div>
               <div class="info-row">
                 <span class="info-label">Fecha:</span>
                 <span>${data.fecha}</span>
@@ -194,11 +228,15 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
             <div class="info-column">
               <div class="info-row">
                 <span class="info-label">Responsable:</span>
-                <span>${data.responsable}</span>
+                <span><strong>${data.responsable}</strong></span>
               </div>
               <div class="info-row">
                 <span class="info-label">Hora de fin:</span>
                 <span>${data.horaFin} hrs.</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Total áreas:</span>
+                <span>${Object.keys(itemsByArea).length}</span>
               </div>
             </div>
           </div>
@@ -207,6 +245,9 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
             <div class="stat-card">
               <div class="stat-title">Total Evaluado</div>
               <div class="stat-value">${stats.totalEvaluado} / ${stats.total}</div>
+              <div style="font-size: 10px; color: #666; margin-top: 2px;">
+                ${Math.round((stats.totalEvaluado / stats.total) * 100)}% completado
+              </div>
             </div>
             <div class="stat-card">
               <div class="stat-title">Calificación General</div>
@@ -214,15 +255,28 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
                 stats.porcentajeBueno >= 80 ? '#10b981' :
                 stats.porcentajeBueno >= 60 ? '#f59e0b' : '#ef4444'
               }">${stats.porcentajeBueno.toFixed(1)}% Bueno</div>
+              <div class="status-badge ${
+                stats.porcentajeBueno >= 80 ? 'status-excelente' :
+                stats.porcentajeBueno >= 60 ? 'status-aceptable' : 'status-mejora'
+              }" style="margin-top: 5px;">
+                ${
+                  stats.porcentajeBueno >= 80 ? 'EXCELENTE' :
+                  stats.porcentajeBueno >= 60 ? 'ACEPTABLE' : 'REQUIERE MEJORA'
+                }
+              </div>
             </div>
             <div class="stat-card">
               <div class="stat-title">Fotos Tomadas</div>
               <div class="stat-value">${totalFotos}</div>
+              <div style="font-size: 10px; color: #666; margin-top: 2px;">
+                ${data.photos?.filter(photo => photo.area).length || 0} por área
+              </div>
             </div>
           </div>
 
           ${Object.entries(itemsByArea).map(([area, items]) => {
             const areaStats = calculateAreaStats(items);
+            const areaPhotos = data.photos?.filter(photo => photo.area === area) || [];
             
             return `
               <div class="area-section">
@@ -247,7 +301,7 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
                             <span class="cumplimiento ${item.cumplimiento}">
                               ${item.cumplimiento.toUpperCase()}
                             </span>
-                          ` : 'PENDIENTE'}
+                          ` : '<span style="color: #999;">PENDIENTE</span>'}
                         </td>
                         <td>${item.observaciones || '-'}</td>
                       </tr>
@@ -269,25 +323,49 @@ export const generateChecklistPDF = async (data: ChecklistData): Promise<string>
                     <div class="stat-value" style="color: #ef4444">${areaStats.malo}</div>
                   </div>
                 </div>
+                
+                ${areaPhotos.length > 0 ? `
+                  <div class="photos-section">
+                    <div class="photos-title">📸 Fotos de ${area} (${areaPhotos.length})</div>
+                    <div style="font-size: 11px; color: #475569;">
+                      ${areaPhotos.map((photo, index) => `
+                        <div style="margin-bottom: 8px; padding: 5px; background-color: #f8fafc; border-radius: 3px;">
+                          <strong>Foto ${index + 1}:</strong> ${photo.description || 'Sin descripción'} 
+                          <span style="color: #64748b; font-style: italic; font-size: 10px;">
+                            (${photo.timestamp})
+                          </span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
               </div>
             `;
           }).join('')}
 
           ${data.comentariosAdicionales ? `
             <div class="comments-section">
-              <div class="comments-title">Comentarios Adicionales:</div>
-              <div>${data.comentariosAdicionales}</div>
+              <div class="comments-title">📝 Comentarios Adicionales:</div>
+              <div style="font-size: 11px; line-height: 1.5;">${data.comentariosAdicionales}</div>
             </div>
           ` : ''}
 
           <div class="signature-section">
+            <div style="text-align: center; margin-bottom: 10px;">
+              <strong>Documento firmado electrónicamente</strong>
+            </div>
             <div class="signature-line"></div>
             <div class="signature-text">Firma del Responsable</div>
-            <div class="signature-text">${data.responsable}</div>
+            <div class="signature-text"><strong>${data.responsable}</strong></div>
+            <div class="signature-text" style="margin-top: 20px; font-size: 10px;">
+              Sucursal: ${sucursal} | Fecha de generación: ${data.fecha} ${data.horaFin}
+            </div>
           </div>
 
           <div class="footer">
-            Generado el ${data.fecha} a las ${data.horaFin} hrs. | ChecklistApp
+            <strong>Checklist de Supervisión - ${sucursal}</strong><br/>
+            Documento generado automáticamente por ChecklistApp | 
+            Válido únicamente para uso interno
           </div>
         </body>
       </html>

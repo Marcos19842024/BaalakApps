@@ -10,13 +10,11 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import Toast from 'react-native-toast-message';
@@ -27,14 +25,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   AREA_ORDER,
   getCurrentTime,
-  initializeFormData,
+  initializeChecklistData,
   AREA_ICONS,
   calculateAreaStats,
 } from '../utils/checklistData';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
 
+// Opciones de clínica/sucursal
+const CLINIC_OPTIONS = [
+  { id: 'animalia', name: 'Clínica Veterinaria Animalia' },
+  { id: 'baalak-central', name: 'Clínica Veterinaria Baalak (Central)' },
+  { id: 'baalak-prado', name: 'Clínica Veterinaria Baalak (Prado)' }
+];
+
 export default function ChecklistScreen() {
-  const [formData, setFormData] = useState<ChecklistData>(initializeFormData());
+  const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData());
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentArea, setCurrentArea] = useState('ESTACIONAMIENTO');
@@ -42,6 +47,8 @@ export default function ChecklistScreen() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [photoDescription, setPhotoDescription] = useState('');
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
+  const [sucursal, setSucursal] = useState('Clínica Veterinaria Baalak (Central)');
+  const [showClinicSelector, setShowClinicSelector] = useState(false);
 
   // Solicitar permisos
   useEffect(() => {
@@ -205,13 +212,14 @@ export default function ChecklistScreen() {
       const updatedData = {
         ...formData,
         horaFin: getCurrentTime(),
+        sucursal: sucursal, // Agregar sucursal a los datos
       };
 
       // Guardar JSON
       const jsonUri = await saveJsonLocally(updatedData);
       
       // Generar PDF
-      const pdfUri = await generateChecklistPDF(updatedData);
+      const pdfUri = await generateChecklistPDF(updatedData, sucursal);
       
       Toast.show({
         type: 'success',
@@ -258,6 +266,7 @@ export default function ChecklistScreen() {
       // Para Android, podemos usar un intent directo
       if (Platform.OS === 'android') {
         const message = `*CHECKLIST DE SUPERVISIÓN*\n\n` +
+                       `*Sucursal:* ${sucursal}\n` +
                        `*Responsable:* ${data.responsable}\n` +
                        `*Fecha:* ${data.fecha}\n` +
                        `*Hora:* ${data.horaInicio} - ${data.horaFin}\n` +
@@ -334,9 +343,10 @@ export default function ChecklistScreen() {
       const updatedData = {
         ...formData,
         horaFin: getCurrentTime(),
+        sucursal: sucursal,
       };
 
-      const pdfUri = await generateChecklistPDF(updatedData);
+      const pdfUri = await generateChecklistPDF(updatedData, sucursal);
       
       Alert.alert(
         'PDF Generado',
@@ -354,7 +364,7 @@ export default function ChecklistScreen() {
           { 
             text: 'Ver PDF',
             onPress: () => {
-              Alert.alert('PDF Listo', `Archivo generado exitosamente`);
+              Alert.alert('PDF Listo', `Archivo generado exitosamente para ${sucursal}`);
             }
           }
         ]
@@ -382,7 +392,7 @@ export default function ChecklistScreen() {
         { 
           text: 'Sí, crear nuevo',
           onPress: () => {
-            setFormData(initializeFormData());
+            setFormData(initializeChecklistData());
             setCurrentArea('ESTACIONAMIENTO');
             Toast.show({
               type: 'success',
@@ -424,8 +434,71 @@ export default function ChecklistScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>📋 CHECKLIST DE SUPERVISIÓN</Text>
-          <Text style={styles.subtitle}>COMERCIALIZADORA DE RESINAS Y ADITIVOS S DE RL DE CV</Text>
+          <TouchableOpacity 
+            style={styles.clinicSelectorButton}
+            onPress={() => setShowClinicSelector(true)}
+          >
+            <Text style={styles.clinicName} numberOfLines={1}>{sucursal}</Text>
+            <Icon name="arrow-drop-down" size={24} color="white" />
+          </TouchableOpacity>
         </View>
+
+        {/* Modal para seleccionar clínica */}
+        <Modal
+          visible={showClinicSelector}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowClinicSelector(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.clinicModalContent}>
+              <Text style={styles.modalTitle}>Seleccionar Sucursal</Text>
+              
+              {CLINIC_OPTIONS.map((clinic) => (
+                <TouchableOpacity
+                  key={clinic.id}
+                  style={[
+                    styles.clinicOption,
+                    sucursal === clinic.name && styles.clinicOptionSelected
+                  ]}
+                  onPress={() => {
+                    setSucursal(clinic.name);
+                    setShowClinicSelector(false);
+                    Toast.show({
+                      type: 'success',
+                      text1: 'Sucursal seleccionada',
+                      text2: clinic.name,
+                    });
+                  }}
+                >
+                  <View style={styles.clinicOptionContent}>
+                    <MaterialCommunityIcons 
+                      name="hospital-building" 
+                      size={24} 
+                      color={sucursal === clinic.name ? '#3B82F6' : '#6B7280'} 
+                    />
+                    <Text style={[
+                      styles.clinicOptionText,
+                      sucursal === clinic.name && styles.clinicOptionTextSelected
+                    ]}>
+                      {clinic.name}
+                    </Text>
+                  </View>
+                  {sucursal === clinic.name && (
+                    <Icon name="check-circle" size={24} color="#10B981" />
+                  )}
+                </TouchableOpacity>
+              ))}
+              
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowClinicSelector(false)}
+              >
+                <Text style={styles.modalCloseButtonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Información general */}
         <View style={styles.infoCard}>
@@ -451,6 +524,19 @@ export default function ChecklistScreen() {
               value={formData.responsable}
               onChangeText={(text) => setFormData(prev => ({ ...prev, responsable: text }))}
             />
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>SUCURSAL:</Text>
+            <TouchableOpacity
+              style={styles.sucursalDisplay}
+              onPress={() => setShowClinicSelector(true)}
+            >
+              <MaterialCommunityIcons name="hospital-building" size={20} color="#3B82F6" />
+              <Text style={styles.sucursalText} numberOfLines={1}>
+                {sucursal}
+              </Text>
+              <Icon name="edit" size={18} color="#6B7280" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -711,7 +797,7 @@ export default function ChecklistScreen() {
         
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Total áreas: {areas.length} | Total items: {formData.items.length} | 
+            Sucursal: {sucursal} | Total áreas: {areas.length} | Total items: {formData.items.length} | 
             Fotos: {formData.photos?.length || 0}
           </Text>
         </View>
@@ -784,13 +870,93 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 5,
+    marginBottom: 15,
     textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+  clinicSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  clinicName: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+    marginRight: 5,
+    maxWidth: 250,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clinicModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 20,
     textAlign: 'center',
+  },
+  clinicOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  clinicOptionSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  clinicOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  clinicOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    marginLeft: 12,
+    flex: 1,
+  },
+  clinicOptionTextSelected: {
+    color: '#1D4ED8',
+    fontWeight: '600',
+  },
+  modalCloseButton: {
+    marginTop: 20,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   infoCard: {
     backgroundColor: 'white',
@@ -837,6 +1003,22 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     color: '#111827',
+  },
+  sucursalDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  sucursalText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    marginLeft: 10,
+    marginRight: 10,
   },
   progressCard: {
     backgroundColor: 'white',
@@ -1190,13 +1372,6 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 15,
-    textAlign: 'center',
   },
   previewImage: {
     width: '100%',

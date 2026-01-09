@@ -23,4 +23,5 @@ export interface ChecklistData {
   items: ChecklistItem[];
   comentariosAdicionales: string;
   photos?: ChecklistPhoto[];
+  completed: boolean;
 }
