@@ -16,6 +16,7 @@ export const AREAS_POR_SUCURSAL: Record<SucursalType, string[]> = {
     'CONSULTORIO',
     'LABORATORIO',
     'QUIRÓFANO',
+    'RAYOS X',
     'HOSPITAL',
     'PENSIÓN',
     'ALMACÉN GENERAL',
