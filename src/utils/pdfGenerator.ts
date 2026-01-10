@@ -204,7 +204,6 @@ export const generateChecklistPDF = async (
         <body>
           <div class="header">
             <h1 class="title">CHECKLIST DE SUPERVISIÓN</h1>
-            <div class="clinic-name">${sucursal}</div>
             <div style="font-size: 12px; color: #666; margin-top: 5px;">
               Sistema de Control de Calidad
             </div>
@@ -357,9 +356,6 @@ export const generateChecklistPDF = async (
             <div class="signature-line"></div>
             <div class="signature-text">Firma del Responsable</div>
             <div class="signature-text"><strong>${data.responsable}</strong></div>
-            <div class="signature-text" style="margin-top: 20px; font-size: 10px;">
-              Sucursal: ${sucursal} | Fecha de generación: ${data.fecha} ${data.horaFin}
-            </div>
           </div>
 
           <div class="footer">

@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Image,
   Alert,
   Modal,
   ActivityIndicator,
   Platform,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'expo-camera';
@@ -23,32 +23,42 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ChecklistData, ChecklistItem, ChecklistPhoto } from '../types/checklist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
-  AREA_ORDER,
+  SUCURSALES,
+  SucursalType,
   getCurrentTime,
   initializeChecklistData,
   AREA_ICONS,
   calculateAreaStats,
+  getUniqueAreasForSucursal,
+  areAllAreasComplete,
+  getIncompleteAreas,
+  getCompletionPercentage,
 } from '../utils/checklistData';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
+import { styles } from 'src/styles/styles';
 
-// Opciones de clínica/sucursal
+// Array de opciones para el selector
 const CLINIC_OPTIONS = [
-  { id: 'animalia', name: 'Clínica Veterinaria Animalia' },
-  { id: 'baalak-central', name: 'Clínica Veterinaria Baalak (Central)' },
-  { id: 'baalak-prado', name: 'Clínica Veterinaria Baalak (Prado)' }
+  { id: 'BAALAK_CENTRAL', name: 'Clínica Veterinaria Baalak (Central)' },
+  { id: 'ANIMALIA', name: 'Clínica Veterinaria Animalia' },
+  { id: 'BAALAK_PRADO', name: 'Clínica Veterinaria Baalak (Prado)' }
 ];
 
 export default function ChecklistScreen() {
-  const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData());
+  const [sucursalKey, setSucursalKey] = useState<SucursalType>('BAALAK_CENTRAL');
+  const [sucursalName, setSucursalName] = useState<string>(SUCURSALES.BAALAK_CENTRAL);
+  const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData('BAALAK_CENTRAL'));
   const [isLoading, setIsLoading] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentArea, setCurrentArea] = useState('ESTACIONAMIENTO');
   const [cameraVisible, setCameraVisible] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [photoDescription, setPhotoDescription] = useState('');
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
-  const [sucursal, setSucursal] = useState('Clínica Veterinaria Baalak (Central)');
   const [showClinicSelector, setShowClinicSelector] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
+  const areasScrollViewRef = useRef<ScrollView>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   // Solicitar permisos
   useEffect(() => {
@@ -63,6 +73,39 @@ export default function ChecklistScreen() {
     })();
   }, []);
 
+  // Función para hacer scroll automático a un área
+  const scrollToArea = (areaIndex: number) => {
+    if (areasScrollViewRef.current && areaIndex >= 0 && areaIndex < areas.length) {
+      // Calcular la posición aproximada (ajusta según el alto de tus items)
+      const scrollPosition = areaIndex * 280; // Ajusta este valor según el alto de tus áreas
+      areasScrollViewRef.current.scrollTo({ y: scrollPosition, animated: true });
+    }
+  };
+
+  // Actualizar checklist cuando cambia la sucursal
+  const handleSucursalChange = (newSucursalKey: SucursalType) => {
+    const newSucursalName = SUCURSALES[newSucursalKey];
+    
+    setSucursalKey(newSucursalKey);
+    setSucursalName(newSucursalName);
+    
+    // Crear nuevo checklist con las áreas de la nueva sucursal
+    const newChecklist = initializeChecklistData(newSucursalKey);
+    setFormData(newChecklist);
+    
+    // Establecer el primer área de la sucursal como activa
+    const areas = getUniqueAreasForSucursal(newSucursalKey);
+    setCurrentArea(areas[0] || 'ESTACIONAMIENTO');
+    
+    setShowClinicSelector(false);
+    
+    Toast.show({
+      type: 'success',
+      text1: 'Sucursal cambiada',
+      text2: newSucursalName,
+    });
+  };
+
   // Agrupar items por área
   const itemsByArea = formData.items.reduce((acc, item) => {
     if (!acc[item.area]) acc[item.area] = [];
@@ -70,12 +113,8 @@ export default function ChecklistScreen() {
     return acc;
   }, {} as Record<string, ChecklistItem[]>);
 
-  // Áreas ordenadas
-  const areas = Object.keys(itemsByArea).sort((a, b) => {
-    const orderA = AREA_ORDER[a] || 999;
-    const orderB = AREA_ORDER[b] || 999;
-    return orderA - orderB;
-  });
+  // Obtener áreas únicas para la sucursal actual
+  const areas = getUniqueAreasForSucursal(sucursalKey);
 
   // Tomar foto
   const takePhoto = async () => {
@@ -173,38 +212,56 @@ export default function ChecklistScreen() {
     return totalEvaluated > 0 ? (buenoItems / totalEvaluated) * 100 : 0;
   };
 
-  // Guardar JSON localmente - VERSIÓN CORREGIDA
+  // Guardar JSON localmente
   const saveJsonLocally = async (data: ChecklistData): Promise<string> => {
     try {
-      const key = `checklist_${data.responsable.replace(/\s+/g, '_')}_${Date.now()}`;
+      const key = `checklist_${sucursalKey}_${data.responsable.replace(/\s+/g, '_')}_${Date.now()}`;
       
       // Guardar en AsyncStorage
-      await AsyncStorage.setItem(key, JSON.stringify(data));
+      await AsyncStorage.setItem(key, JSON.stringify({
+        ...data,
+        sucursalKey: sucursalKey
+      }));
 
-      Toast.show({
-        type: 'success',
-        text1: 'JSON guardado',
-        text2: `Checklist guardado localmente`,
-      });
-
-      return key; // Devuelve la clave como identificador
+      return key;
     } catch (error) {
       console.error('Error guardando JSON:', error);
       throw error;
     }
   };
 
-  // Guardar checklist
-  const handleSave = async () => {
+  // Función para validar antes de guardar
+  const validateBeforeSave = (): boolean => {
     if (!formData.responsable.trim()) {
       Toast.show({
         type: 'error',
         text1: 'Error',
         text2: 'Complete el campo responsable',
       });
-      return;
+      return false;
     }
 
+    // Verificar si todas las áreas están completas
+    const allComplete = areAllAreasComplete(formData.items, sucursalKey);
+    
+    if (!allComplete) {
+      const incomplete = getIncompleteAreas(formData.items, sucursalKey);
+      setIncompleteAreas(incomplete);
+      setShowValidationModal(true);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Función para forzar guardar a pesar de áreas incompletas
+  const handleForceSave = async () => {
+    setShowValidationModal(false);
+    await handleSaveInternal();
+  };
+
+  // Función interna para guardar (sin validación)
+  const handleSaveInternal = async () => {
     try {
       setIsLoading(true);
 
@@ -212,14 +269,16 @@ export default function ChecklistScreen() {
       const updatedData = {
         ...formData,
         horaFin: getCurrentTime(),
-        sucursal: sucursal, // Agregar sucursal a los datos
+        sucursal: sucursalName,
+        sucursalKey: sucursalKey,
+        completed: areAllAreasComplete(formData.items, sucursalKey) // Agregar estado de completado
       };
 
       // Guardar JSON
       const jsonUri = await saveJsonLocally(updatedData);
       
       // Generar PDF
-      const pdfUri = await generateChecklistPDF(updatedData, sucursal);
+      const pdfUri = await generateChecklistPDF(updatedData, sucursalName);
       
       Toast.show({
         type: 'success',
@@ -255,6 +314,36 @@ export default function ChecklistScreen() {
     }
   };
 
+  // Modificar handleSave para incluir validación
+  const handleSave = async () => {
+    if (validateBeforeSave()) {
+      await handleSaveInternal();
+    }
+  };
+
+  // Función para navegar a un área incompleta
+  const navigateToIncompleteArea = (area: string) => {
+    const areaIndex = areas.findIndex(a => a === area);
+    setCurrentArea(area);
+    setShowValidationModal(false);
+    
+    if (areaIndex >= 0) {
+      // Hacer scroll al área después de un pequeño delay
+      setTimeout(() => {
+        scrollToArea(areaIndex);
+      }, 100);
+    }
+    
+    Toast.show({
+      type: 'info',
+      text1: 'Navegando al área',
+      text2: `Ir a ${area}`,
+    });
+  };
+
+  // Calcular porcentaje de completado
+  const completionPercentage = getCompletionPercentage(formData.items, sucursalKey);
+
   // Compartir por WhatsApp
   const shareViaWhatsApp = async (pdfUri: string, data: ChecklistData) => {
     try {
@@ -266,12 +355,13 @@ export default function ChecklistScreen() {
       // Para Android, podemos usar un intent directo
       if (Platform.OS === 'android') {
         const message = `*CHECKLIST DE SUPERVISIÓN*\n\n` +
-                       `*Sucursal:* ${sucursal}\n` +
-                       `*Responsable:* ${data.responsable}\n` +
-                       `*Fecha:* ${data.fecha}\n` +
-                       `*Hora:* ${data.horaInicio} - ${data.horaFin}\n` +
-                       `*Evaluación:* ${data.items.filter(item => item.cumplimiento !== '').length}/${data.items.length} items\n\n` +
-                       `Adjunto el reporte completo.`;
+        `*Sucursal:* ${sucursalName}\n` +
+        `*Responsable:* ${data.responsable}\n` +
+        `*Fecha:* ${data.fecha}\n` +
+        `*Hora:* ${data.horaInicio} - ${data.horaFin}\n` +
+        `*Áreas evaluadas:* ${areas.length}\n` +
+        `*Evaluación:* ${data.items.filter(item => item.cumplimiento !== '').length}/${data.items.length} items\n\n` +
+        `Adjunto el reporte completo.`;
 
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
@@ -298,12 +388,9 @@ export default function ChecklistScreen() {
     }
   };
 
-  // Guardar PDF en descargas - VERSIÓN MÁS SIMPLE
+  // Guardar PDF en descargas
   const savePDFToDownloads = async (pdfUri: string, data: ChecklistData) => {
     try {
-      // SOLUCIÓN SIMPLE: Solo compartir el archivo directamente
-      // Esto evita problemas con directorios temporales
-      
       await Sharing.shareAsync(pdfUri, {
         mimeType: 'application/pdf',
         dialogTitle: 'Guardar Checklist PDF',
@@ -326,62 +413,6 @@ export default function ChecklistScreen() {
     }
   };
 
-  // Generar solo PDF
-  const handleGeneratePDF = async () => {
-    if (!formData.responsable.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Complete el campo responsable',
-      });
-      return;
-    }
-
-    try {
-      setIsGeneratingPDF(true);
-      
-      const updatedData = {
-        ...formData,
-        horaFin: getCurrentTime(),
-        sucursal: sucursal,
-      };
-
-      const pdfUri = await generateChecklistPDF(updatedData, sucursal);
-      
-      Alert.alert(
-        'PDF Generado',
-        '¿Qué deseas hacer con el PDF?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Compartir por WhatsApp', 
-            onPress: () => shareViaWhatsApp(pdfUri, updatedData)
-          },
-          { 
-            text: 'Descargar PDF',
-            onPress: () => savePDFToDownloads(pdfUri, updatedData)
-          },
-          { 
-            text: 'Ver PDF',
-            onPress: () => {
-              Alert.alert('PDF Listo', `Archivo generado exitosamente para ${sucursal}`);
-            }
-          }
-        ]
-      );
-
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo generar el PDF',
-      });
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
-
   // Resetear checklist
   const handleNewChecklist = () => {
     Alert.alert(
@@ -392,12 +423,13 @@ export default function ChecklistScreen() {
         { 
           text: 'Sí, crear nuevo',
           onPress: () => {
-            setFormData(initializeChecklistData());
-            setCurrentArea('ESTACIONAMIENTO');
+            const newData = initializeChecklistData(sucursalKey);
+            setFormData(newData);
+            setCurrentArea(areas[0] || 'ESTACIONAMIENTO');
             Toast.show({
               type: 'success',
               text1: 'Nuevo checklist',
-              text2: 'Listo para comenzar',
+              text2: `Creado para ${sucursalName}`,
             });
           }
         }
@@ -430,7 +462,8 @@ export default function ChecklistScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      {/* SECCIÓN FIJA SUPERIOR */}
+      <View style={styles.fixedSection}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>📋 CHECKLIST DE SUPERVISIÓN</Text>
@@ -438,84 +471,25 @@ export default function ChecklistScreen() {
             style={styles.clinicSelectorButton}
             onPress={() => setShowClinicSelector(true)}
           >
-            <Text style={styles.clinicName} numberOfLines={1}>{sucursal}</Text>
-            <Icon name="arrow-drop-down" size={24} color="white" />
+            <View style={styles.clinicButtonContent}>
+              <MaterialCommunityIcons name="hospital-building" size={20} color="#ff006f" />
+              <Text style={styles.clinicName} numberOfLines={1}>{sucursalName}</Text>
+            </View>
+            <Icon name="arrow-drop-down" size={24} color="#ff006f" />
           </TouchableOpacity>
         </View>
 
-        {/* Modal para seleccionar clínica */}
-        <Modal
-          visible={showClinicSelector}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowClinicSelector(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.clinicModalContent}>
-              <Text style={styles.modalTitle}>Seleccionar Sucursal</Text>
-              
-              {CLINIC_OPTIONS.map((clinic) => (
-                <TouchableOpacity
-                  key={clinic.id}
-                  style={[
-                    styles.clinicOption,
-                    sucursal === clinic.name && styles.clinicOptionSelected
-                  ]}
-                  onPress={() => {
-                    setSucursal(clinic.name);
-                    setShowClinicSelector(false);
-                    Toast.show({
-                      type: 'success',
-                      text1: 'Sucursal seleccionada',
-                      text2: clinic.name,
-                    });
-                  }}
-                >
-                  <View style={styles.clinicOptionContent}>
-                    <MaterialCommunityIcons 
-                      name="hospital-building" 
-                      size={24} 
-                      color={sucursal === clinic.name ? '#3B82F6' : '#6B7280'} 
-                    />
-                    <Text style={[
-                      styles.clinicOptionText,
-                      sucursal === clinic.name && styles.clinicOptionTextSelected
-                    ]}>
-                      {clinic.name}
-                    </Text>
-                  </View>
-                  {sucursal === clinic.name && (
-                    <Icon name="check-circle" size={24} color="#10B981" />
-                  )}
-                </TouchableOpacity>
-              ))}
-              
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowClinicSelector(false)}
-              >
-                <Text style={styles.modalCloseButtonText}>Cerrar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
         {/* Información general */}
         <View style={styles.infoCard}>
+          
           <View style={styles.infoGrid}>
-            <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>FECHA:</Text>
-              <View style={styles.infoValueBox}>
-                <Text style={styles.infoValue}>{formData.fecha}</Text>
-              </View>
-            </View>
-            <View style={styles.infoItem}>
+              <Text style={styles.infoValue}>{formData.fecha}</Text>
+              <Text></Text><Text></Text><Text></Text>
               <Text style={styles.infoLabel}>HORA INICIO:</Text>
-              <View style={styles.infoValueBox}>
-                <Text style={styles.infoValue}>{formData.horaInicio} hrs.</Text>
-              </View>
-            </View>
+              <Text style={styles.infoValue}>{formData.horaInicio} hrs.</Text>
           </View>
+          
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>RESPONSABLE:</Text>
             <TextInput
@@ -525,19 +499,6 @@ export default function ChecklistScreen() {
               onChangeText={(text) => setFormData(prev => ({ ...prev, responsable: text }))}
             />
           </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>SUCURSAL:</Text>
-            <TouchableOpacity
-              style={styles.sucursalDisplay}
-              onPress={() => setShowClinicSelector(true)}
-            >
-              <MaterialCommunityIcons name="hospital-building" size={20} color="#3B82F6" />
-              <Text style={styles.sucursalText} numberOfLines={1}>
-                {sucursal}
-              </Text>
-              <Icon name="edit" size={18} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Barra de progreso general */}
@@ -545,10 +506,11 @@ export default function ChecklistScreen() {
           <View style={styles.progressHeader}>
             <Text style={styles.progressLabel}>Calificación General</Text>
             <Text style={[
-              styles.progressPercentage,
+              styles.progressStatus,
               { color: getProgressColor(generalStats.porcentajeBueno) }
             ]}>
-              {Math.round(generalStats.porcentajeBueno)}% Bueno
+              {generalStats.porcentajeBueno >= 80 ? 'EXCELENTE' :
+                generalStats.porcentajeBueno >= 60 ? 'ACEPTABLE' : 'REQUIERE MEJORA'}
             </Text>
           </View>
           
@@ -574,20 +536,19 @@ export default function ChecklistScreen() {
             </Text>
             <Text style={styles.progressText}>100%</Text>
           </View>
-          
-          <Text style={[
-            styles.progressStatus,
-            { color: getProgressColor(generalStats.porcentajeBueno) }
-          ]}>
-            {generalStats.porcentajeBueno >= 80 ? 'EXCELENTE' :
-             generalStats.porcentajeBueno >= 60 ? 'ACEPTABLE' : 'REQUIERE MEJORA'}
-          </Text>
         </View>
 
         {/* Selector de área y botón de cámara */}
         <View style={styles.areaSection}>
           <View style={styles.areaHeader}>
-            <Text style={styles.sectionTitle}>Área a evaluar:</Text>
+            <View>
+              <Text style={styles.evaluationSubtitle}>
+                {areas.length} áreas disponibles
+              </Text>
+              <Text style={styles.areasCountInfo}>
+                {currentArea} ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
+              </Text>
+            </View>
             <TouchableOpacity
               style={styles.cameraButton}
               onPress={takePhoto}
@@ -603,7 +564,7 @@ export default function ChecklistScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.areaScroll}
           >
-            {areas.map((area) => {
+            {areas.map((area, index) => {
               const areaPercentage = calculateBuenoPercentage(area);
               return (
                 <TouchableOpacity
@@ -612,7 +573,11 @@ export default function ChecklistScreen() {
                     styles.areaButton,
                     currentArea === area && styles.areaButtonActive
                   ]}
-                  onPress={() => setCurrentArea(area)}
+                  onPress={() => {
+                    setCurrentArea(area);
+                    // Opcional: hacer scroll automático al área
+                    scrollToArea(index);
+                  }}
                 >
                   <Text style={styles.areaIcon}>{AREA_ICONS[area] || '📋'}</Text>
                   <Text style={[
@@ -635,7 +600,7 @@ export default function ChecklistScreen() {
           </ScrollView>
         </View>
 
-        {/* Galería de fotos del área */}
+        {/* Galería de fotos del área actual */}
         {areaPhotos.length > 0 && (
           <View style={styles.photosSection}>
             <View style={styles.photosHeader}>
@@ -668,17 +633,16 @@ export default function ChecklistScreen() {
             </ScrollView>
           </View>
         )}
+      </View>
 
+      {/* SCROLLVIEW SOLO PARA LAS ÁREAS */}
+      <ScrollView 
+        ref={areasScrollViewRef}
+        style={styles.areasScrollView}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Evaluación del área actual */}
         <View style={styles.evaluationSection}>
-          <View style={styles.evaluationHeader}>
-            <Text style={styles.sectionTitle}>
-              {currentArea} - Calificación: {Math.round(currentAreaStats.porcentajeBueno)}% Bueno
-            </Text>
-            <Text style={styles.evaluationSubtitle}>
-              ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
-            </Text>
-          </View>
           
           {(itemsByArea[currentArea] || []).map((item) => (
             <View key={item.id} style={styles.itemCard}>
@@ -757,24 +721,8 @@ export default function ChecklistScreen() {
         {/* Botones de acción */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.pdfButton]}
-            onPress={handleGeneratePDF}
-            disabled={isGeneratingPDF || !formData.responsable}
-          >
-            {isGeneratingPDF ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="file-pdf-box" size={24} color="white" />
-                <Text style={styles.actionButtonText}>Generar PDF</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          
-          <TouchableOpacity
             style={[styles.actionButton, styles.saveButton]}
             onPress={handleSave}
-            disabled={isLoading || !formData.responsable}
           >
             {isLoading ? (
               <ActivityIndicator color="white" />
@@ -797,11 +745,144 @@ export default function ChecklistScreen() {
         
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Sucursal: {sucursal} | Total áreas: {areas.length} | Total items: {formData.items.length} | 
+            {sucursalName} | {areas.length} áreas | {formData.items.length} items | 
             Fotos: {formData.photos?.length || 0}
           </Text>
         </View>
+
+        {/* Espacio extra al final para mejor scroll */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Modal para seleccionar clínica */}
+      <Modal
+        visible={showClinicSelector}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowClinicSelector(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.clinicModalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Sucursal</Text>
+            <Text style={styles.modalSubtitle}>
+              Cada sucursal tiene sus propias áreas específicas
+            </Text>
+            
+            {CLINIC_OPTIONS.map((clinic) => {
+              const clinicKey = clinic.id as SucursalType;
+              const areasCount = getUniqueAreasForSucursal(clinicKey).length;
+              
+              return (
+                <TouchableOpacity
+                  key={clinic.id}
+                  style={[
+                    styles.clinicOption,
+                    sucursalKey === clinic.id && styles.clinicOptionSelected
+                  ]}
+                  onPress={() => handleSucursalChange(clinicKey)}
+                >
+                  <View style={styles.clinicOptionContent}>
+                    <View style={styles.clinicIconContainer}>
+                      <MaterialCommunityIcons 
+                        name="hospital-building" 
+                        size={28} // Aumentado el tamaño
+                        color={sucursalKey === clinic.id ? '#ff008cea' : '#6B7280'} 
+                      />
+                    </View>
+                    <View style={styles.clinicTextContainer}>
+                      <Text style={[
+                        styles.clinicOptionText,
+                        sucursalKey === clinic.id && styles.clinicOptionTextSelected
+                      ]}>
+                        {clinic.name}
+                      </Text>
+                      <Text style={styles.clinicAreasCount}>
+                        {areasCount} {areasCount === 1 ? 'área' : 'áreas'} específicas
+                      </Text>
+                    </View>
+                  </View>
+                  {sucursalKey === clinic.id && (
+                    <View style={styles.checkIconContainer}>
+                      <Icon name="check-circle" size={24} color="#10B981" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+            
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowClinicSelector(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de validación de áreas incompletas */}
+      <Modal
+        visible={showValidationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowValidationModal(false)}
+      >
+        <View style={styles.validationModalOverlay}>
+          <View style={styles.validationModalContent}>
+            <View style={styles.validationHeader}>
+              <MaterialCommunityIcons name="alert-circle" size={40} color="#F59E0B" />
+              <Text style={styles.validationTitle}>Áreas Pendientes</Text>
+              <Text style={styles.validationSubtitle}>
+                Hay {incompleteAreas.length} {incompleteAreas.length === 1 ? 'área' : 'áreas'} sin evaluar completamente
+              </Text>
+            </View>
+            
+            <ScrollView style={styles.incompleteAreasList}>
+              {incompleteAreas.map((area, index) => (
+                <TouchableOpacity
+                  key={area}
+                  style={styles.incompleteAreaItem}
+                  onPress={() => navigateToIncompleteArea(area)}
+                >
+                  <View style={styles.areaItemContent}>
+                    <View style={styles.areaItemNumber}>
+                      <Text style={styles.areaNumberText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.areaItemInfo}>
+                      <Text style={styles.areaItemName}>{area}</Text>
+                      <Text style={styles.areaItemAction}>
+                        Tocar para evaluar esta área
+                      </Text>
+                    </View>
+                    <Icon name="chevron-right" size={24} color="#6B7280" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            
+            <View style={styles.validationButtons}>
+              <TouchableOpacity
+                style={[styles.validationButton, styles.cancelValidationButton]}
+                onPress={() => setShowValidationModal(false)}
+              >
+                <Text style={styles.cancelValidationButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.validationButton, styles.forceSaveButton]}
+                onPress={handleForceSave}
+              >
+                <MaterialCommunityIcons name="file-document-outline" size={20} color="white" />
+                <Text style={styles.forceSaveButtonText}>Guardar como Incompleto</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.validationNote}>
+              📝 Recomendación: Complete todas las áreas para un reporte más preciso
+            </Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal para vista previa de foto */}
       <Modal
@@ -852,569 +933,3 @@ export default function ChecklistScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f2f5',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    backgroundColor: '#0195a8',
-    padding: 20,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  clinicSelectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  clinicName: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: '600',
-    marginRight: 5,
-    maxWidth: 250,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  clinicModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  clinicOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    marginBottom: 10,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  clinicOptionSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
-  },
-  clinicOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  clinicOptionText: {
-    fontSize: 16,
-    color: '#374151',
-    marginLeft: 12,
-    flex: 1,
-  },
-  clinicOptionTextSelected: {
-    color: '#1D4ED8',
-    fontWeight: '600',
-  },
-  modalCloseButton: {
-    marginTop: 20,
-    backgroundColor: '#3B82F6',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  infoCard: {
-    backgroundColor: 'white',
-    margin: 15,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  infoItem: {
-    marginBottom: 15,
-  },
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 5,
-  },
-  infoValueBox: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  infoValue: {
-    fontSize: 16,
-    color: '#111827',
-    fontWeight: '500',
-  },
-  responsableInput: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  sucursalDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  sucursalText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 10,
-    marginRight: 10,
-  },
-  progressCard: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  progressLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  progressPercentage: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  progressBar: {
-    height: 10,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
-  progressFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  progressStatus: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  areaSection: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  areaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  cameraButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#10b981',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  cameraButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  areaScroll: {
-    maxHeight: 100,
-  },
-  areaButton: {
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginRight: 10,
-    width: 120,
-    position: 'relative',
-  },
-  areaButtonActive: {
-    backgroundColor: '#3b82f6',
-  },
-  areaIcon: {
-    fontSize: 24,
-    marginBottom: 5,
-  },
-  areaButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-  },
-  areaButtonTextActive: {
-    color: 'white',
-  },
-  areaBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#10b981',
-    borderRadius: 10,
-    minWidth: 30,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-  },
-  areaBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  photosSection: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  photosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  photosCount: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  photoCard: {
-    position: 'relative',
-    marginRight: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 10,
-    width: 140,
-  },
-  photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 6,
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoInfo: {
-    marginTop: 8,
-  },
-  photoDescription: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  photoTimestamp: {
-    fontSize: 10,
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
-  evaluationSection: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  evaluationHeader: {
-    marginBottom: 20,
-  },
-  evaluationSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 5,
-  },
-  itemCard: {
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  itemText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  ratingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    justifyContent: 'center',
-  },
-  radioCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  observationsInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    minHeight: 50,
-    backgroundColor: 'white',
-    textAlignVertical: 'top',
-  },
-  commentsSection: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  commentsInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 16,
-    minHeight: 120,
-    textAlignVertical: 'top',
-    backgroundColor: 'white',
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    gap: 10,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  pdfButton: {
-    backgroundColor: '#EF4444',
-  },
-  saveButton: {
-    backgroundColor: '#3B82F6',
-  },
-  newButton: {
-    backgroundColor: '#6B7280',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  footer: {
-    padding: 15,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-  },
-  previewImage: {
-    width: '100%',
-    height: 250,
-    borderRadius: 8,
-    marginBottom: 15,
-  },
-  descriptionInput: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 20,
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#E5E7EB',
-  },
-  savePhotoButton: {
-    backgroundColor: '#10B981',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  savePhotoButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-});

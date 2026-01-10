@@ -23,5 +23,7 @@ export interface ChecklistData {
   items: ChecklistItem[];
   comentariosAdicionales: string;
   photos?: ChecklistPhoto[];
-  completed: boolean;
+  completed: boolean; // Agregar este campo
+  sucursal?: string;
+  sucursalKey?: string;
 }

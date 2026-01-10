@@ -1,5 +1,61 @@
 import { ChecklistData, ChecklistItem } from '../types/checklist';
 
+// Definir las sucursales disponibles
+export const SUCURSALES = {
+  ANIMALIA: 'Clínica Veterinaria Animalia',
+  BAALAK_CENTRAL: 'Clínica Veterinaria Baalak (Central)',
+  BAALAK_PRADO: 'Clínica Veterinaria Baalak (Prado)'
+};
+
+export type SucursalType = keyof typeof SUCURSALES;
+
+// Áreas específicas por sucursal
+export const AREAS_POR_SUCURSAL: Record<SucursalType, string[]> = {
+  ANIMALIA: [
+    'RECEPCIÓN',
+    'CONSULTORIO',
+    'LABORATORIO',
+    'QUIRÓFANO',
+    'HOSPITAL',
+    'PENSIÓN',
+    'ALMACÉN GENERAL',
+    'ÁREAS COMUNES',
+    'ESTÉTICA',
+    'OFICINAS',
+    'TRANSPORTE'
+  ],
+  BAALAK_CENTRAL: [
+    'ESTACIONAMIENTO',
+    'TIENDA',
+    'RECEPCIÓN',
+    'CONSULTORIO 1',
+    'CONSULTORIO 2',
+    'LABORATORIO',
+    'RAYOS X',
+    'QUIRÓFANO',
+    'HOSPITAL',
+    'PENSIÓN',
+    'ALMACÉN ALIMENTOS',
+    'ALMACÉN GENERAL',
+    'ÁREAS COMUNES',
+    'ESTÉTICA',
+    'TRANSPORTE'
+  ],
+  BAALAK_PRADO: [
+    'ESTACIONAMIENTO',
+    'TIENDA',
+    'RECEPCIÓN',
+    'CONSULTORIO 1',
+    'CONSULTORIO 2',
+    'LABORATORIO',
+    'RAYOS X',
+    'QUIRÓFANO',
+    'HOSPITAL',
+    'ÁREAS COMUNES'
+  ]
+};
+
+// Orden de áreas (común para todas las sucursales)
 export const AREA_ORDER: Record<string, number> = {
   'ESTACIONAMIENTO': 1,
   'TIENDA': 2,
@@ -18,8 +74,8 @@ export const AREA_ORDER: Record<string, number> = {
   'TRANSPORTE': 15
 };
 
-// Template completo con todos los aspectos del proyecto original
-export const CHECKLIST_TEMPLATE: Omit<ChecklistItem, 'id' | 'cumplimiento' | 'observaciones'>[] = [
+// Template completo con todos los aspectos posibles
+const CHECKLIST_TEMPLATE_COMPLETO = [
   // Estacionamiento
   { area: 'ESTACIONAMIENTO', aspecto: 'Limpieza general' },
   { area: 'ESTACIONAMIENTO', aspecto: 'Iluminación funcional' },
@@ -223,6 +279,21 @@ export const CHECKLIST_TEMPLATE: Omit<ChecklistItem, 'id' | 'cumplimiento' | 'ob
   { area: 'TRANSPORTE', aspecto: 'Niveles adecuados (aceite, agua, combustible, etc.)' }
 ];
 
+// Función para obtener el template específico de una sucursal
+export const getChecklistTemplateForSucursal = (sucursalKey: SucursalType) => {
+  const areasSucursal = AREAS_POR_SUCURSAL[sucursalKey];
+  
+  return CHECKLIST_TEMPLATE_COMPLETO
+  .filter(item => areasSucursal.includes(item.area))
+  .map((item, index) => ({
+    id: `item-${index}`,
+    area: item.area,
+    aspecto: item.aspecto,
+    cumplimiento: '' as const,
+    observaciones: ''
+  }));
+};
+
 export const getCurrentTime = (): string => {
   const now = new Date();
   const hours = now.getHours().toString().padStart(2, '0');
@@ -238,22 +309,18 @@ export const getCurrentDate = (): string => {
   return `${day}/${month}/${year}`;
 };
 
-export const initializeChecklistData = (): ChecklistData => {
+export const initializeChecklistData = (sucursalKey: SucursalType = 'BAALAK_CENTRAL'): ChecklistData => {
   return {
     fecha: getCurrentDate(),
     horaInicio: getCurrentTime(),
     horaFin: '',
     responsable: '',
-    items: CHECKLIST_TEMPLATE.map((item, index) => ({
-      id: `item-${index}`,
-      area: item.area,
-      aspecto: item.aspecto,
-      cumplimiento: '',
-      observaciones: ''
-    })),
+    items: getChecklistTemplateForSucursal(sucursalKey),
     comentariosAdicionales: '',
     photos: [],
-    completed: false
+    completed: false,
+    sucursal: SUCURSALES[sucursalKey],
+    sucursalKey: sucursalKey
   };
 };
 
@@ -282,8 +349,8 @@ export const getAreaIcon = (area: string): string => {
 // Función para calcular estadísticas
 export const calculateAreaStats = (items: ChecklistItem[], area?: string) => {
   const filteredItems = area 
-    ? items.filter(item => item.area === area)
-    : items;
+  ? items.filter(item => item.area === area)
+  : items;
   
   const total = filteredItems.length;
   const bueno = filteredItems.filter(item => item.cumplimiento === 'bueno').length;
@@ -296,23 +363,14 @@ export const calculateAreaStats = (items: ChecklistItem[], area?: string) => {
   return { total, bueno, regular, malo, sinEvaluar, totalEvaluado, porcentajeBueno };
 };
 
-// Función para agrupar items por área
-export const groupItemsByArea = (items: ChecklistItem[]): Record<string, ChecklistItem[]> => {
-  const grouped: Record<string, ChecklistItem[]> = {};
-  
-  items.forEach(item => {
-    if (!grouped[item.area]) {
-      grouped[item.area] = [];
-    }
-    grouped[item.area].push(item);
+// Función para obtener áreas únicas de una sucursal
+export const getUniqueAreasForSucursal = (sucursalKey: SucursalType): string[] => {
+  const areas = AREAS_POR_SUCURSAL[sucursalKey];
+  return areas.sort((a, b) => {
+    const orderA = AREA_ORDER[a] || 999;
+    const orderB = AREA_ORDER[b] || 999;
+    return orderA - orderB;
   });
-  
-  return grouped;
-};
-
-// Función para obtener áreas únicas ordenadas según AREA_ORDER
-export const getUniqueAreas = (): string[] => {
-  return Object.keys(AREA_ORDER).sort((a, b) => AREA_ORDER[a] - AREA_ORDER[b]);
 };
 
 // Función para verificar si un área está completa
@@ -325,4 +383,27 @@ export const isAreaComplete = (items: ChecklistItem[], area: string): boolean =>
     item.cumplimiento === 'regular' || 
     item.cumplimiento === 'malo'
   );
+};
+
+// Función para verificar si todas las áreas están completas
+export const areAllAreasComplete = (items: ChecklistItem[], sucursalKey: SucursalType): boolean => {
+  const areas = getUniqueAreasForSucursal(sucursalKey);
+  
+  return areas.every(area => isAreaComplete(items, area));
+};
+
+// Función para obtener áreas incompletas
+export const getIncompleteAreas = (items: ChecklistItem[], sucursalKey: SucursalType): string[] => {
+  const areas = getUniqueAreasForSucursal(sucursalKey);
+  
+  return areas.filter(area => !isAreaComplete(items, area));
+};
+
+// Función para obtener el porcentaje de completado
+export const getCompletionPercentage = (items: ChecklistItem[], sucursalKey: SucursalType): number => {
+  const areas = getUniqueAreasForSucursal(sucursalKey);
+  if (areas.length === 0) return 0;
+  
+  const completedAreas = areas.filter(area => isAreaComplete(items, area)).length;
+  return (completedAreas / areas.length) * 100;
 };
