@@ -531,13 +531,6 @@ export default function TemplateManagementScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Gestión de Plantillas</Text>
-        <TouchableOpacity
           style={styles.exportButton}
           onPress={handleExportTemplates}
         >

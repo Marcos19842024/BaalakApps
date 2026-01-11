@@ -4,6 +4,7 @@ export const stylesChecklist = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f2f5',
+    marginTop: -28,
   },
   // Sección fija superior
   fixedSection: {
@@ -19,15 +20,17 @@ export const stylesChecklist = StyleSheet.create({
   areasScrollView: {
     flex: 1,
     backgroundColor: '#f0f2f5',
+    marginTop: 5,
   },
   scrollView: {
     flex: 1,
   },
   header: {
-    backgroundColor: '#ff006f',
-    padding: 5,
     alignItems: 'center',
-    paddingBottom: 5,
+    paddingBottom: 1,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 22,
@@ -120,7 +123,8 @@ export const stylesChecklist = StyleSheet.create({
   clinicSelectorButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#faf6f6',
+    backgroundColor: 'white',
+    borderColor: '#ff006f',
     paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 10,
@@ -805,8 +809,10 @@ export const stylesChecklist = StyleSheet.create({
     height: 50,
   },
   settingsButton: {
-    padding: 8,
-    marginLeft: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginTop: 5,
+    marginRight: 10,
   },
   noAreasContainer: {
     flex: 1,

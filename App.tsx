@@ -9,6 +9,15 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator 
         initialRouteName="Checklist"
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#ff006f',
+          },
+          headerTintColor: 'white',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
       >
         <Stack.Screen 
           name="Checklist" 

@@ -480,7 +480,12 @@ export default function ChecklistScreen() {
       <View style={stylesChecklist.fixedSection}>
         {/* Header */}
         <View style={stylesChecklist.header}>
-          <Text style={stylesChecklist.title}>📋 CHECKLIST DE SUPERVISIÓN</Text>
+          <TouchableOpacity 
+            style={stylesChecklist.settingsButton}
+            onPress={navigateToTemplateManagement}
+          >
+            <Icon name="settings" size={24} color="#ff006f" />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={stylesChecklist.clinicSelectorButton}
             onPress={() => setShowClinicSelector(true)}
@@ -491,14 +496,6 @@ export default function ChecklistScreen() {
             </View>
             <Icon name="arrow-drop-down" size={24} color="#ff006f" />
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={stylesChecklist.settingsButton}
-            onPress={navigateToTemplateManagement}
-          >
-            <Icon name="settings" size={24} color="#6B7280" />
-          </TouchableOpacity>
-
         </View>
 
         {/* Información general */}
