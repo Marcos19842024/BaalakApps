@@ -1,3 +1,19 @@
+// Definir las sucursales disponibles
+export const SUCURSALES = {
+  ANIMALIA: 'Clínica Veterinaria Animalia',
+  BAALAK_CENTRAL: 'Clínica Veterinaria Baalak (Central)',
+  BAALAK_PRADO: 'Clínica Veterinaria Baalak (Prado)'
+};
+
+// Array de opciones para el selector
+export const CLINIC_OPTIONS = [
+  { id: 'BAALAK_CENTRAL', name: 'Clínica Veterinaria Baalak (Central)' },
+  { id: 'ANIMALIA', name: 'Clínica Veterinaria Animalia' },
+  { id: 'BAALAK_PRADO', name: 'Clínica Veterinaria Baalak (Prado)' }
+];
+
+export type SucursalType = keyof typeof SUCURSALES;
+
 export interface ChecklistItem {
   id: string;
   area: string;
@@ -26,4 +42,21 @@ export interface ChecklistData {
   completed: boolean; // Agregar este campo
   sucursal?: string;
   sucursalKey?: string;
+}
+
+export interface ChecklistAspect {
+  id: string;
+  aspecto: string;
+  editable?: boolean;
+}
+
+export interface ChecklistArea {
+  area: string;
+  aspectos: ChecklistAspect[];
+  editable?: boolean;
+}
+
+export interface SucursalTemplate {
+  sucursal: SucursalType;
+  areas: ChecklistArea[];
 }

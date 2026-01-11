@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
+export const stylesChecklist = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f2f5',
@@ -803,5 +803,39 @@ export const styles = StyleSheet.create({
   // Espacio extra al final del scroll
   bottomSpacer: {
     height: 50,
+  },
+  settingsButton: {
+    padding: 8,
+    marginLeft: 10,
+  },
+  noAreasContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  noAreasTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noAreasText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  refreshButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
