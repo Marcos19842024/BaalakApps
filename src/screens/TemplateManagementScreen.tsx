@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { styles } from '../styles/templateManagementStyles';
 import { ChecklistArea, ChecklistAspect, SUCURSALES, SucursalType } from 'src/types/checklist';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
@@ -25,35 +25,44 @@ import {
   removeAspectoFromArea,
   editAspecto,
   resetSucursalTemplate,
-  updateAreaOrder,
   updateAreaIcon,
   getAreaOrderAsync,
   getAreaIconsAsync,
   initializeCache
 } from '../utils/checklistData';
 
+type RouteParams = {
+  sucursalKey: SucursalType;
+};
+
 export default function TemplateManagementScreen() {
-  const navigation = useNavigation<any>();
-  const [selectedSucursal, setSelectedSucursal] = useState<SucursalType>('BAALAK_CENTRAL');
+  const route = useRoute();
+  const params = route.params as RouteParams;
+
   const [template, setTemplate] = useState<ChecklistArea[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddAreaModal, setShowAddAreaModal] = useState(false);
   const [showAddAspectoModal, setShowAddAspectoModal] = useState(false);
-  const [showEditAreaModal, setShowEditAreaModal] = useState(false);
   const [showEditAspectoModal, setShowEditAspectoModal] = useState(false);
+  const [showEditAreaModal, setShowEditAreaModal] = useState(false);
   
+  const [selectedArea, setSelectedArea] = useState<string>('');
+  const [selectedIcon, setSelectedIcon] = useState<string>('');
+  const [selectedAspecto, setSelectedAspecto] = useState<ChecklistAspect | null>(null);
+  const [selectedSucursal, setSelectedSucursal] = useState<SucursalType>(
+    params?.sucursalKey || 'BAALAK_CENTRAL'
+  );
+
   const [newAreaName, setNewAreaName] = useState('');
   const [newAspectoText, setNewAspectoText] = useState('');
-  const [selectedArea, setSelectedArea] = useState<string>('');
-  const [selectedAspecto, setSelectedAspecto] = useState<ChecklistAspect | null>(null);
+  const [newAreaIcon, setNewAreaIcon] = useState('');
+
   const [editAspectoText, setEditAspectoText] = useState('');
   const [editAreaName, setEditAreaName] = useState('');
   const [editAreaIcon, setEditAreaIcon] = useState('');
   
   const [areaOrder, setAreaOrder] = useState<Record<string, number>>({});
   const [areaIcons, setAreaIcons] = useState<Record<string, string>>({});
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [showOrderModal, setShowOrderModal] = useState(false);
   
   const availableIcons = [
     '🚗', '🏬', '💁', '🏥', '🔬', '🩻', '😷', '🐩', '🥣', '📥', 
@@ -66,6 +75,11 @@ export default function TemplateManagementScreen() {
     initializeCache().then(() => {
       loadData();
     });
+
+    // Si recibimos una sucursal por parámetro, seleccionarla
+    if (params?.sucursalKey) {
+      setSelectedSucursal(params.sucursalKey);
+    }
   }, []);
 
   // Recargar datos cuando cambia la sucursal
@@ -100,25 +114,27 @@ export default function TemplateManagementScreen() {
   };
 
   const handleAddArea = async () => {
-    if (!newAreaName.trim()) {
+    if (!newAreaName.trim() || !newAreaIcon.trim()) {
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: 'Ingrese un nombre para el área',
+        text2: 'Ingrese un nombre para el área y seleccione un ícono',
       });
       return;
     }
 
     setLoading(true);
-    const success = await addAreaToSucursal(selectedSucursal, newAreaName.trim());
+    const success = await addAreaToSucursal(selectedSucursal, newAreaName.trim(), [], newAreaIcon.trim());
     
     if (success) {
+      await updateAreaIcon(newAreaName.trim(), newAreaIcon);
       Toast.show({
         type: 'success',
         text1: '✅ Área agregada',
-        text2: `"${newAreaName}" agregada a ${SUCURSALES[selectedSucursal]}`,
+        text2: `"${newAreaIcon} ${newAreaName}" agregada a ${SUCURSALES[selectedSucursal]}`,
       });
       setNewAreaName('');
+      setNewAreaIcon('');
       setShowAddAreaModal(false);
       await loadData();
     } else {
@@ -293,52 +309,8 @@ export default function TemplateManagementScreen() {
     );
   };
 
-  const handleUpdateIcon = async (areaName: string, icon: string) => {
-    try {
-      await updateAreaIcon(areaName, icon);
-      const icons = await getAreaIconsAsync();
-      setAreaIcons(icons);
-      
-      Toast.show({
-        type: 'success',
-        text1: '✅ Ícono actualizado',
-        text2: `Ícono de ${areaName} cambiado`,
-      });
-    } catch (error) {
-      console.error('Error actualizando ícono:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo actualizar el ícono',
-      });
-    }
-  };
-
-  const handleUpdateOrder = async (areaName: string, order: string) => {
-    const orderNum = parseInt(order) || 99;
-    
-    try {
-      await updateAreaOrder(areaName, orderNum);
-      const order = await getAreaOrderAsync();
-      setAreaOrder(order);
-      
-      Toast.show({
-        type: 'success',
-        text1: '✅ Orden actualizado',
-        text2: `Orden de ${areaName} cambiado a ${orderNum}`,
-      });
-    } catch (error) {
-      console.error('Error actualizando orden:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo actualizar el orden',
-      });
-    }
-  };
-
   const handleEditArea = () => {
-    if (!editAreaName.trim() || !selectedArea) {
+    if (!selectedArea) {
       return;
     }
 
@@ -357,14 +329,13 @@ export default function TemplateManagementScreen() {
             const success = await addAreaToSucursal(
               selectedSucursal,
               editAreaName.trim(),
-              currentArea.aspectos
+              currentArea.aspectos,
+              editAreaIcon.trim()
             );
 
             if (success) {
-              // Actualizar ícono si se cambió
-              if (editAreaIcon && editAreaIcon !== areaIcons[selectedArea]) {
-                await updateAreaIcon(editAreaName.trim(), editAreaIcon);
-              }
+              
+              await updateAreaIcon(editAreaName.trim(), editAreaIcon.trim());
               
               // Eliminar área antigua
               await removeAreaFromSucursal(selectedSucursal, selectedArea);
@@ -372,12 +343,13 @@ export default function TemplateManagementScreen() {
               Toast.show({
                 type: 'success',
                 text1: '✅ Área editada',
-                text2: `"${selectedArea}" renombrada a "${editAreaName}"`,
+                text2: `"${areaIcons[selectedIcon.trim()] || '📋'} ${selectedArea}" renombrada a "${areaIcons[editAreaIcon.trim()] || '📋'} ${editAreaName}"`,
               });
               
               setEditAreaName('');
               setEditAreaIcon('');
               setSelectedArea('');
+              setSelectedIcon('');
               setShowEditAreaModal(false);
               await loadData();
             }
@@ -387,47 +359,7 @@ export default function TemplateManagementScreen() {
     );
   };
 
-  const handleExportTemplates = async () => {
-    try {
-      const templates = await getSucursalTemplateAsync(selectedSucursal);
-      const order = await getAreaOrderAsync();
-      const icons = await getAreaIconsAsync();
-      
-      const exportData = {
-        sucursal: selectedSucursal,
-        template: templates,
-        areaOrder: order,
-        areaIcons: icons,
-        exportDate: new Date().toISOString(),
-      };
-
-      const jsonString = JSON.stringify(exportData, null, 2);
-      
-      Alert.alert(
-        'Plantilla Exportada',
-        `La plantilla de ${SUCURSALES[selectedSucursal]} ha sido preparada para exportar.\n\nTotal: ${templates.length} áreas, ${templates.reduce((sum, area) => sum + area.aspectos.length, 0)} aspectos`,
-        [
-          { text: 'OK' },
-          {
-            text: 'Ver JSON',
-            onPress: () => {
-              Alert.alert('JSON de Plantilla', jsonString.substring(0, 2000) + '...');
-            }
-          }
-        ]
-      );
-      
-    } catch (error) {
-      console.error('Error exportando plantillas:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudieron exportar las plantillas',
-      });
-    }
-  };
-
-  const renderAreaItem = ({ item: area, index }: { item: ChecklistArea, index: number }) => (
+  const renderAreaItem = ({ item: area }: { item: ChecklistArea, index: number }) => (
     <View style={styles.areaCard}>
       <View style={styles.areaHeader}>
         <View style={styles.areaTitleContainer}>
@@ -450,6 +382,7 @@ export default function TemplateManagementScreen() {
               setSelectedArea(area.area);
               setEditAreaName(area.area);
               setEditAreaIcon(areaIcons[area.area] || '');
+              setSelectedIcon(areaIcons[area.area] || '');
               setShowEditAreaModal(true);
             }}
           >
@@ -529,39 +462,6 @@ export default function TemplateManagementScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.exportButton}
-          onPress={handleExportTemplates}
-        >
-          <Icon name="file-download" size={24} color="#3B82F6" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Selector de sucursal */}
-      <View style={styles.sucursalSelector}>
-        <Text style={styles.sectionTitle}>Sucursal:</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {Object.keys(SUCURSALES).map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.sucursalButton,
-                selectedSucursal === key && styles.sucursalButtonActive
-              ]}
-              onPress={() => setSelectedSucursal(key as SucursalType)}
-            >
-              <Text style={[
-                styles.sucursalButtonText,
-                selectedSucursal === key && styles.sucursalButtonTextActive
-              ]}>
-                {SUCURSALES[key as SucursalType]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
       {/* Información de la sucursal */}
       <View style={styles.infoCard}>
         <View style={styles.infoRow}>
@@ -592,22 +492,6 @@ export default function TemplateManagementScreen() {
         >
           <Icon name="add-circle-outline" size={20} color="white" />
           <Text style={styles.actionButtonText}>Agregar Área</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.orderButton]}
-          onPress={() => setShowOrderModal(true)}
-        >
-          <Icon name="sort" size={20} color="white" />
-          <Text style={styles.actionButtonText}>Ordenar Áreas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.iconButton]}
-          onPress={() => setShowIconPicker(true)}
-        >
-          <Icon name="emoji-emotions" size={20} color="white" />
-          <Text style={styles.actionButtonText}>Iconos</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -662,7 +546,6 @@ export default function TemplateManagementScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Agregar Nueva Área</Text>
-            <Text style={styles.modalSubtitle}>Sucursal: {SUCURSALES[selectedSucursal]}</Text>
             
             <TextInput
               style={styles.modalInput}
@@ -671,12 +554,29 @@ export default function TemplateManagementScreen() {
               onChangeText={setNewAreaName}
               autoCapitalize="characters"
             />
+
+            <Text style={styles.modalSubtitle}>Seleccionar ícono:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {availableIcons.slice(0, 15).map((icon) => (
+                <TouchableOpacity
+                  key={icon}
+                  style={[
+                    styles.iconOption,
+                    newAreaIcon === icon && styles.iconOptionSelected
+                  ]}
+                  onPress={() => setNewAreaIcon(icon)}
+                >
+                  <Text style={styles.iconOptionText}>{icon}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setNewAreaName('');
+                  setNewAreaIcon('');
                   setShowAddAreaModal(false);
                 }}
               >
@@ -840,13 +740,13 @@ export default function TemplateManagementScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setEditAreaName('');
-                  setEditAreaIcon('');
+                  setEditAreaIcon('')
                   setSelectedArea('');
                   setShowEditAreaModal(false);
                 }}
@@ -857,111 +757,10 @@ export default function TemplateManagementScreen() {
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={handleEditArea}
-                disabled={!editAreaName.trim() || editAreaName === selectedArea}
               >
                 <Text style={styles.saveButtonText}>Guardar Cambios</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal: Seleccionar Ícono */}
-      <Modal
-        visible={showIconPicker}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, styles.largeModal]}>
-            <Text style={styles.modalTitle}>Seleccionar Ícono para Área</Text>
-            <Text style={styles.modalSubtitle}>Selecciona un área para cambiar su ícono:</Text>
-            
-            <ScrollView style={styles.iconSelectionList}>
-              {template.map(area => (
-                <TouchableOpacity
-                  key={area.area}
-                  style={styles.iconSelectionItem}
-                  onPress={() => {
-                    Alert.alert(
-                      'Cambiar Ícono',
-                      `Selecciona un nuevo ícono para ${area.area}`,
-                      [
-                        { text: 'Cancelar', style: 'cancel' },
-                        ...availableIcons.slice(0, 10).map(icon => ({
-                          text: icon,
-                          onPress: () => handleUpdateIcon(area.area, icon)
-                        }))
-                      ]
-                    );
-                    setShowIconPicker(false);
-                  }}
-                >
-                  <View style={styles.iconSelectionContent}>
-                    <Text style={styles.iconSelectionIcon}>
-                      {areaIcons[area.area] || '📋'}
-                    </Text>
-                    <View style={styles.iconSelectionText}>
-                      <Text style={styles.iconSelectionArea}>{area.area}</Text>
-                      <Text style={styles.iconSelectionHint}>
-                        Tocar para cambiar ícono
-                      </Text>
-                    </View>
-                    <Icon name="chevron-right" size={20} color="#6B7280" />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={() => setShowIconPicker(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal: Ordenar Áreas */}
-      <Modal
-        visible={showOrderModal}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, styles.largeModal]}>
-            <Text style={styles.modalTitle}>Orden de Áreas</Text>
-            <Text style={styles.modalSubtitle}>
-              Número más bajo = aparece primero (1, 2, 3...)
-            </Text>
-            
-            <ScrollView style={styles.orderList}>
-              {template.map((area) => {
-                const currentOrder = areaOrder[area.area] || 99;
-                return (
-                  <View key={area.area} style={styles.orderItem}>
-                    <Text style={styles.orderAreaName}>
-                      {areaIcons[area.area] || '📋'} {area.area}
-                    </Text>
-                    <TextInput
-                      style={styles.orderInput}
-                      value={currentOrder.toString()}
-                      onChangeText={(text) => handleUpdateOrder(area.area, text)}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                    />
-                  </View>
-                );
-              })}
-            </ScrollView>
-            
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={() => setShowOrderModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cerrar</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

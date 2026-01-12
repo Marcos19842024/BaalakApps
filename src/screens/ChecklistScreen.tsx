@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -9,10 +9,9 @@ import Toast from 'react-native-toast-message';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ChecklistData, ChecklistItem, ChecklistPhoto, CLINIC_OPTIONS, SUCURSALES, SucursalType } from '../types/checklist';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
 import { stylesChecklist } from 'src/styles/Checklist';
-import { useChecklistNavigation } from 'src/hooks/useAppNavigation';
+import { ChecklistScreenNavigationProp } from 'src/types/navigation';
 import {
   View,
   Text,
@@ -22,7 +21,6 @@ import {
   Image,
   Alert,
   Modal,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import {
@@ -32,15 +30,14 @@ import {
   getUniqueAreasForSucursal,
   areAllAreasComplete,
   getIncompleteAreas,
-  getCompletionPercentage,
   getAreaIcon,
 } from '../utils/checklistData';
 
 export default function ChecklistScreen() {
+  const navigation = useNavigation<ChecklistScreenNavigationProp>();
   const [sucursalKey, setSucursalKey] = useState<SucursalType>('BAALAK_CENTRAL');
   const [sucursalName, setSucursalName] = useState<string>(SUCURSALES.BAALAK_CENTRAL);
   const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData('BAALAK_CENTRAL'));
-  const [isLoading, setIsLoading] = useState(false);
   const [currentArea, setCurrentArea] = useState('ESTACIONAMIENTO');
   const [cameraVisible, setCameraVisible] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -50,8 +47,6 @@ export default function ChecklistScreen() {
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
   const areasScrollViewRef = useRef<ScrollView>(null);
-  const navigation = useNavigation();
-  const { navigateToTemplateManagement } = useChecklistNavigation();
 
   // Solicitar permisos
   useEffect(() => {
@@ -66,6 +61,50 @@ export default function ChecklistScreen() {
     })();
   }, []);
 
+  // Función para recargar el checklist
+  const reloadChecklist = useCallback(() => {
+    console.log('Recargando checklist para sucursal:', sucursalKey);
+    
+    // Recargar plantilla desde AsyncStorage (si hay personalizaciones)
+    const loadTemplate = async () => {
+      try {
+        // Aquí podrías cargar las plantillas personalizadas si las necesitas
+        // Por ahora, simplemente recreamos el checklist
+        const newChecklist = initializeChecklistData(sucursalKey);
+        setFormData(newChecklist);
+        
+        // También recargar áreas únicas
+        const areas = getUniqueAreasForSucursal(sucursalKey);
+        if (areas.length > 0) {
+          setCurrentArea(areas[0]);
+        }
+        
+        Toast.show({
+          type: 'info',
+          text1: 'Checklist actualizado',
+          text2: 'Se recargaron las configuraciones',
+        });
+      } catch (error) {
+        console.error('Error recargando checklist:', error);
+      }
+    };
+    
+    loadTemplate();
+  }, [sucursalKey]);
+
+  // Efecto para recargar cuando la pantalla recibe foco
+  useFocusEffect(
+    useCallback(() => {
+      console.log('ChecklistScreen recibió foco, recargando...');
+      reloadChecklist();
+      
+      // Limpiar si es necesario cuando pierde el foco
+      return () => {
+        console.log('ChecklistScreen perdió foco');
+      };
+    }, [reloadChecklist])
+  );
+  
   // Función para hacer scroll automático a un área
   const scrollToArea = (areaIndex: number) => {
     if (areasScrollViewRef.current && areaIndex >= 0 && areaIndex < areas.length) {
@@ -226,24 +265,6 @@ export default function ChecklistScreen() {
     return totalEvaluated > 0 ? (buenoItems / totalEvaluated) * 100 : 0;
   };
 
-  // Guardar JSON localmente
-  const saveJsonLocally = async (data: ChecklistData): Promise<string> => {
-    try {
-      const key = `checklist_${sucursalKey}_${data.responsable.replace(/\s+/g, '_')}_${Date.now()}`;
-      
-      // Guardar en AsyncStorage
-      await AsyncStorage.setItem(key, JSON.stringify({
-        ...data,
-        sucursalKey: sucursalKey
-      }));
-
-      return key;
-    } catch (error) {
-      console.error('Error guardando JSON:', error);
-      throw error;
-    }
-  };
-
   // Función para validar antes de guardar
   const validateBeforeSave = (): boolean => {
     if (!formData.responsable.trim()) {
@@ -252,6 +273,7 @@ export default function ChecklistScreen() {
         text1: 'Error',
         text2: 'Complete el campo responsable',
       });
+      Alert.alert('Error', 'Por favor, ingrese el nombre del responsable antes de guardar.');
       return false;
     }
 
@@ -277,8 +299,6 @@ export default function ChecklistScreen() {
   // Función interna para guardar (sin validación)
   const handleSaveInternal = async () => {
     try {
-      setIsLoading(true);
-
       // Actualizar datos
       const updatedData = {
         ...formData,
@@ -287,9 +307,6 @@ export default function ChecklistScreen() {
         sucursalKey: sucursalKey,
         completed: areAllAreasComplete(formData.items, sucursalKey) // Agregar estado de completado
       };
-
-      // Guardar JSON
-      const jsonUri = await saveJsonLocally(updatedData);
       
       // Generar PDF
       const pdfUri = await generateChecklistPDF(updatedData, sucursalName);
@@ -323,8 +340,6 @@ export default function ChecklistScreen() {
         text1: 'Error',
         text2: 'No se pudo guardar el checklist',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -354,9 +369,6 @@ export default function ChecklistScreen() {
       text2: `Ir a ${area}`,
     });
   };
-
-  // Calcular porcentaje de completado
-  const completionPercentage = getCompletionPercentage(formData.items, sucursalKey);
 
   // Compartir por WhatsApp
   const shareViaWhatsApp = async (pdfUri: string, data: ChecklistData) => {
@@ -480,12 +492,28 @@ export default function ChecklistScreen() {
       <View style={stylesChecklist.fixedSection}>
         {/* Header */}
         <View style={stylesChecklist.header}>
+          {/* Botones de acción */}
           <TouchableOpacity 
             style={stylesChecklist.settingsButton}
-            onPress={navigateToTemplateManagement}
+            onPress={() => navigation.navigate('TemplateManagement', { sucursalKey: sucursalKey })}
           >
             <Icon name="settings" size={24} color="#ff006f" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={stylesChecklist.settingsButton}
+            onPress={handleSave}
+          >
+            <Icon name="save" size={24} color="#ff006f" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={stylesChecklist.settingsButton}
+            onPress={handleNewChecklist}
+          >
+            <Icon name="add-circle-outline" size={24} color="#ff006f" />
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={stylesChecklist.clinicSelectorButton}
             onPress={() => setShowClinicSelector(true)}
@@ -562,7 +590,7 @@ export default function ChecklistScreen() {
           <View style={stylesChecklist.areaHeader}>
             <View>
               <Text style={stylesChecklist.evaluationSubtitle}>
-                {areas.length} áreas disponibles
+                {areas.length} áreas | {formData.items.length} items
               </Text>
               <Text style={stylesChecklist.areasCountInfo}>
                 {currentArea} ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
@@ -736,41 +764,6 @@ export default function ChecklistScreen() {
             numberOfLines={4}
           />
         </View>
-
-        {/* Botones de acción */}
-        <View style={stylesChecklist.actionsContainer}>
-          <TouchableOpacity
-            style={[stylesChecklist.actionButton, stylesChecklist.saveButton]}
-            onPress={handleSave}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <Icon name="save" size={24} color="white" />
-                <Text style={stylesChecklist.actionButtonText}>Guardar Checklist</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[stylesChecklist.actionButton, stylesChecklist.newButton]}
-            onPress={handleNewChecklist}
-          >
-            <Icon name="add-circle-outline" size={24} color="white" />
-            <Text style={stylesChecklist.actionButtonText}>Nuevo</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={stylesChecklist.footer}>
-          <Text style={stylesChecklist.footerText}>
-            {sucursalName} | {areas.length} áreas | {formData.items.length} items | 
-            Fotos: {formData.photos?.length || 0}
-          </Text>
-        </View>
-
-        {/* Espacio extra al final para mejor scroll */}
-        <View style={stylesChecklist.bottomSpacer} />
       </ScrollView>
 
       {/* Modal para seleccionar clínica */}

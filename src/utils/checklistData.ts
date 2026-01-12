@@ -547,7 +547,8 @@ export const updateAreaIcon = async (area: string, icon: string): Promise<void> 
 export const addAreaToSucursal = async (
   sucursalKey: SucursalType,
   areaName: string,
-  aspectos: ChecklistAspect[] = []
+  aspectos: ChecklistAspect[] = [],
+  areaIcon: string
 ): Promise<boolean> => {
   try {
     const customTemplates = await loadCustomTemplates();
@@ -565,6 +566,7 @@ export const addAreaToSucursal = async (
         aspecto: aspecto.aspecto,
         editable: true
       })),
+      icon: areaIcon,
       editable: true
     };
     
@@ -745,8 +747,6 @@ export const initializeCache = async (): Promise<void> => {
     console.error('Error inicializando cache:', error);
   }
 };
-
-// ========== FUNCIONES EXISTENTES (se mantienen igual) ==========
 
 // Función para obtener el checklist items para una sucursal
 export const getChecklistTemplateForSucursal = (sucursalKey: SucursalType): ChecklistItem[] => {

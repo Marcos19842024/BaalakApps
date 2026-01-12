@@ -1,11 +1,11 @@
 export type RootStackParamList = {
   Checklist: undefined;
-  TemplateManagement: undefined;
+  TemplateManagement: { sucursalKey: string };
 };
 
 // Tipos básicos para navigation
 export type NavigationProp = {
-  navigate: (screen: keyof RootStackParamList) => void;
+  navigate: (screen: keyof RootStackParamList, params?: any) => void;
   goBack: () => void;
 };
 

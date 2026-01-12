@@ -39,7 +39,7 @@ export interface ChecklistData {
   items: ChecklistItem[];
   comentariosAdicionales: string;
   photos?: ChecklistPhoto[];
-  completed: boolean; // Agregar este campo
+  completed: boolean;
   sucursal?: string;
   sucursalKey?: string;
 }
@@ -53,6 +53,7 @@ export interface ChecklistAspect {
 export interface ChecklistArea {
   area: string;
   aspectos: ChecklistAspect[];
+  icon?: string;
   editable?: boolean;
 }
 

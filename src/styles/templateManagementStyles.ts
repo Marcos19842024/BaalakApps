@@ -280,15 +280,14 @@ export const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#8f5c03',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#ff006f',
   },
   cancelButtonText: {
-    color: '#374151',
+    color: 'white',
     fontWeight: '600',
   },
   saveButtonText: {
@@ -299,16 +298,16 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#009cd4c0',
     marginRight: 8,
     marginBottom: 12,
   },
   areaOptionSelected: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#0076a1',
   },
   areaOptionText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: 'white',
     fontWeight: '500',
   },
   iconOption: {

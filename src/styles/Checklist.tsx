@@ -160,6 +160,8 @@ export const stylesChecklist = StyleSheet.create({
   },
   infoItem: {
     marginBottom: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   infoLabel: {
     fontSize: 14,
@@ -184,9 +186,11 @@ export const stylesChecklist = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
-    padding: 12,
+    padding: 5,
     fontSize: 16,
     color: '#111827',
+    marginLeft: 10,
+    flex: 1,
   },
   sucursalDisplay: {
     flexDirection: 'row',
@@ -809,10 +813,9 @@ export const stylesChecklist = StyleSheet.create({
     height: 50,
   },
   settingsButton: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 5,
     paddingVertical: 8,
     marginTop: 5,
-    marginRight: 10,
   },
   noAreasContainer: {
     flex: 1,
