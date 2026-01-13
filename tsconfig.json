@@ -27,5 +27,4 @@
     "src/**/*",
     "App.tsx"
 , "declarations.d.ts"  ],
-  "extends": "expo/tsconfig.base"
 }
