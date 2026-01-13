@@ -7,12 +7,22 @@ const DEFAULT_TEMPLATES: Record<SucursalType, ChecklistArea[]> = {
     {
       area: 'RECEPCIÓN',
       aspectos: [
-        { id: 'rec-1', aspecto: 'Limpieza general' },
-        { id: 'rec-2', aspecto: 'Mueble de recepción limpio y ordenado' },
+        { id: 'rec-1', aspecto: 'Frente limpio' },
+        { id: 'rec-2', aspecto: 'Ingreso de personal' },
         { id: 'rec-3', aspecto: 'Compañeros con buen porte' },
-        { id: 'rec-4', aspecto: 'Sala de espera limpia y olorosa' },
-        { id: 'rec-5', aspecto: 'Báscula limpia y desinfectada' },
-        { id: 'rec-6', aspecto: 'Computadoras, terminales e impresoras habilitadas' },
+        { id: 'rec-4', aspecto: 'Articulos personales en área asignada' },
+        { id: 'rec-5', aspecto: 'Puertas de entrada limpias' },
+        { id: 'rec-6', aspecto: 'Anaqueles ordenados' },
+        { id: 'rec-7', aspecto: 'Mueble de recepción limpios y ordenados' },
+        { id: 'rec-8', aspecto: 'Sala de espera limpia y olorosa' },
+        { id: 'rec-9', aspecto: 'Televisión y cuadros sin polvo' },
+        { id: 'rec-10', aspecto: 'Ventana de sala de espera limpia' },
+        { id: 'rec-11', aspecto: 'Báscula limpia y desinfectada' },
+        { id: 'rec-12', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'rec-13', aspecto: 'Cambio en caja' },
+        { id: 'rec-14', aspecto: 'Sin problemas de red' },
+        { id: 'rec-15', aspecto: 'Computadoras, terminales e impresoras habilitadas' },
+        { id: 'rec-16', aspecto: 'Celular con carga al 100%' },
       ]
     },
     {
@@ -20,10 +30,90 @@ const DEFAULT_TEMPLATES: Record<SucursalType, ChecklistArea[]> = {
       aspectos: [
         { id: 'con-1', aspecto: 'Consultorio limpio y oloroso' },
         { id: 'con-2', aspecto: 'Mesa limpia y desinfectada' },
-        { id: 'con-3', aspecto: 'Abastecido de material (jeringas, alcohol, torundas)' },
+        { id: 'con-3', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'con-4', aspecto: 'Escritorio libre' },
+        { id: 'con-5', aspecto: 'Libros acomodados' },
+        { id: 'con-6', aspecto: 'Tarja limpia' },
+        { id: 'con-7', aspecto: 'Abastecido de material (jeringas, alcohol, torundas)' },
+        { id: 'con-8', aspecto: 'Computadoras e impresora habilitadas' },
+        { id: 'con-9', aspecto: 'Sin problemas de red' },
       ]
     },
-    // ... otros áreas para ANIMALIA
+    {
+      area: 'HOSPITAL',
+      aspectos: [
+        { id: 'hosp-1', aspecto: 'Área de exploración ordenada y limpia' },
+        { id: 'hosp-2', aspecto: 'Mesa y estanterias ordenadas' },
+        { id: 'hosp-3', aspecto: 'Área de hospitalizados limpia y ordenada' },
+        { id: 'hosp-4', aspecto: 'Baño limpio y ordenado' },
+        { id: 'hosp-5', aspecto: 'Jaulas limpias y desinfectadas' },
+        { id: 'hosp-6', aspecto: 'Tarja limpia y organizada' },
+        { id: 'hosp-7', aspecto: 'Área de RX limpio y organizado' },
+        { id: 'hosp-8', aspecto: 'Área de laboratorio limpio y organizado' },
+        { id: 'hosp-9', aspecto: 'Quirófano limpio y organizado' },
+      ]
+    },
+    {
+      area: 'ESTÉTICA',
+      aspectos: [
+        { id: 'est-1', aspecto: 'Jaulas limpias y desinfectadas' },
+        { id: 'est-2', aspecto: 'Barra limpia' },
+        { id: 'est-3', aspecto: 'Mesa de corte ordenada' },
+        { id: 'est-4', aspecto: 'Carrito de material limpio y ordenado' },
+        { id: 'est-5', aspecto: 'Radio limpio y funcional' },
+        { id: 'est-6', aspecto: 'Tinas limpias y funcionales' },
+        { id: 'est-7', aspecto: 'Bombas, equipos y máquinas limpias y funcionales' },
+        { id: 'est-8', aspecto: 'Material de uso con stock' },
+      ]
+    },
+    {
+      area: 'PENSIÓN',
+      aspectos: [
+        { id: 'pen-1', aspecto: 'Jaulas limpias, desinfectadas y funcionales' },
+        { id: 'pen-2', aspecto: 'Patios de recreo limpios' },
+        { id: 'pen-3', aspecto: 'Accesorios de mascotas ordenados' },
+        { id: 'pen-4', aspecto: 'Platos de casa limpios' },
+        { id: 'pen-5', aspecto: 'Puerta limpia y funcional' },
+      ]
+    },
+    {
+      area: 'TRANSPORTE',
+      aspectos: [
+        { id: 'transp-1', aspecto: 'Limpia y olorosa' },
+        { id: 'transp-2', aspecto: 'Tapete limpio libre de orines' },
+        { id: 'transp-3', aspecto: 'Jaulas limpias y desinfectadas' },
+        { id: 'transp-4', aspecto: 'Limpieza de carroceria' },
+        { id: 'transp-5', aspecto: 'Llantas funcionales' },
+        { id: 'transp-6', aspecto: 'Puertas funcionales' },
+        { id: 'transp-7', aspecto: 'Luces funcionales' },
+        { id: 'transp-8', aspecto: 'Clima y ventanas funcionales' },
+        { id: 'transp-10', aspecto: 'Espejos limpios y funcionales' },
+        { id: 'transp-11', aspecto: 'Cabina limpia y ordenada' },
+        { id: 'transp-12', aspecto: 'Material a usar listo (perfume, lapiceros, tarjetas de presentacion)' },
+        { id: 'transp-13', aspecto: 'Documentación en regla y vigente' },
+        { id: 'transp-14', aspecto: 'Extintor cargado y en buen estado' },
+        { id: 'transp-15', aspecto: 'Niveles adecuados (aceite, agua, combustible, etc.)' },
+        { id: 'transp-16', aspecto: 'Cochera limpia y ordenada' },
+      ]
+    },
+    { area: 'OFICINA',
+      aspectos: [
+        { id: 'ofi-1', aspecto: 'Escritorios libres y organizados' },
+        { id: 'ofi-2', aspecto: 'Ventiladores limpios y funcionales' },
+        { id: 'ofi-3', aspecto: 'Baño limpio y ordenado' },
+        { id: 'ofi-4', aspecto: 'Refrigeradores limpios' },
+        { id: 'ofi-5', aspecto: 'Comedor recogido y limpio' },
+      ]
+    },
+    { area: 'BODEGA',
+      aspectos: [
+        { id: 'bod-1', aspecto: 'Escritorio libre y organizado' },
+        { id: 'bod-2', aspecto: 'Estanterias organizadas' },
+        { id: 'bod-3', aspecto: 'Stock de recursos' },
+        { id: 'bod-4', aspecto: 'Medicamentos y material ordenados' },
+        { id: 'bod-5', aspecto: 'Cámaras de seguridad funcionales' },
+      ]
+    }
   ],
   BAALAK_CENTRAL: [
     {
@@ -180,8 +270,8 @@ const DEFAULT_TEMPLATES: Record<SucursalType, ChecklistArea[]> = {
         { id: 'hosp-8', aspecto: 'Ventiladores funcionales' },
         { id: 'hosp-9', aspecto: 'Mesa de microbiología limpia y ordenada' },
         { id: 'hosp-10', aspecto: 'Material de uso con stock' },
-        { id: 'hosp-11', aspecto: 'impresora funcional' },
-        { id: 'hosp-12', aspecto: 'refrigerador limpio y funcional' },
+        { id: 'hosp-11', aspecto: 'Impresora funcional' },
+        { id: 'hosp-12', aspecto: 'Refrigerador limpio y funcional' },
         { id: 'hosp-13', aspecto: 'Cámaras funcionales' },
       ]
     },
@@ -290,13 +380,151 @@ const DEFAULT_TEMPLATES: Record<SucursalType, ChecklistArea[]> = {
   ],
   BAALAK_PRADO: [
     {
-      area: 'RECEPCIÓN',
+      area: 'ESTACIONAMIENTO',
       aspectos: [
-        { id: 'rec-1', aspecto: 'Limpieza general' },
-        { id: 'rec-2', aspecto: 'Mueble de recepción limpio y ordenado' },
+        { id: 'est-1', aspecto: 'Limpieza general' },
+        { id: 'est-2', aspecto: 'Iluminación funcional' },
+        { id: 'est-3', aspecto: 'Cajones de estacionamiento libres' },
+        { id: 'est-4', aspecto: 'Puertas de acceso funcionales' },
+        { id: 'est-5', aspecto: 'Anuncios visibles y en buen estado' },
       ]
     },
-    // ... otros áreas para BAALAK_PRADO
+    {
+      area: 'RECEPCIÓN',
+      aspectos: [
+        { id: 'rec-1', aspecto: 'Puerta de acceso a las demás áreas limpia' },
+        { id: 'rec-2', aspecto: 'Mueble de recepción limpio y ordenado' },
+        { id: 'rec-3', aspecto: 'Compañeros con buen porte' },
+        { id: 'rec-4', aspecto: 'Sala de espera limpia y ordenada' },
+        { id: 'rec-5', aspecto: 'Báscula limpia y desinfectada' },
+        { id: 'rec-6', aspecto: 'Bolsas y articulos personales guardados debidamente' },
+        { id: 'rec-7', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'rec-8', aspecto: 'Cambio en caja' },
+        { id: 'rec-9', aspecto: 'Corte de caja realizado' },
+        { id: 'rec-10', aspecto: 'Sin problemas de red' },
+        { id: 'rec-12', aspecto: 'Computadoras, terminales e impresoras habilitadas' },
+        { id: 'rec-13', aspecto: 'Celular con carga al 100%' },
+        { id: 'rec-14', aspecto: 'Aire acondicionado limpio y funcional' },
+        { id: 'rec-15', aspecto: 'Luces funcionales' },
+        { id: 'rec-16', aspecto: 'Limpieza general' },
+        { id: 'rec-17', aspecto: 'Anaqueles ordenados' },
+        { id: 'rec-18', aspecto: 'Productos en exhibición ordenados' },
+        { id: 'rec-19', aspecto: 'Precios visibles y correctos' },
+        { id: 'rec-20', aspecto: 'Puertas de acceso a patio central limpias y funcionales' },
+        { id: 'rec-21', aspecto: 'Ventanas limpias' },
+        { id: 'rec-22', aspecto: 'Mostrador limpio y ordenado' },
+      ]
+    },
+    {
+      area: 'SALA DE ESPERA (ÁREA DE GATOS)',
+      aspectos: [
+        { id: 'sal-1', aspecto: 'Puertas y ventanas limpias' },
+        { id: 'sal-2', aspecto: 'Estantes limpios y ordenados' },
+        { id: 'sal-3', aspecto: 'Sillas limpias y ordenadas' },
+        { id: 'sal-4', aspecto: 'Luces funcionales' },
+        { id: 'sal-5', aspecto: 'Refrigerador limpio y funcional' },
+      ]
+    },
+    {
+      area: 'CONSULTORIO 1',
+      aspectos: [
+        { id: 'con1-1', aspecto: 'Consultorio limpio y oloroso' },
+        { id: 'con1-2', aspecto: 'Mesa limpia y desinfectada' },
+        { id: 'con1-3', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'con1-4', aspecto: 'Tarja limpia' },
+        { id: 'con1-5', aspecto: 'Abastecido de material (jeringas, alcohol, torundas)' },
+        { id: 'con1-6', aspecto: 'Cajonera ordenada' },
+        { id: 'con1-7', aspecto: 'Puerta limpia y ventana' },
+        { id: 'con1-8', aspecto: 'Libre de portaobjetos sucios' },
+        { id: 'con1-9', aspecto: 'Computadora habilitada' },
+        { id: 'con1-11', aspecto: 'Sin problemas de red' },
+        { id: 'con1-12', aspecto: 'Luces funcionales' },
+        { id: 'con1-13', aspecto: 'Clima limpio y funcional' },
+      ]
+    },
+    {
+      area: 'CONSULTORIO 2',
+      aspectos: [
+        { id: 'con2-1', aspecto: 'Consultorio limpio y oloroso' },
+        { id: 'con2-2', aspecto: 'Mesa limpia y desinfectada' },
+        { id: 'con2-3', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'con2-4', aspecto: 'Tarja limpia' },
+        { id: 'con2-5', aspecto: 'Abastecido de material (jeringas, alcohol, torundas)' },
+        { id: 'con2-6', aspecto: 'Cajonera ordenada' },
+        { id: 'con2-7', aspecto: 'Puertas y ventana limpias' },
+        { id: 'con2-8', aspecto: 'Libre de portaobjetos sucios' },
+        { id: 'con2-9', aspecto: 'Computadora e impresora habilitada' },
+        { id: 'con2-11', aspecto: 'Sin problemas de red' },
+        { id: 'con2-12', aspecto: 'Luces funcionales' },
+        { id: 'con2-13', aspecto: 'Clima limpio y funcional' },
+      ]
+    },
+    {
+      area: 'BAÑO',
+      aspectos: [
+        { id: 'ba-1', aspecto: 'Piso limpio' },
+        { id: 'ba-2', aspecto: 'Inodoro limpio y funcional' },
+        { id: 'ba-3', aspecto: 'Lavabo limpio y desinfectado' },
+        { id: 'ba-4', aspecto: 'Espejo limpio' },
+        { id: 'ba-5', aspecto: 'Jabón y papel disponible' },
+        { id: 'ba-6', aspecto: 'Bote de basura con bolsa y limpio' },
+      ]
+    },
+    {
+      area: 'PENSIÓN',
+      aspectos: [
+        { id: 'pen-1', aspecto: 'Jaulas limpias, desinfectadas y funcionales' },
+        { id: 'pen-2', aspecto: 'Accesorios de mascotas ordenados' },
+        { id: 'pen-3', aspecto: 'Platos de casa limpios' },
+        { id: 'pen-4', aspecto: 'Luces funcionales' },
+        { id: 'pen-5', aspecto: 'Puerta y ventana limpia y funcional' },
+        { id: 'pen-6', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'pen-7', aspecto: 'Pisos limpios' },
+        { id: 'pen-8', aspecto: 'Agua potable disponible' },
+      ]
+    },
+    { area: 'MICROBIOLOGÍA',
+      aspectos: [
+        { id: 'mic-1', aspecto: 'Tarja limpia y desinfectada' },
+        { id: 'mic-2', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'mic-3', aspecto: 'Material de uso con stock' },
+        { id: 'mic-4', aspecto: 'Equipos limpios y funcionales' },
+      ]
+    },
+    {
+      area: 'RAYOS X',
+      aspectos: [
+        { id: 'rx-1', aspecto: 'Área de Rayos X limpia y ordenada' },
+        { id: 'rx-2', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'rx-3', aspecto: 'Mesa de trabajo limpia y desinfectada' },
+        { id: 'rx-4', aspecto: 'Equipos limpios y funcionales' },
+        { id: 'rx-5', aspecto: 'Computadora habilitada' },
+        { id: 'rx-6', aspecto: 'Sin problemas de red' },
+        { id: 'rx-7', aspecto: 'Luces funcionales' },
+        { id: 'rx-8', aspecto: 'Clima limpio y funcional' },
+        { id: 'rx-9', aspecto: 'Equipo de seguridad disponible' },
+      ]
+    },
+    {
+      area: 'QUIRÓFANO',
+      aspectos: [
+        { id: 'quir-1', aspecto: 'Quirófano limpio y oloroso' },
+        { id: 'quir-2', aspecto: 'Mesa de cirugía limpia y desinfectada' },
+        { id: 'quir-3', aspecto: 'Bote de basura con bolsa y limpio' },
+        { id: 'quir-4', aspecto: 'Carrito de anestesia limpio y ordenado' },
+        { id: 'quir-5', aspecto: 'Abastecido de material (jeringas, alcohol, torundas)' },
+        { id: 'quir-6', aspecto: 'Cajonera ordenada' },
+        { id: 'quir-7', aspecto: 'Puertas limpias' },
+        { id: 'quir-8', aspecto: 'Libre de portaobjetos sucios' },
+        { id: 'quir-9', aspecto: 'Luces funcionales' },
+        { id: 'quir-10', aspecto: 'Clima limpio y funcional' },
+        { id: 'quir-11', aspecto: 'Equipo de anestesia limpio y funcional' },
+        { id: 'quir-12', aspecto: 'Monitor de signos vitales limpio y funcional' },
+        { id: 'quir-13', aspecto: 'Mesa de instrumental limpia y ordenada' },
+        { id: 'quir-14', aspecto: 'Material de uso con stock' },
+        { id: 'quir-15', aspecto: 'Tanques de oxigeno llenos' },
+      ]
+    },
   ]
 };
 
