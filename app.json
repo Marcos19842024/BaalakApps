@@ -7,18 +7,19 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#0195a8",
-      "resizeMode": "contain"
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0195a8"
     },
     "updates": {
+      "url": "https://u.expo.dev/56ab224e-f8fd-4d3b-a242-053cd5d032f0",
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.baalak.checklist",
+      "buildNumber": "1.0.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -27,7 +28,9 @@
       "adaptiveIcon": {
         "backgroundColor": "#0195a8"
       },
-      "package": "com.baalak.checklist"
+      "package": "com.baalak.checklist",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,8 +41,6 @@
       }
     },
     "owner": "marcos19842024s-organization",
-    "plugins": [
-      "expo-font"
-    ]
+    "plugins": ["expo-font", "expo-build-properties"]
   }
 }
