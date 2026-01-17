@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Checklist App",
-    "slug": "checklist",
+    "name": "Baalak Apps",
+    "slug": "baalakapps",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,28 +9,27 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0195a8"
+      "backgroundColor": "#ffffff"
     },
-    "updates": {
-      "url": "https://u.expo.dev/56ab224e-f8fd-4d3b-a242-053cd5d032f0",
-      "fallbackToCacheTimeout": 0
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.baalak.checklist",
-      "buildNumber": "1.0.0",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "com.Baalak.Apps"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0195a8"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.baalak.checklist",
+      "package": "com.Baalak.Apps",
       "versionCode": 1,
-      "permissions": []
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,7 +39,21 @@
         "projectId": "56ab224e-f8fd-4d3b-a242-053cd5d032f0"
       }
     },
-    "owner": "marcos19842024s-organization",
-    "plugins": ["expo-font", "expo-build-properties"]
+    "plugins": [
+      "expo-updates",
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ]
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/56ab224e-f8fd-4d3b-a242-053cd5d032f0",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    }
   }
 }

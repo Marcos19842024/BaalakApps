@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { styles } from '../styles/templateManagementStyles';
 import { ChecklistArea, ChecklistAspect, SUCURSALES, SucursalType } from 'src/types/checklist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
@@ -30,6 +29,7 @@ import {
   getAreaIconsAsync,
   initializeCache
 } from '../utils/checklistData';
+import { stylestemplateManagement } from 'src/styles/templateManagement';
 
 type RouteParams = {
   sucursalKey: SucursalType;
@@ -360,24 +360,24 @@ export default function TemplateManagementScreen() {
   };
 
   const renderAreaItem = ({ item: area }: { item: ChecklistArea, index: number }) => (
-    <View style={styles.areaCard}>
-      <View style={styles.areaHeader}>
-        <View style={styles.areaTitleContainer}>
-          <Text style={styles.areaIcon}>
+    <View style={stylestemplateManagement.areaCard}>
+      <View style={stylestemplateManagement.areaHeader}>
+        <View style={stylestemplateManagement.areaTitleContainer}>
+          <Text style={stylestemplateManagement.areaIcon}>
             {areaIcons[area.area] || '📋'}
           </Text>
           <View>
-            <Text style={styles.areaName}>{area.area}</Text>
-            <Text style={styles.areaInfo}>
+            <Text style={stylestemplateManagement.areaName}>{area.area}</Text>
+            <Text style={stylestemplateManagement.areaInfo}>
               {area.aspectos.length} {area.aspectos.length === 1 ? 'aspecto' : 'aspectos'} • 
               Orden: {areaOrder[area.area] || 99}
             </Text>
           </View>
         </View>
-        
-        <View style={styles.areaActions}>
+
+        <View style={stylestemplateManagement.areaActions}>
           <TouchableOpacity
-            style={styles.actionButtonSmall}
+            style={stylestemplateManagement.actionButtonSmall}
             onPress={() => {
               setSelectedArea(area.area);
               setEditAreaName(area.area);
@@ -390,7 +390,7 @@ export default function TemplateManagementScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.actionButtonSmall}
+            style={stylestemplateManagement.actionButtonSmall}
             onPress={() => {
               setSelectedArea(area.area);
               setShowAddAspectoModal(true);
@@ -401,7 +401,7 @@ export default function TemplateManagementScreen() {
           
           {area.editable && (
             <TouchableOpacity
-              style={styles.actionButtonSmall}
+              style={stylestemplateManagement.actionButtonSmall}
               onPress={() => handleRemoveArea(area.area)}
             >
               <Icon name="delete" size={18} color="#EF4444" />
@@ -410,16 +410,16 @@ export default function TemplateManagementScreen() {
         </View>
       </View>
 
-      <View style={styles.aspectosList}>
+      <View style={stylestemplateManagement.aspectosList}>
         {area.aspectos.map((aspecto, aspectoIndex) => (
-          <View key={aspecto.id} style={styles.aspectoItem}>
-            <Text style={styles.aspectoText}>
+          <View key={aspecto.id} style={stylestemplateManagement.aspectoItem}>
+            <Text style={stylestemplateManagement.aspectoText}>
               {aspectoIndex + 1}. {aspecto.aspecto}
             </Text>
             {aspecto.editable && (
-              <View style={styles.aspectoActions}>
+              <View style={stylestemplateManagement.aspectoActions}>
                 <TouchableOpacity
-                  style={styles.aspectoActionButton}
+                  style={stylestemplateManagement.aspectoActionButton}
                   onPress={() => {
                     setSelectedArea(area.area);
                     setSelectedAspecto(aspecto);
@@ -430,7 +430,7 @@ export default function TemplateManagementScreen() {
                   <Icon name="edit" size={16} color="#3B82F6" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.aspectoActionButton}
+                  style={stylestemplateManagement.aspectoActionButton}
                   onPress={() => handleRemoveAspecto(area.area, aspecto.id)}
                 >
                   <Icon name="delete" size={16} color="#EF4444" />
@@ -442,7 +442,7 @@ export default function TemplateManagementScreen() {
       </View>
 
       {area.aspectos.length === 0 && (
-        <Text style={styles.noAspectosText}>
+        <Text style={stylestemplateManagement.noAspectosText}>
           No hay aspectos en esta área. Agrega algunos.
         </Text>
       )}
@@ -451,55 +451,55 @@ export default function TemplateManagementScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={stylestemplateManagement.container}>
+        <View style={stylestemplateManagement.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Cargando plantillas...</Text>
+          <Text style={stylestemplateManagement.loadingText}>Cargando plantillas...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={stylestemplateManagement.container}>
       {/* Información de la sucursal */}
-      <View style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Áreas totales:</Text>
-            <Text style={styles.infoValue}>{template.length}</Text>
+      <View style={stylestemplateManagement.infoCard}>
+        <View style={stylestemplateManagement.infoRow}>
+          <View style={stylestemplateManagement.infoItem}>
+            <Text style={stylestemplateManagement.infoLabel}>Áreas totales:</Text>
+            <Text style={stylestemplateManagement.infoValue}>{template.length}</Text>
           </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Aspectos totales:</Text>
-            <Text style={styles.infoValue}>
+          <View style={stylestemplateManagement.infoItem}>
+            <Text style={stylestemplateManagement.infoLabel}>Aspectos totales:</Text>
+            <Text style={stylestemplateManagement.infoValue}>
               {template.reduce((sum, area) => sum + area.aspectos.length, 0)}
             </Text>
           </View>
         </View>
-        <Text style={styles.currentSucursal}>
+        <Text style={stylestemplateManagement.currentSucursal}>
           {SUCURSALES[selectedSucursal]}
         </Text>
-        <Text style={styles.storageInfo}>
+        <Text style={stylestemplateManagement.storageInfo}>
           {template.some(area => area.editable) ? 'Con personalizaciones guardadas' : 'Usando valores por defecto'}
         </Text>
       </View>
 
       {/* Botones de acción principales */}
-      <View style={styles.mainActions}>
+      <View style={stylestemplateManagement.mainActions}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.addAreaButton]}
+          style={[stylestemplateManagement.actionButton, stylestemplateManagement.addAreaButton]}
           onPress={() => setShowAddAreaModal(true)}
         >
           <Icon name="add-circle-outline" size={20} color="white" />
-          <Text style={styles.actionButtonText}>Agregar Área</Text>
+          <Text style={stylestemplateManagement.actionButtonText}>Agregar Área</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.resetButton]}
+          style={[stylestemplateManagement.actionButton, stylestemplateManagement.resetButton]}
           onPress={handleResetTemplate}
         >
           <Icon name="restore" size={20} color="white" />
-          <Text style={styles.actionButtonText}>Restablecer</Text>
+          <Text style={stylestemplateManagement.actionButtonText}>Restablecer</Text>
         </TouchableOpacity>
       </View>
 
@@ -508,28 +508,28 @@ export default function TemplateManagementScreen() {
         data={template}
         renderItem={renderAreaItem}
         keyExtractor={(item) => item.area}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={stylestemplateManagement.listContainer}
         showsVerticalScrollIndicator={true}
         refreshing={loading}
         onRefresh={loadData}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
+          <View style={stylestemplateManagement.emptyState}>
             <MaterialCommunityIcons name="folder-alert" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyStateTitle}>No hay áreas configuradas</Text>
-            <Text style={styles.emptyStateText}>
+            <Text style={stylestemplateManagement.emptyStateTitle}>No hay áreas configuradas</Text>
+            <Text style={stylestemplateManagement.emptyStateText}>
               Comienza agregando tu primera área usando el botón "Agregar Área"
             </Text>
           </View>
         }
         ListFooterComponent={
           template.length > 0 ? (
-            <View style={styles.footerInfo}>
-              <Text style={styles.footerText}>
+            <View style={stylestemplateManagement.footerInfo}>
+              <Text style={stylestemplateManagement.footerText}>
                 Total: {template.length} áreas • {
                   template.reduce((sum, area) => sum + area.aspectos.length, 0)
                 } aspectos
               </Text>
-              <Text style={styles.footerNote}>
+              <Text style={stylestemplateManagement.footerNote}>
                 Las personalizaciones se guardan automáticamente en tu dispositivo
               </Text>
             </View>
@@ -543,55 +543,55 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Agregar Nueva Área</Text>
+        <View style={stylestemplateManagement.modalOverlay}>
+          <View style={stylestemplateManagement.modalContent}>
+            <Text style={stylestemplateManagement.modalTitle}>Agregar Nueva Área</Text>
             
             <TextInput
-              style={styles.modalInput}
+              style={stylestemplateManagement.modalInput}
               placeholder="Nombre del área (ej: RECEPCIÓN)"
               value={newAreaName}
               onChangeText={setNewAreaName}
               autoCapitalize="characters"
             />
 
-            <Text style={styles.modalSubtitle}>Seleccionar ícono:</Text>
+            <Text style={stylestemplateManagement.modalSubtitle}>Seleccionar ícono:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {availableIcons.slice(0, 15).map((icon) => (
                 <TouchableOpacity
                   key={icon}
                   style={[
-                    styles.iconOption,
-                    newAreaIcon === icon && styles.iconOptionSelected
+                    stylestemplateManagement.iconOption,
+                    newAreaIcon === icon && stylestemplateManagement.iconOptionSelected
                   ]}
                   onPress={() => setNewAreaIcon(icon)}
                 >
-                  <Text style={styles.iconOptionText}>{icon}</Text>
+                  <Text style={stylestemplateManagement.iconOptionText}>{icon}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             
-            <View style={styles.modalButtons}>
+            <View style={stylestemplateManagement.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
                 onPress={() => {
                   setNewAreaName('');
                   setNewAreaIcon('');
                   setShowAddAreaModal(false);
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
                 onPress={handleAddArea}
                 disabled={!newAreaName.trim() || loading}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Agregar</Text>
+                  <Text style={stylestemplateManagement.saveButtonText}>Agregar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -605,57 +605,57 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Agregar Aspecto</Text>
-            <Text style={styles.modalSubtitle}>Selecciona el área:</Text>
+        <View style={stylestemplateManagement.modalOverlay}>
+          <View style={stylestemplateManagement.modalContent}>
+            <Text style={stylestemplateManagement.modalTitle}>Agregar Aspecto</Text>
+            <Text style={stylestemplateManagement.modalSubtitle}>Selecciona el área:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {template.map((area) => (
                 <TouchableOpacity
                   key={area.area}
                   style={[
-                    styles.areaOption,
-                    selectedArea === area.area && styles.areaOptionSelected
+                    stylestemplateManagement.areaOption,
+                    selectedArea === area.area && stylestemplateManagement.areaOptionSelected
                   ]}
                   onPress={() => setSelectedArea(area.area)}
                 >
-                  <Text style={styles.areaOptionText}>{area.area}</Text>
+                  <Text style={stylestemplateManagement.areaOptionText}>{area.area}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             
-            <Text style={styles.modalSubtitle}>Área seleccionada: {selectedArea || 'Ninguna'}</Text>
+            <Text style={stylestemplateManagement.modalSubtitle}>Área seleccionada: {selectedArea || 'Ninguna'}</Text>
             
             <TextInput
-              style={[styles.modalInput, styles.textArea]}
+              style={[stylestemplateManagement.modalInput, stylestemplateManagement.textArea]}
               placeholder="Descripción del aspecto (ej: Limpieza general)"
               value={newAspectoText}
               onChangeText={setNewAspectoText}
               multiline
               numberOfLines={3}
             />
-            
-            <View style={styles.modalButtons}>
+
+            <View style={stylestemplateManagement.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
                 onPress={() => {
                   setNewAspectoText('');
                   setSelectedArea('');
                   setShowAddAspectoModal(false);
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
                 onPress={handleAddAspecto}
                 disabled={!selectedArea || !newAspectoText.trim() || loading}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Agregar</Text>
+                  <Text style={stylestemplateManagement.saveButtonText}>Agregar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -669,37 +669,37 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Editar Aspecto</Text>
-            <Text style={styles.modalSubtitle}>Área: {selectedArea}</Text>
+        <View style={stylestemplateManagement.modalOverlay}>
+          <View style={stylestemplateManagement.modalContent}>
+            <Text style={stylestemplateManagement.modalTitle}>Editar Aspecto</Text>
+            <Text style={stylestemplateManagement.modalSubtitle}>Área: {selectedArea}</Text>
             
             <TextInput
-              style={[styles.modalInput, styles.textArea]}
+              style={[stylestemplateManagement.modalInput, stylestemplateManagement.textArea]}
               value={editAspectoText}
               onChangeText={setEditAspectoText}
               multiline
               numberOfLines={3}
             />
-            
-            <View style={styles.modalButtons}>
+
+            <View style={stylestemplateManagement.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
                 onPress={() => {
                   setEditAspectoText('');
                   setSelectedAspecto(null);
                   setShowEditAspectoModal(false);
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
                 onPress={handleEditAspecto}
                 disabled={!editAspectoText.trim()}
               >
-                <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+                <Text style={stylestemplateManagement.saveButtonText}>Guardar Cambios</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -712,38 +712,38 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Editar Área</Text>
-            <Text style={styles.modalSubtitle}>Área actual: {selectedArea}</Text>
+        <View style={stylestemplateManagement.modalOverlay}>
+          <View style={stylestemplateManagement.modalContent}>
+            <Text style={stylestemplateManagement.modalTitle}>Editar Área</Text>
+            <Text style={stylestemplateManagement.modalSubtitle}>Área actual: {selectedArea}</Text>
             
             <TextInput
-              style={styles.modalInput}
+              style={stylestemplateManagement.modalInput}
               placeholder="Nuevo nombre del área"
               value={editAreaName}
               onChangeText={setEditAreaName}
               autoCapitalize="characters"
             />
-            
-            <Text style={styles.modalSubtitle}>Seleccionar nuevo ícono:</Text>
+
+            <Text style={stylestemplateManagement.modalSubtitle}>Seleccionar nuevo ícono:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {availableIcons.slice(0, 15).map((icon) => (
                 <TouchableOpacity
                   key={icon}
                   style={[
-                    styles.iconOption,
-                    editAreaIcon === icon && styles.iconOptionSelected
+                    stylestemplateManagement.iconOption,
+                    editAreaIcon === icon && stylestemplateManagement.iconOptionSelected
                   ]}
                   onPress={() => setEditAreaIcon(icon)}
                 >
-                  <Text style={styles.iconOptionText}>{icon}</Text>
+                  <Text style={stylestemplateManagement.iconOptionText}>{icon}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            <View style={styles.modalButtons}>
+            <View style={stylestemplateManagement.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
                 onPress={() => {
                   setEditAreaName('');
                   setEditAreaIcon('')
@@ -751,14 +751,14 @@ export default function TemplateManagementScreen() {
                   setShowEditAreaModal(false);
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
                 onPress={handleEditArea}
               >
-                <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+                <Text style={stylestemplateManagement.saveButtonText}>Guardar Cambios</Text>
               </TouchableOpacity>
             </View>
           </View>
