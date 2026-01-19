@@ -85,18 +85,6 @@ const WhatsAppConnectionScreen = () => {
 
     return (
         <ScrollView style={styleswhatsAppConnection.container}>
-            {/* Header */}
-            <View style={styleswhatsAppConnection.header}>
-                <TouchableOpacity
-                    style={styleswhatsAppConnection.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Icon name="arrow-back" size={24} color="#fff" />
-                </TouchableOpacity>
-                <Text style={styleswhatsAppConnection.title}>Conexión WhatsApp</Text>
-                <View style={styleswhatsAppConnection.placeholder} />
-            </View>
-
             {/* Status Card */}
             <View style={styleswhatsAppConnection.statusCard}>
                 <View style={styleswhatsAppConnection.statusHeader}>

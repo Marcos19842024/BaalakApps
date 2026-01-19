@@ -30,10 +30,7 @@ import {
   initializeCache
 } from '../utils/checklistData';
 import { stylestemplateManagement } from 'src/styles/templateManagement';
-
-type RouteParams = {
-  sucursalKey: SucursalType;
-};
+import { RouteParams } from 'src/types/navigation';
 
 export default function TemplateManagementScreen() {
   const route = useRoute();

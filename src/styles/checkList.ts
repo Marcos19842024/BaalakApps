@@ -26,7 +26,6 @@ export const stylescheckList = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
     paddingBottom: 1,
     paddingHorizontal: 15,
     flexDirection: 'row',
@@ -39,49 +38,6 @@ export const stylescheckList = StyleSheet.create({
     marginBottom: 5,
     textAlign: 'center',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  clinicOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 15,
-    marginBottom: 10,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    minHeight: 70, // Aumentamos la altura mínima
-  },
-  clinicOptionSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#ff006f',
-  },
-  clinicOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start', // Cambiado de 'center' a 'flex-start'
-    flex: 1,
-  },
-  clinicTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center', // Para alinear verticalmente
-  },
-  clinicOptionText: {
-    fontSize: 15,
-    color: '#374151',
-    fontWeight: '500',
-    marginBottom: 4, // Espacio entre nombre y contador
-  },
-  clinicOptionTextSelected: {
-    color: '#ff006f',
-    fontWeight: '600',
-  },
   clinicAreasCount: {
     fontSize: 12,
     color: '#6B7280',
@@ -90,56 +46,6 @@ export const stylescheckList = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     alignSelf: 'flex-start', // Para que no ocupe toda la línea
-  },
-  // También podemos ajustar el modal para más espacio
-  clinicModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 8, // Aumentado el padding
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%', // Limitar altura máxima
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 20, // Aumentado el margen inferior
-    lineHeight: 20,
-  },
-  // Ajustar el contenido del botón en el header también
-  clinicSelectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderColor: '#ff006f',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 5,
-    minWidth: 200,
-  },
-  clinicName: {
-    fontSize: 16,
-    color: '#ff006f',
-    fontWeight: '600',
-    marginLeft: 8,
-    marginRight: 5,
-    maxWidth: 220,
-    flexShrink: 1, // Permite que se reduzca si es necesario
   },
   infoCard: {
     backgroundColor: 'white',
@@ -605,10 +511,6 @@ export const stylescheckList = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  clinicButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   areasCountBox: {
     backgroundColor: '#f8f9fa',
     padding: 12,
@@ -626,31 +528,12 @@ export const stylescheckList = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
-  clinicIconContainer: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkIconContainer: {
-    marginLeft: 8,
-  },
-  // Para el botón de cerrar
-  modalCloseButton: {
-    marginTop: 24,
-    backgroundColor: '#8f5c03',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  modalCloseButtonText: {
-    color: 'white',
-    fontSize: 16,
+  modalTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   // Indicador de progreso en el header
   completionIndicator: {
@@ -812,10 +695,13 @@ export const stylescheckList = StyleSheet.create({
   bottomSpacer: {
     height: 50,
   },
-  settingsButton: {
-    paddingHorizontal: 5,
-    paddingVertical: 8,
-    marginTop: 5,
+  headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff066f',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   noAreasContainer: {
     flex: 1,

@@ -1,0 +1,288 @@
+import { StyleSheet } from "react-native";
+
+export const stylesreminders = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+        marginTop: -28,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+        elevation: 2,
+    },
+    backButton: {
+        backgroundColor: '#ff006f',
+        padding: 8,
+        borderRadius: 8,
+    },
+    title: {
+        flex: 1,
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        marginLeft: 16,
+    },
+    clearButton: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    emptyTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#666',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    emptyDescription: {
+        fontSize: 16,
+        color: '#999',
+        textAlign: 'center',
+        marginBottom: 32,
+    },
+    emptyButtons: {
+        width: '100%',
+        alignItems: 'center',
+        gap: 16,
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#2196F3',
+        width: '80%',
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        elevation: 3,
+    },
+    actionButtonSecondary: {
+        backgroundColor: '#4CAF50',
+    },
+    actionButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+        marginLeft: 12,
+    },
+    mainContent: {
+        flex: 1,
+        flexDirection: 'row',
+    },
+    sidebar: {
+        width: '35%',
+        backgroundColor: '#fff',
+        borderRightWidth: 1,
+        borderRightColor: '#e0e0e0',
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        padding: 10,
+        backgroundColor: '#f8f9fa',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+        alignItems: 'center',
+        elevation: 2,
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    statNumber: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    statEnviados: {
+        color: '#4CAF50',
+    },
+    statPendientes: {
+        color: '#FF9800',
+    },
+    statLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 4,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        padding: 12,
+        gap: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+    },
+    sidebarButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#2196F3',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        gap: 6,
+    },
+    sidebarButtonSecondary: {
+        backgroundColor: '#4CAF50',
+    },
+    sidebarButtonText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    clientesList: {
+        flex: 1,
+        backgroundColor: '#666',
+    },
+    clientesListContent: {
+        paddingBottom: 20,
+    },
+    clienteItem: {
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f5f5f5',
+        borderRadius: 10,
+    },
+    clienteItemSelected: {
+        backgroundColor: '#0399ba',
+    },
+    clienteEnviado: {
+        opacity: 0.7,
+    },
+    clienteItemContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    clienteIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    iconPendiente: {
+        backgroundColor: '#424242',
+    },
+    iconEnviado: {
+        backgroundColor: '#4CAF50',
+    },
+    clienteInfo: {
+        flex: 1,
+    },
+    clienteNombre: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#ffffff',
+    },
+    clienteTelefono: {
+        fontSize: 12,
+        color: '#ffffff',
+        marginTop: 2,
+    },
+    messagesArea: {
+        flex: 1,
+        backgroundColor: '#666',
+    },
+    selectedClientInfo: {
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+        backgroundColor: '#3b3b3b',
+        borderRadius: 10,
+    },
+    selectedClientName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    selectedClientPhone: {
+        fontSize: 14,
+        color: 'white',
+        marginTop: 4,
+    },
+    selectedClientPets: {
+        fontSize: 13,
+        color: 'white',
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
+    messagesContainer: {
+        flex: 1,
+        borderRadius: 10,
+        backgroundColor: '#0000007b',
+    },
+    messagesContent: {
+        padding: 16,
+        paddingBottom: 100,
+        borderRadius: 10,
+    },
+    sendButtonContainer: {
+        borderTopWidth: 1,
+        borderTopColor: '#e0e0e0',
+        padding: 5,
+        borderRadius: 10,
+    },
+    sendButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#ff006f',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 10,
+        elevation: 2,
+    },
+    sendButtonDisabled: {
+        backgroundColor: '#4CAF50',
+    },
+    sendButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 12,
+    },
+    sendInstructions: {
+        fontSize: 12,
+        color: 'white',
+        textAlign: 'center',
+        marginTop: 8,
+        fontStyle: 'italic',
+    },
+    noSelection: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    noSelectionText: {
+        fontSize: 16,
+        color: '#999',
+        textAlign: 'center',
+        marginTop: 16,
+    },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#333',
+        marginTop: 16,
+    },
+});

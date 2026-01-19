@@ -254,18 +254,6 @@ const UpdatesScreen = () => {
 
     return (
         <ScrollView style={stylesupdates.container}>
-            {/* Header */}
-            <View style={stylesupdates.header}>
-                <TouchableOpacity
-                    style={stylesupdates.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                <Icon name="arrow-back" size={24} color="#fff" />
-                </TouchableOpacity>
-                <Text style={stylesupdates.title}>Actualizaciones</Text>
-                <View style={stylesupdates.placeholder} />
-            </View>
-
             {/* Current Version */}
             <View style={stylesupdates.currentVersionCard}>
                 <View style={stylesupdates.versionHeader}>

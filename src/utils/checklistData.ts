@@ -688,6 +688,7 @@ const DEFAULT_AREA_ICONS: Record<string, string> = {
   'ESTACIONAMIENTO': '🚗',
   'TIENDA': '🏬',
   'RECEPCIÓN': '💁',
+  'CONSULTORIO': '🏥',
   'CONSULTORIO 1': '🏥',
   'CONSULTORIO 2': '🏥',
   'LABORATORIO': '🔬',
@@ -698,8 +699,13 @@ const DEFAULT_AREA_ICONS: Record<string, string> = {
   'ALMACÉN ALIMENTOS': '🥣',
   'ALMACÉN GENERAL': '📥',
   'ÁREAS COMUNES': '🚶🏼',
-  'ESTÉTICA': '🐾',
-  'TRANSPORTE': '🚑'
+  'ESTÉTICA': '💇‍♂️',
+  'TRANSPORTE': '🚑',
+  'SALA DE ESPERA (ÁREA DE GATOS)': '🐱',
+  'BAÑO': '🚽',
+  'MICROBIOLOGÍA': '🧫',
+  'OFICINA': '🏢',
+  'BODEGA': '📦',
 };
 
 // Cargar íconos personalizados

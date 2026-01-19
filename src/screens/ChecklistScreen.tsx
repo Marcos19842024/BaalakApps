@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -10,7 +10,6 @@ import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ChecklistData, ChecklistItem, ChecklistPhoto, CLINIC_OPTIONS, SUCURSALES, SucursalType } from '../types/checklist';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
-import { ChecklistScreenNavigationProp } from 'src/types/navigation';
 import {
   View,
   Text,
@@ -32,18 +31,19 @@ import {
   getAreaIcon,
 } from '../utils/checklistData';
 import { stylescheckList } from 'src/styles/checkList';
+import { RouteParams } from 'src/types/navigation';
 
 export default function ChecklistScreen() {
-  const navigation = useNavigation<ChecklistScreenNavigationProp>();
-  const [sucursalKey, setSucursalKey] = useState<SucursalType>('BAALAK_CENTRAL');
+  const route = useRoute();
+  const params = route.params as RouteParams;
+  const [sucursalKey, setSucursalKey] = useState<SucursalType>(params?.sucursalKey || 'BAALAK_CENTRAL');
   const [sucursalName, setSucursalName] = useState<string>(SUCURSALES.BAALAK_CENTRAL);
-  const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData('BAALAK_CENTRAL'));
+  const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData(params?.sucursalKey || 'BAALAK_CENTRAL'));
   const [currentArea, setCurrentArea] = useState('ESTACIONAMIENTO');
   const [cameraVisible, setCameraVisible] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [photoDescription, setPhotoDescription] = useState('');
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
-  const [showClinicSelector, setShowClinicSelector] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
   const areasScrollViewRef = useRef<ScrollView>(null);
@@ -63,13 +63,16 @@ export default function ChecklistScreen() {
 
   // Función para recargar el checklist
   const reloadChecklist = useCallback(() => {
+    // Si recibimos una sucursal por parámetro, seleccionarla
+    if (params?.sucursalKey) {
+      setSucursalKey(params.sucursalKey);
+    }
+
     console.log('Recargando checklist para sucursal:', sucursalKey);
     
     // Recargar plantilla desde AsyncStorage (si hay personalizaciones)
     const loadTemplate = async () => {
       try {
-        // Aquí podrías cargar las plantillas personalizadas si las necesitas
-        // Por ahora, simplemente recreamos el checklist
         const newChecklist = initializeChecklistData(sucursalKey);
         setFormData(newChecklist);
         
@@ -94,7 +97,9 @@ export default function ChecklistScreen() {
 
   // Efecto para recargar cuando la pantalla recibe foco
   useFocusEffect(
+
     useCallback(() => {
+
       console.log('ChecklistScreen recibió foco, recargando...');
       reloadChecklist();
       
@@ -149,8 +154,6 @@ export default function ChecklistScreen() {
     }
 
     setCurrentArea(areas[0] || 'ESTACIONAMIENTO');
-    
-    setShowClinicSelector(false);
     
     Toast.show({
       type: 'success',
@@ -493,36 +496,29 @@ export default function ChecklistScreen() {
         {/* Header */}
         <View style={stylescheckList.header}>
           {/* Botones de acción */}
-          <TouchableOpacity 
-            style={stylescheckList.settingsButton}
-            onPress={() => navigation.navigate('TemplateManagement', { sucursalKey: sucursalKey })}
-          >
-            <Icon name="settings" size={24} color="#ff006f" />
-          </TouchableOpacity>
-
           <TouchableOpacity
-            style={stylescheckList.settingsButton}
+            style={stylescheckList.headerButton}
             onPress={handleSave}
           >
-            <Icon name="save" size={24} color="#ff006f" />
+            <Icon name="save" size={24} color="white" />
+            <Text style={stylescheckList.cameraButtonText}>Guardar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={stylescheckList.settingsButton}
+            style={stylescheckList.headerButton}
             onPress={handleNewChecklist}
           >
-            <Icon name="add-circle-outline" size={24} color="#ff006f" />
+            <Icon name="add-circle-outline" size={24} color="white" />
+            <Text style={stylescheckList.cameraButtonText}>Nuevo</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={stylescheckList.clinicSelectorButton}
-            onPress={() => setShowClinicSelector(true)}
+          <TouchableOpacity
+            style={stylescheckList.cameraButton}
+            onPress={takePhoto}
+            disabled={hasCameraPermission === false}
           >
-            <View style={stylescheckList.clinicButtonContent}>
-              <MaterialCommunityIcons name="hospital-building" size={20} color="#ff006f" />
-              <Text style={stylescheckList.clinicName} numberOfLines={1}>{sucursalName}</Text>
-            </View>
-            <Icon name="arrow-drop-down" size={24} color="#ff006f" />
+            <MaterialCommunityIcons name="camera" size={24} color="white" />
+            <Text style={stylescheckList.cameraButtonText}>Tomar Foto</Text>
           </TouchableOpacity>
         </View>
 
@@ -585,25 +581,15 @@ export default function ChecklistScreen() {
           </View>
         </View>
 
-        {/* Selector de área y botón de cámara */}
+        {/* Selector de área */}
         <View style={stylescheckList.areaSection}>
           <View style={stylescheckList.areaHeader}>
-            <View>
-              <Text style={stylescheckList.evaluationSubtitle}>
-                {areas.length} áreas | {formData.items.length} items
-              </Text>
-              <Text style={stylescheckList.areasCountInfo}>
-                {currentArea} ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={stylescheckList.cameraButton}
-              onPress={takePhoto}
-              disabled={hasCameraPermission === false}
-            >
-              <MaterialCommunityIcons name="camera" size={24} color="white" />
-              <Text style={stylescheckList.cameraButtonText}>Tomar Foto</Text>
-            </TouchableOpacity>
+            <Text style={stylescheckList.evaluationSubtitle}>
+              {areas.length} áreas | {formData.items.length} items
+            </Text>
+            <Text style={stylescheckList.areasCountInfo}>
+              {currentArea} ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
+            </Text>
           </View>
           
           <ScrollView 
@@ -765,72 +751,6 @@ export default function ChecklistScreen() {
           />
         </View>
       </ScrollView>
-
-      {/* Modal para seleccionar clínica */}
-      <Modal
-        visible={showClinicSelector}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowClinicSelector(false)}
-      >
-        <View style={stylescheckList.modalOverlay}>
-          <View style={stylescheckList.clinicModalContent}>
-            <Text style={stylescheckList.modalTitle}>Seleccionar Sucursal</Text>
-            <Text style={stylescheckList.modalSubtitle}>
-              Cada sucursal tiene sus propias áreas específicas
-            </Text>
-            
-            {CLINIC_OPTIONS.map((clinic) => {
-              const clinicKey = clinic.id as SucursalType;
-              const areasCount = getUniqueAreasForSucursal(clinicKey).length;
-              
-              return (
-                <TouchableOpacity
-                  key={clinic.id}
-                  style={[
-                    stylescheckList.clinicOption,
-                    sucursalKey === clinic.id && stylescheckList.clinicOptionSelected
-                  ]}
-                  onPress={() => handleSucursalChange(clinicKey)}
-                >
-                  <View style={stylescheckList.clinicOptionContent}>
-                    <View style={stylescheckList.clinicIconContainer}>
-                      <MaterialCommunityIcons 
-                        name="hospital-building" 
-                        size={28} // Aumentado el tamaño
-                        color={sucursalKey === clinic.id ? '#ff008cea' : '#6B7280'} 
-                      />
-                    </View>
-                    <View style={stylescheckList.clinicTextContainer}>
-                      <Text style={[
-                        stylescheckList.clinicOptionText,
-                        sucursalKey === clinic.id && stylescheckList.clinicOptionTextSelected
-                      ]}>
-                        {clinic.name}
-                      </Text>
-                      <Text style={stylescheckList.clinicAreasCount}>
-                        {areasCount} {areasCount === 1 ? 'área' : 'áreas'} específicas
-                      </Text>
-                    </View>
-                  </View>
-                  {sucursalKey === clinic.id && (
-                    <View style={stylescheckList.checkIconContainer}>
-                      <Icon name="check-circle" size={24} color="#10B981" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-            
-            <TouchableOpacity
-              style={stylescheckList.modalCloseButton}
-              onPress={() => setShowClinicSelector(false)}
-            >
-              <Text style={stylescheckList.modalCloseButtonText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Modal de validación de áreas incompletas */}
       <Modal

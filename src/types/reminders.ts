@@ -1,15 +1,6 @@
-export interface Cliente {
-    id: string;
+export interface Tipo {
     nombre: string;
-    telefono: string;
-    mascotas: Mascota[];
-    mensajes: Mensaje[];
-    status: boolean;
-}
-
-export interface Mascota {
-    nombre: string;
-    recordatorios: Recordatorio[];
+    fecha: string;
 }
 
 export interface Recordatorio {
@@ -17,15 +8,37 @@ export interface Recordatorio {
     tipos: Tipo[];
 }
 
-export interface Tipo {
+export interface Mascota {
     nombre: string;
-    fecha: string;
+    recordatorios: Recordatorio[];
+}
+
+export interface Cliente {
+    nombre: string;
+    telefono: string;
+    mascotas: Mascota[];
+    mensajes: Mensaje[];
+    status: boolean;
 }
 
 export interface Mensaje {
     id: string;
-    message: string;
-    senderName: string;
+    contenido: string;
     timestamp: string;
-    isOwnMessage: boolean;
+    esPropio: boolean;
+}
+
+export interface ContactoWhatsApp {
+    id: { server: string };
+    name: string;
+    number: string;
+    isMyContact: boolean;
+}
+
+export interface ContactoResponse {
+    statusText: ContactoWhatsApp[];
+}
+
+export interface MessageBubbleProps {
+    mensaje: Mensaje;
 }
