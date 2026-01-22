@@ -8,7 +8,7 @@ import * as MediaLibrary from 'expo-media-library';
 import Toast from 'react-native-toast-message';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { ChecklistData, ChecklistItem, ChecklistPhoto, CLINIC_OPTIONS, SUCURSALES, SucursalType } from '../types/checklist';
+import { ChecklistData, ChecklistItem, ChecklistPhoto, SUCURSALES, SucursalType } from '../types/checklist';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
 import {
   View,
@@ -30,8 +30,8 @@ import {
   getIncompleteAreas,
   getAreaIcon,
 } from '../utils/checklistData';
-import { stylescheckList } from 'src/styles/checkList';
 import { RouteParams } from 'src/types/navigation';
+import { styleschecklist } from 'src/styles/checklist';
 
 export default function ChecklistScreen() {
   const route = useRoute();
@@ -135,18 +135,18 @@ export default function ChecklistScreen() {
 
     if (areas.length === 0) {
       return (
-        <SafeAreaView style={stylescheckList.container}>
-          <View style={stylescheckList.noAreasContainer}>
+        <SafeAreaView style={styleschecklist.container}>
+          <View style={styleschecklist.noAreasContainer}>
             <MaterialCommunityIcons name="folder-alert" size={64} color="#9CA3AF" />
-            <Text style={stylescheckList.noAreasTitle}>No hay áreas configuradas</Text>
-            <Text style={stylescheckList.noAreasText}>
+            <Text style={styleschecklist.noAreasTitle}>No hay áreas configuradas</Text>
+            <Text style={styleschecklist.noAreasText}>
               Esta sucursal no tiene áreas configuradas. Contacta al administrador.
             </Text>
             <TouchableOpacity 
-              style={stylescheckList.refreshButton}
+              style={styleschecklist.refreshButton}
               onPress={() => handleSucursalChange(sucursalKey)}
             >
-              <Text style={stylescheckList.refreshButtonText}>Recargar</Text>
+              <Text style={styleschecklist.refreshButtonText}>Recargar</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -490,53 +490,53 @@ export default function ChecklistScreen() {
   const areaPhotos = formData.photos?.filter(photo => photo.area === currentArea) || [];
 
   return (
-    <SafeAreaView style={stylescheckList.container}>
+    <SafeAreaView style={styleschecklist.container}>
       {/* SECCIÓN FIJA SUPERIOR */}
-      <View style={stylescheckList.fixedSection}>
+      <View style={styleschecklist.fixedSection}>
         {/* Header */}
-        <View style={stylescheckList.header}>
+        <View style={styleschecklist.header}>
           {/* Botones de acción */}
           <TouchableOpacity
-            style={stylescheckList.headerButton}
+            style={styleschecklist.headerButton}
             onPress={handleSave}
           >
             <Icon name="save" size={24} color="white" />
-            <Text style={stylescheckList.cameraButtonText}>Guardar</Text>
+            <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={stylescheckList.headerButton}
+            style={styleschecklist.headerButton}
             onPress={handleNewChecklist}
           >
             <Icon name="add-circle-outline" size={24} color="white" />
-            <Text style={stylescheckList.cameraButtonText}>Nuevo</Text>
+            <Text style={styleschecklist.cameraButtonText}>Nuevo</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={stylescheckList.cameraButton}
+            style={styleschecklist.cameraButton}
             onPress={takePhoto}
             disabled={hasCameraPermission === false}
           >
             <MaterialCommunityIcons name="camera" size={24} color="white" />
-            <Text style={stylescheckList.cameraButtonText}>Tomar Foto</Text>
+            <Text style={styleschecklist.cameraButtonText}>Tomar Foto</Text>
           </TouchableOpacity>
         </View>
 
         {/* Información general */}
-        <View style={stylescheckList.infoCard}>
+        <View style={styleschecklist.infoCard}>
           
-          <View style={stylescheckList.infoGrid}>
-              <Text style={stylescheckList.infoLabel}>FECHA:</Text>
-              <Text style={stylescheckList.infoValue}>{formData.fecha}</Text>
+          <View style={styleschecklist.infoGrid}>
+              <Text style={styleschecklist.infoLabel}>FECHA:</Text>
+              <Text style={styleschecklist.infoValue}>{formData.fecha}</Text>
               <Text></Text><Text></Text><Text></Text>
-              <Text style={stylescheckList.infoLabel}>HORA INICIO:</Text>
-              <Text style={stylescheckList.infoValue}>{formData.horaInicio} hrs.</Text>
+              <Text style={styleschecklist.infoLabel}>HORA INICIO:</Text>
+              <Text style={styleschecklist.infoValue}>{formData.horaInicio} hrs.</Text>
           </View>
           
-          <View style={stylescheckList.infoItem}>
-            <Text style={stylescheckList.infoLabel}>RESPONSABLE:</Text>
+          <View style={styleschecklist.infoItem}>
+            <Text style={styleschecklist.infoLabel}>RESPONSABLE:</Text>
             <TextInput
-              style={stylescheckList.responsableInput}
+              style={styleschecklist.responsableInput}
               placeholder="Nombre del responsable"
               value={formData.responsable}
               onChangeText={(text) => setFormData(prev => ({ ...prev, responsable: text }))}
@@ -545,11 +545,11 @@ export default function ChecklistScreen() {
         </View>
 
         {/* Barra de progreso general */}
-        <View style={stylescheckList.progressCard}>
-          <View style={stylescheckList.progressHeader}>
-            <Text style={stylescheckList.progressLabel}>Calificación General</Text>
+        <View style={styleschecklist.progressCard}>
+          <View style={styleschecklist.progressHeader}>
+            <Text style={styleschecklist.progressLabel}>Calificación General</Text>
             <Text style={[
-              stylescheckList.progressStatus,
+              styleschecklist.progressStatus,
               { color: getProgressColor(generalStats.porcentajeBueno) }
             ]}>
               {generalStats.porcentajeBueno >= 80 ? 'EXCELENTE' :
@@ -557,10 +557,10 @@ export default function ChecklistScreen() {
             </Text>
           </View>
           
-          <View style={stylescheckList.progressBar}>
+          <View style={styleschecklist.progressBar}>
             <View 
               style={[
-                stylescheckList.progressFill,
+                styleschecklist.progressFill,
                 { 
                   width: `${generalStats.porcentajeBueno}%`,
                   backgroundColor: getProgressColor(generalStats.porcentajeBueno)
@@ -569,25 +569,25 @@ export default function ChecklistScreen() {
             />
           </View>
           
-          <View style={stylescheckList.progressFooter}>
-            <Text style={stylescheckList.progressText}>0%</Text>
+          <View style={styleschecklist.progressFooter}>
+            <Text style={styleschecklist.progressText}>0%</Text>
             <Text style={[
-              stylescheckList.progressText,
+              styleschecklist.progressText,
               { color: getProgressColor(generalStats.porcentajeBueno), fontWeight: 'bold' }
             ]}>
               {Math.round(generalStats.porcentajeBueno)}% Bueno
             </Text>
-            <Text style={stylescheckList.progressText}>100%</Text>
+            <Text style={styleschecklist.progressText}>100%</Text>
           </View>
         </View>
 
         {/* Selector de área */}
-        <View style={stylescheckList.areaSection}>
-          <View style={stylescheckList.areaHeader}>
-            <Text style={stylescheckList.evaluationSubtitle}>
+        <View style={styleschecklist.areaSection}>
+          <View style={styleschecklist.areaHeader}>
+            <Text style={styleschecklist.evaluationSubtitle}>
               {areas.length} áreas | {formData.items.length} items
             </Text>
-            <Text style={stylescheckList.areasCountInfo}>
+            <Text style={styleschecklist.areasCountInfo}>
               {currentArea} ({currentAreaStats.totalEvaluado}/{currentAreaStats.total} evaluados)
             </Text>
           </View>
@@ -595,7 +595,7 @@ export default function ChecklistScreen() {
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
-            style={stylescheckList.areaScroll}
+            style={styleschecklist.areaScroll}
           >
             {areas.map((area, index) => {
               const areaPercentage = calculateBuenoPercentage(area);
@@ -603,8 +603,8 @@ export default function ChecklistScreen() {
                 <TouchableOpacity
                   key={area}
                   style={[
-                    stylescheckList.areaButton,
-                    currentArea === area && stylescheckList.areaButtonActive
+                    styleschecklist.areaButton,
+                    currentArea === area && styleschecklist.areaButtonActive
                   ]}
                   onPress={() => {
                     setCurrentArea(area);
@@ -612,18 +612,18 @@ export default function ChecklistScreen() {
                     scrollToArea(index);
                   }}
                 >
-                  <Text style={stylescheckList.areaIcon}>{getAreaIcon(area)}</Text>
+                  <Text style={styleschecklist.areaIcon}>{getAreaIcon(area)}</Text>
                   <Text style={[
-                    stylescheckList.areaButtonText,
-                    currentArea === area && stylescheckList.areaButtonTextActive
+                    styleschecklist.areaButtonText,
+                    currentArea === area && styleschecklist.areaButtonTextActive
                   ]}>
                     {area.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                   </Text>
                   <View style={[
-                    stylescheckList.areaBadge,
+                    styleschecklist.areaBadge,
                     { backgroundColor: getProgressColor(areaPercentage) }
                   ]}>
-                    <Text style={stylescheckList.areaBadgeText}>
+                    <Text style={styleschecklist.areaBadgeText}>
                       {Math.round(areaPercentage)}%
                     </Text>
                   </View>
@@ -635,29 +635,29 @@ export default function ChecklistScreen() {
 
         {/* Galería de fotos del área actual */}
         {areaPhotos.length > 0 && (
-          <View style={stylescheckList.photosSection}>
-            <View style={stylescheckList.photosHeader}>
-              <Text style={stylescheckList.sectionTitle}>Fotos de {currentArea}</Text>
-              <Text style={stylescheckList.photosCount}>{areaPhotos.length} foto(s)</Text>
+          <View style={styleschecklist.photosSection}>
+            <View style={styleschecklist.photosHeader}>
+              <Text style={styleschecklist.sectionTitle}>Fotos de {currentArea}</Text>
+              <Text style={styleschecklist.photosCount}>{areaPhotos.length} foto(s)</Text>
             </View>
             
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {areaPhotos.map((photo) => (
-                <View key={photo.id} style={stylescheckList.photoCard}>
-                  <Image source={{ uri: photo.photoUri }} style={stylescheckList.photo} />
+                <View key={photo.id} style={styleschecklist.photoCard}>
+                  <Image source={{ uri: photo.photoUri }} style={styleschecklist.photo} />
                   <TouchableOpacity
-                    style={stylescheckList.deleteButton}
+                    style={styleschecklist.deleteButton}
                     onPress={() => removePhoto(photo.id)}
                   >
                     <Icon name="delete" size={20} color="white" />
                   </TouchableOpacity>
-                  <View style={stylescheckList.photoInfo}>
+                  <View style={styleschecklist.photoInfo}>
                     {photo.description && (
-                      <Text style={stylescheckList.photoDescription} numberOfLines={2}>
+                      <Text style={styleschecklist.photoDescription} numberOfLines={2}>
                         {photo.description}
                       </Text>
                     )}
-                    <Text style={stylescheckList.photoTimestamp}>
+                    <Text style={styleschecklist.photoTimestamp}>
                       {photo.timestamp}
                     </Text>
                   </View>
@@ -671,22 +671,22 @@ export default function ChecklistScreen() {
       {/* SCROLLVIEW SOLO PARA LAS ÁREAS */}
       <ScrollView 
         ref={areasScrollViewRef}
-        style={stylescheckList.areasScrollView}
+        style={styleschecklist.areasScrollView}
         showsVerticalScrollIndicator={true}
       >
         {/* Evaluación del área actual */}
-        <View style={stylescheckList.evaluationSection}>
+        <View style={styleschecklist.evaluationSection}>
           
           {(itemsByArea[currentArea] || []).map((item) => (
-            <View key={item.id} style={stylescheckList.itemCard}>
-              <Text style={stylescheckList.itemText}>{item.aspecto}</Text>
+            <View key={item.id} style={styleschecklist.itemCard}>
+              <Text style={styleschecklist.itemText}>{item.aspecto}</Text>
               
-              <View style={stylescheckList.ratingContainer}>
+              <View style={styleschecklist.ratingContainer}>
                 {['malo', 'regular', 'bueno'].map((rating) => (
                   <TouchableOpacity
                     key={rating}
                     style={[
-                      stylescheckList.ratingButton,
+                      styleschecklist.ratingButton,
                       item.cumplimiento === rating && {
                         backgroundColor: `${getRatingColor(rating)}20`,
                         borderColor: getRatingColor(rating),
@@ -700,20 +700,20 @@ export default function ChecklistScreen() {
                     }}
                   >
                     <View style={[
-                      stylescheckList.radioCircle,
+                      styleschecklist.radioCircle,
                       item.cumplimiento === rating && {
                         borderColor: getRatingColor(rating),
                       }
                     ]}>
                       {item.cumplimiento === rating && (
                         <View style={[
-                          stylescheckList.radioInner,
+                          styleschecklist.radioInner,
                           { backgroundColor: getRatingColor(rating) }
                         ]} />
                       )}
                     </View>
                     <Text style={[
-                      stylescheckList.ratingText,
+                      styleschecklist.ratingText,
                       { color: getRatingColor(rating) }
                     ]}>
                       {rating.toUpperCase()}
@@ -723,7 +723,7 @@ export default function ChecklistScreen() {
               </View>
 
               <TextInput
-                style={stylescheckList.observationsInput}
+                style={styleschecklist.observationsInput}
                 placeholder="Observaciones..."
                 value={item.observaciones}
                 onChangeText={(text) => {
@@ -739,10 +739,10 @@ export default function ChecklistScreen() {
         </View>
 
         {/* Comentarios adicionales */}
-        <View style={stylescheckList.commentsSection}>
-          <Text style={stylescheckList.sectionTitle}>Comentarios Adicionales</Text>
+        <View style={styleschecklist.commentsSection}>
+          <Text style={styleschecklist.sectionTitle}>Comentarios Adicionales</Text>
           <TextInput
-            style={stylescheckList.commentsInput}
+            style={styleschecklist.commentsInput}
             placeholder="Ingrese comentarios adicionales aquí..."
             value={formData.comentariosAdicionales}
             onChangeText={(text) => setFormData(prev => ({ ...prev, comentariosAdicionales: text }))}
@@ -759,30 +759,30 @@ export default function ChecklistScreen() {
         animationType="fade"
         onRequestClose={() => setShowValidationModal(false)}
       >
-        <View style={stylescheckList.validationModalOverlay}>
-          <View style={stylescheckList.validationModalContent}>
-            <View style={stylescheckList.validationHeader}>
+        <View style={styleschecklist.validationModalOverlay}>
+          <View style={styleschecklist.validationModalContent}>
+            <View style={styleschecklist.validationHeader}>
               <MaterialCommunityIcons name="alert-circle" size={40} color="#F59E0B" />
-              <Text style={stylescheckList.validationTitle}>Áreas Pendientes</Text>
-              <Text style={stylescheckList.validationSubtitle}>
+              <Text style={styleschecklist.validationTitle}>Áreas Pendientes</Text>
+              <Text style={styleschecklist.validationSubtitle}>
                 Hay {incompleteAreas.length} {incompleteAreas.length === 1 ? 'área' : 'áreas'} sin evaluar completamente
               </Text>
             </View>
             
-            <ScrollView style={stylescheckList.incompleteAreasList}>
+            <ScrollView style={styleschecklist.incompleteAreasList}>
               {incompleteAreas.map((area, index) => (
                 <TouchableOpacity
                   key={area}
-                  style={stylescheckList.incompleteAreaItem}
+                  style={styleschecklist.incompleteAreaItem}
                   onPress={() => navigateToIncompleteArea(area)}
                 >
-                  <View style={stylescheckList.areaItemContent}>
-                    <View style={stylescheckList.areaItemNumber}>
-                      <Text style={stylescheckList.areaNumberText}>{index + 1}</Text>
+                  <View style={styleschecklist.areaItemContent}>
+                    <View style={styleschecklist.areaItemNumber}>
+                      <Text style={styleschecklist.areaNumberText}>{index + 1}</Text>
                     </View>
-                    <View style={stylescheckList.areaItemInfo}>
-                      <Text style={stylescheckList.areaItemName}>{area}</Text>
-                      <Text style={stylescheckList.areaItemAction}>
+                    <View style={styleschecklist.areaItemInfo}>
+                      <Text style={styleschecklist.areaItemName}>{area}</Text>
+                      <Text style={styleschecklist.areaItemAction}>
                         Tocar para evaluar esta área
                       </Text>
                     </View>
@@ -792,24 +792,24 @@ export default function ChecklistScreen() {
               ))}
             </ScrollView>
             
-            <View style={stylescheckList.validationButtons}>
+            <View style={styleschecklist.validationButtons}>
               <TouchableOpacity
-                style={[stylescheckList.validationButton, stylescheckList.cancelValidationButton]}
+                style={[styleschecklist.validationButton, styleschecklist.cancelValidationButton]}
                 onPress={() => setShowValidationModal(false)}
               >
-                <Text style={stylescheckList.cancelValidationButtonText}>Cancelar</Text>
+                <Text style={styleschecklist.cancelValidationButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[stylescheckList.validationButton, stylescheckList.forceSaveButton]}
+                style={[styleschecklist.validationButton, styleschecklist.forceSaveButton]}
                 onPress={handleForceSave}
               >
                 <MaterialCommunityIcons name="file-document-outline" size={20} color="white" />
-                <Text style={stylescheckList.forceSaveButtonText}>Guardar como Incompleto</Text>
+                <Text style={styleschecklist.forceSaveButtonText}>Guardar como Incompleto</Text>
               </TouchableOpacity>
             </View>
             
-            <Text style={stylescheckList.validationNote}>
+            <Text style={styleschecklist.validationNote}>
               📝 Recomendación: Complete todas las áreas para un reporte más preciso
             </Text>
           </View>
@@ -823,38 +823,38 @@ export default function ChecklistScreen() {
         transparent={true}
         onRequestClose={() => setCameraVisible(false)}
       >
-        <View style={stylescheckList.modalContainer}>
-          <View style={stylescheckList.modalContent}>
-            <Text style={stylescheckList.modalTitle}>Vista previa de foto</Text>
+        <View style={styleschecklist.modalContainer}>
+          <View style={styleschecklist.modalContent}>
+            <Text style={styleschecklist.modalTitle}>Vista previa de foto</Text>
             
             {tempPhoto && (
-              <Image source={{ uri: tempPhoto }} style={stylescheckList.previewImage} />
+              <Image source={{ uri: tempPhoto }} style={styleschecklist.previewImage} />
             )}
             
             <TextInput
-              style={stylescheckList.descriptionInput}
+              style={styleschecklist.descriptionInput}
               placeholder="Descripción de la foto (opcional)"
               value={photoDescription}
               onChangeText={setPhotoDescription}
               multiline
             />
             
-            <View style={stylescheckList.modalButtons}>
+            <View style={styleschecklist.modalButtons}>
               <TouchableOpacity
-                style={[stylescheckList.modalButton, stylescheckList.cancelButton]}
+                style={[styleschecklist.modalButton, styleschecklist.cancelButton]}
                 onPress={() => {
                   setTempPhoto(null);
                   setCameraVisible(false);
                 }}
               >
-                <Text style={stylescheckList.cancelButtonText}>Cancelar</Text>
+                <Text style={styleschecklist.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[stylescheckList.modalButton, stylescheckList.savePhotoButton]}
+                style={[styleschecklist.modalButton, styleschecklist.savePhotoButton]}
                 onPress={savePhoto}
               >
-                <Text style={stylescheckList.savePhotoButtonText}>Guardar Foto</Text>
+                <Text style={styleschecklist.savePhotoButtonText}>Guardar Foto</Text>
               </TouchableOpacity>
             </View>
           </View>

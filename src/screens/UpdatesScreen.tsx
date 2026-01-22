@@ -8,7 +8,6 @@ import {
     ActivityIndicator,
     Linking,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,8 +15,7 @@ import Toast from 'react-native-toast-message';
 import { AppUpdate } from 'src/types/updates';
 import { stylesupdates } from 'src/styles/updates';
 
-const UpdatesScreen = () => {
-    const navigation = useNavigation();
+export const UpdatesScreen = () => {
     const [checking, setChecking] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [hasUpdate, setHasUpdate] = useState(false);
@@ -406,5 +404,3 @@ const UpdatesScreen = () => {
         </ScrollView>
     );
 };
-
-export default UpdatesScreen;

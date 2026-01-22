@@ -10,39 +10,60 @@ import {
     Platform,
     ActivityIndicator,
     Alert,
+    Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import * as DocumentPicker from 'expo-document-picker';
-import { getClientsFromExcel, getWhatsAppContactsSimulated } from '../utils/clients';
-import { Cliente } from 'src/types/reminders';
+import { getWhatsAppContactsSimulated } from '../utils/clients';
+import { Cliente, ExcelTemplate } from 'src/types/reminders';
 import { stylesreminders } from 'src/styles/reminders';
-import MessageBubble from './MessageBubble';
+import { MessageBubble } from './MessageBubble';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import remindersData from 'src/utils/remindersData';
+import XLSX from 'xlsx';
+import { RouteParams } from 'src/types/navigation';
+import { useRoute } from '@react-navigation/native';
+import { SucursalType } from 'src/types/checklist';
 
-const RemindersScreen = () => {
+export const RemindersScreen = ({ navigation }: { navigation: any }) => {
+    const route = useRoute();
+    const params = route.params as RouteParams;
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+    const [templates, setTemplates] = useState<ExcelTemplate[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState<ExcelTemplate | null>(null);
+    const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+    const [selectedSucursal, setSelectedSucursal] = useState<SucursalType>(
+        params?.sucursalKey || 'BAALAK_CENTRAL'
+    );
 
     // Cargar clientes guardados
     useEffect(() => {
-        loadClientes();
+        cargarTemplates();
+        cargarTemplateSeleccionado();
     }, []);
 
-    const loadClientes = async () => {
+    const cargarTemplates = async () => {
         try {
-            const saved = await AsyncStorage.getItem('reminders_clientes');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setClientes(parsed);
-                if (parsed.length > 0) {
-                    setSelectedCliente(parsed[0]);
-                }
+            const templatesData = await remindersData.obtenerTemplates();
+            setTemplates(templatesData.filter(t => t.activo));
+        } catch (error) {
+            console.error('Error cargando templates:', error);
+        }
+    };
+
+    const cargarTemplateSeleccionado = async () => {
+        try {
+            const templateId = await remindersData.obtenerTemplateSeleccionado();
+            if (templateId) {
+                const template = await remindersData.obtenerTemplate(templateId);
+                setSelectedTemplate(template);
             }
         } catch (error) {
-            console.error('Error loading clientes:', error);
+            console.error('Error cargando template seleccionado:', error);
         }
     };
 
@@ -54,43 +75,129 @@ const RemindersScreen = () => {
         }
     };
 
-    // Importar desde Excel
+    const handleSelectTemplate = async (template: ExcelTemplate) => {
+        setSelectedTemplate(template);
+        await remindersData.guardarTemplateSeleccionado(template.id);
+    };
+
     const handleImportExcel = async () => {
+        console.log('📥 Iniciando importación de Excel...');
+        
+        if (!selectedTemplate) {
+            console.log('⚠️ No hay template seleccionado, mostrando selector');
+            setShowTemplateSelector(true);
+            return;
+        }
+
+        console.log('📋 Template seleccionado:', selectedTemplate.nombre);
+
         try {
             const result = await DocumentPicker.getDocumentAsync({
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 copyToCacheDirectory: true,
             });
 
-            if (!result.canceled && result.assets[0]) {
+            console.log('📁 Resultado del picker:', result);
+
+            if (!result.canceled && result.assets && result.assets[0]) {
                 setLoading(true);
                 
                 try {
-                    const fileUri = result.assets[0].uri;
-                    const clientesImportados = await getClientsFromExcel(fileUri);
+                    const file = result.assets[0];
+                    console.log('📄 Archivo seleccionado:', file.uri);
                     
-                    const updatedClientes = [...clientes, ...clientesImportados];
-                    setClientes(updatedClientes);
-                    saveClientes(updatedClientes);
+                    // Procesar el Excel usando la función correcta
+                    const clientesProcesados = await procesarExcelConTemplate(file.uri, selectedTemplate);
                     
-                    if (clientesImportados.length > 0 && !selectedCliente) {
-                        setSelectedCliente(clientesImportados[0]);
+                    console.log('✅ Clientes procesados:', clientesProcesados.length);
+                    
+                    if (clientesProcesados && clientesProcesados.length > 0) {
+                        // Actualizar el estado con los nuevos clientes
+                        const updatedClientes = [...clientes, ...clientesProcesados];
+                        setClientes(updatedClientes);
+                        saveClientes(updatedClientes);
+                        
+                        // Seleccionar el primer cliente si no hay ninguno seleccionado
+                        if (!selectedCliente) {
+                            setSelectedCliente(clientesProcesados[0]);
+                        }
+                        
+                        Toast.show({
+                            type: 'success',
+                            text1: '✅ Importación exitosa',
+                            text2: `${clientesProcesados.length} clientes importados`,
+                        });
+                        
+                        console.log('🎉 Clientes actualizados en estado');
+                    } else {
+                        console.log('⚠️ No se encontraron clientes válidos');
+                        Toast.show({
+                            type: 'info',
+                            text1: 'Sin datos',
+                            text2: 'El archivo Excel no contiene datos válidos',
+                        });
                     }
-                    
-                    Toast.show({
-                        type: 'success',
-                        text1: 'Éxito',
-                        text2: `${clientesImportados.length} clientes importados`,
-                    });
                 } catch (error) {
-                    console.error('Error importing Excel:', error);
+                    console.error('❌ Error procesando Excel:', error);
+                    Toast.show({
+                        type: 'error',
+                        text1: 'Error',
+                        text2: 'No se pudo procesar el archivo Excel',
+                    });
                 } finally {
                     setLoading(false);
                 }
+            } else {
+                console.log('❌ Selección cancelada o sin archivo');
             }
         } catch (error) {
-            console.error('Error picking file:', error);
+            console.error('❌ Error al seleccionar archivo:', error);
             setLoading(false);
+        }
+    };
+
+    const procesarExcelConTemplate = async (fileUri: string, template: ExcelTemplate) => {
+        try {
+            console.log('📊 Procesando Excel con template:', template.nombre);
+            
+            // Leer Excel
+            const response = await fetch(fileUri);
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+            
+            console.log('📈 Datos leídos:', data.length, 'filas');
+            
+            // Procesar con template usando remindersData
+            const datosProcesados = remindersData.procesarDatosConTemplate(data, template);
+            
+            console.log('👥 Datos procesados:', datosProcesados.length);
+            
+            // Crear clientes con mensajes personalizados
+            return datosProcesados.map(item => {
+                const mensaje = remindersData.generarMensajeConTemplate(template, item.variables);
+                
+                return {
+                    ...item.cliente,
+                    mensajes: [
+                        {
+                            id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            contenido: mensaje,
+                            timestamp: new Date().toLocaleTimeString('es-ES', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }),
+                            esPropio: true
+                        }
+                    ]
+                };
+            });
+            
+        } catch (error) {
+            console.error('❌ Error procesando Excel con template:', error);
+            throw error;
         }
     };
 
@@ -292,20 +399,22 @@ const RemindersScreen = () => {
                     <View style={stylesreminders.emptyButtons}>
                         <TouchableOpacity
                             style={stylesreminders.actionButton}
-                            onPress={handleImportExcel}
+                            onPress={() => setShowTemplateSelector(true)}
                             disabled={loading}
                         >
                             <Icon name="upload-file" size={24} color="#fff" />
-                            <Text style={stylesreminders.actionButtonText}>Importar Excel</Text>
+                            <Text style={stylesreminders.actionButtonText}>
+                                Importar Excel
+                            </Text>
                         </TouchableOpacity>
-                        
+                        <Text>{selectedSucursal}</Text>
                         <TouchableOpacity
                             style={[stylesreminders.actionButton, stylesreminders.actionButtonSecondary]}
                             onPress={handleGetContacts}
                             disabled={loading}
                         >
                             <Icon name="contacts" size={24} color="#fff" />
-                            <Text style={stylesreminders.actionButtonText}>Contactos Demo</Text>
+                            <Text style={stylesreminders.actionButtonText}>Importar Contactos</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -397,10 +506,76 @@ const RemindersScreen = () => {
                 </View>
             )}
 
+            {/* Selector de Template */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showTemplateSelector}
+                onRequestClose={() => setShowTemplateSelector(false)}
+            >
+                <View style={stylesreminders.modalOverlay}>
+                    <View style={stylesreminders.templateSelector}>
+                        <View style={stylesreminders.selectorHeader}>
+                            <Text style={stylesreminders.selectorTitle}>Seleccionar plantilla</Text>
+                            <TouchableOpacity onPress={() => setShowTemplateSelector(false)}>
+                                <Icon name="close" size={24} color="#333" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <FlatList
+                            data={templates}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    style={stylesreminders.templateOption}
+                                    onPress={() => handleSelectTemplate(item)}
+                                >
+                                    <View style={stylesreminders.templateOptionIcon}>
+                                        <Icon 
+                                            name={item.tipo === 'vacunas' ? 'vaccines' : 
+                                                item.tipo === 'citas' ? 'event' : 'description'
+                                            } 
+                                            size={24} 
+                                            color="#fff" 
+                                        />
+                                    </View>
+                                    <View style={stylesreminders.templateOptionInfo}>
+                                        <Text style={stylesreminders.templateOptionName}>{item.nombre}</Text>
+                                        <Text style={stylesreminders.templateOptionDesc}>{item.descripcion}</Text>
+                                        <Text style={stylesreminders.templateOptionFields}>
+                                            {item.encabezados.length} campos
+                                        </Text>
+                                    </View>
+                                    {selectedTemplate?.id === item.id && (
+                                        <Icon name="check-circle" size={24} color="#4CAF50" />
+                                    )}
+                                </TouchableOpacity>
+                            )}
+                            keyExtractor={(item) => item.id}
+                        />
+                        
+                        <TouchableOpacity
+                            style={stylesreminders.configTemplateButton}
+                            onPress={() => {
+                                setShowTemplateSelector(false);
+                                handleImportExcel();
+                                navigation.navigate('RemindersScreen');
+                            }}
+                        >
+                            <Icon name="download" size={20} color="#fff" />
+                            <Text style={stylesreminders.configTemplateButtonText}>
+                                {selectedTemplate 
+                                    ? `Importar ${selectedTemplate.nombre}`
+                                    : 'Importar Excel'
+                                }
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
             <Toast />
+
         </SafeAreaView>
 
     );
 };
-
-export default RemindersScreen;

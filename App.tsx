@@ -4,9 +4,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { 
   MainMenuScreen, 
   ChecklistScreen, 
-  TemplateManagementScreen,
+  TemplateChecklistScreen,
   RemindersScreen,
-  WhatsAppConnectionScreen,
   UpdatesScreen 
 } from './src/screens';
 
@@ -38,19 +37,14 @@ export default function App() {
           options={{ title: 'Checklist' }}
         />
         <Stack.Screen 
-          name="TemplateManagement" 
-          component={TemplateManagementScreen}
+          name="TemplateChecklist" 
+          component={TemplateChecklistScreen}
           options={{ title: 'Plantillas' }}
         />
         <Stack.Screen 
           name="Reminders" 
           component={RemindersScreen}
           options={{ title: 'Recordatorios' }}
-        />
-        <Stack.Screen 
-          name="WhatsAppConnection" 
-          component={WhatsAppConnectionScreen}
-          options={{ title: 'Conexión WhatsApp' }}
         />
         <Stack.Screen 
           name="Updates" 

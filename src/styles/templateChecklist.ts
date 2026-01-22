@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-export const stylestemplateManagement = StyleSheet.create({
+export const stylestemplateChecklist = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',

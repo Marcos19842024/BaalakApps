@@ -29,10 +29,10 @@ import {
   getAreaIconsAsync,
   initializeCache
 } from '../utils/checklistData';
-import { stylestemplateManagement } from 'src/styles/templateManagement';
+import { stylestemplateChecklist } from 'src/styles/templateChecklist';
 import { RouteParams } from 'src/types/navigation';
 
-export default function TemplateManagementScreen() {
+export default function TemplateChecklistScreen() {
   const route = useRoute();
   const params = route.params as RouteParams;
 
@@ -70,13 +70,12 @@ export default function TemplateManagementScreen() {
   // Inicializar cache al cargar la pantalla
   useEffect(() => {
     initializeCache().then(() => {
+      // Si recibimos una sucursal por parámetro, seleccionarla
+      if (params?.sucursalKey) {
+        setSelectedSucursal(params.sucursalKey);
+      }
       loadData();
     });
-
-    // Si recibimos una sucursal por parámetro, seleccionarla
-    if (params?.sucursalKey) {
-      setSelectedSucursal(params.sucursalKey);
-    }
   }, []);
 
   // Recargar datos cuando cambia la sucursal
@@ -357,24 +356,24 @@ export default function TemplateManagementScreen() {
   };
 
   const renderAreaItem = ({ item: area }: { item: ChecklistArea, index: number }) => (
-    <View style={stylestemplateManagement.areaCard}>
-      <View style={stylestemplateManagement.areaHeader}>
-        <View style={stylestemplateManagement.areaTitleContainer}>
-          <Text style={stylestemplateManagement.areaIcon}>
+    <View style={stylestemplateChecklist.areaCard}>
+      <View style={stylestemplateChecklist.areaHeader}>
+        <View style={stylestemplateChecklist.areaTitleContainer}>
+          <Text style={stylestemplateChecklist.areaIcon}>
             {areaIcons[area.area] || '📋'}
           </Text>
           <View>
-            <Text style={stylestemplateManagement.areaName}>{area.area}</Text>
-            <Text style={stylestemplateManagement.areaInfo}>
+            <Text style={stylestemplateChecklist.areaName}>{area.area}</Text>
+            <Text style={stylestemplateChecklist.areaInfo}>
               {area.aspectos.length} {area.aspectos.length === 1 ? 'aspecto' : 'aspectos'} • 
               Orden: {areaOrder[area.area] || 99}
             </Text>
           </View>
         </View>
 
-        <View style={stylestemplateManagement.areaActions}>
+        <View style={stylestemplateChecklist.areaActions}>
           <TouchableOpacity
-            style={stylestemplateManagement.actionButtonSmall}
+            style={stylestemplateChecklist.actionButtonSmall}
             onPress={() => {
               setSelectedArea(area.area);
               setEditAreaName(area.area);
@@ -387,7 +386,7 @@ export default function TemplateManagementScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={stylestemplateManagement.actionButtonSmall}
+            style={stylestemplateChecklist.actionButtonSmall}
             onPress={() => {
               setSelectedArea(area.area);
               setShowAddAspectoModal(true);
@@ -398,7 +397,7 @@ export default function TemplateManagementScreen() {
           
           {area.editable && (
             <TouchableOpacity
-              style={stylestemplateManagement.actionButtonSmall}
+              style={stylestemplateChecklist.actionButtonSmall}
               onPress={() => handleRemoveArea(area.area)}
             >
               <Icon name="delete" size={18} color="#EF4444" />
@@ -407,16 +406,16 @@ export default function TemplateManagementScreen() {
         </View>
       </View>
 
-      <View style={stylestemplateManagement.aspectosList}>
+      <View style={stylestemplateChecklist.aspectosList}>
         {area.aspectos.map((aspecto, aspectoIndex) => (
-          <View key={aspecto.id} style={stylestemplateManagement.aspectoItem}>
-            <Text style={stylestemplateManagement.aspectoText}>
+          <View key={aspecto.id} style={stylestemplateChecklist.aspectoItem}>
+            <Text style={stylestemplateChecklist.aspectoText}>
               {aspectoIndex + 1}. {aspecto.aspecto}
             </Text>
             {aspecto.editable && (
-              <View style={stylestemplateManagement.aspectoActions}>
+              <View style={stylestemplateChecklist.aspectoActions}>
                 <TouchableOpacity
-                  style={stylestemplateManagement.aspectoActionButton}
+                  style={stylestemplateChecklist.aspectoActionButton}
                   onPress={() => {
                     setSelectedArea(area.area);
                     setSelectedAspecto(aspecto);
@@ -427,7 +426,7 @@ export default function TemplateManagementScreen() {
                   <Icon name="edit" size={16} color="#3B82F6" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={stylestemplateManagement.aspectoActionButton}
+                  style={stylestemplateChecklist.aspectoActionButton}
                   onPress={() => handleRemoveAspecto(area.area, aspecto.id)}
                 >
                   <Icon name="delete" size={16} color="#EF4444" />
@@ -439,7 +438,7 @@ export default function TemplateManagementScreen() {
       </View>
 
       {area.aspectos.length === 0 && (
-        <Text style={stylestemplateManagement.noAspectosText}>
+        <Text style={stylestemplateChecklist.noAspectosText}>
           No hay aspectos en esta área. Agrega algunos.
         </Text>
       )}
@@ -448,55 +447,55 @@ export default function TemplateManagementScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={stylestemplateManagement.container}>
-        <View style={stylestemplateManagement.loadingContainer}>
+      <SafeAreaView style={stylestemplateChecklist.container}>
+        <View style={stylestemplateChecklist.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={stylestemplateManagement.loadingText}>Cargando plantillas...</Text>
+          <Text style={stylestemplateChecklist.loadingText}>Cargando plantillas...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={stylestemplateManagement.container}>
+    <SafeAreaView style={stylestemplateChecklist.container}>
       {/* Información de la sucursal */}
-      <View style={stylestemplateManagement.infoCard}>
-        <View style={stylestemplateManagement.infoRow}>
-          <View style={stylestemplateManagement.infoItem}>
-            <Text style={stylestemplateManagement.infoLabel}>Áreas totales:</Text>
-            <Text style={stylestemplateManagement.infoValue}>{template.length}</Text>
+      <View style={stylestemplateChecklist.infoCard}>
+        <View style={stylestemplateChecklist.infoRow}>
+          <View style={stylestemplateChecklist.infoItem}>
+            <Text style={stylestemplateChecklist.infoLabel}>Áreas totales:</Text>
+            <Text style={stylestemplateChecklist.infoValue}>{template.length}</Text>
           </View>
-          <View style={stylestemplateManagement.infoItem}>
-            <Text style={stylestemplateManagement.infoLabel}>Aspectos totales:</Text>
-            <Text style={stylestemplateManagement.infoValue}>
+          <View style={stylestemplateChecklist.infoItem}>
+            <Text style={stylestemplateChecklist.infoLabel}>Aspectos totales:</Text>
+            <Text style={stylestemplateChecklist.infoValue}>
               {template.reduce((sum, area) => sum + area.aspectos.length, 0)}
             </Text>
           </View>
         </View>
-        <Text style={stylestemplateManagement.currentSucursal}>
+        <Text style={stylestemplateChecklist.currentSucursal}>
           {SUCURSALES[selectedSucursal]}
         </Text>
-        <Text style={stylestemplateManagement.storageInfo}>
+        <Text style={stylestemplateChecklist.storageInfo}>
           {template.some(area => area.editable) ? 'Con personalizaciones guardadas' : 'Usando valores por defecto'}
         </Text>
       </View>
 
       {/* Botones de acción principales */}
-      <View style={stylestemplateManagement.mainActions}>
+      <View style={stylestemplateChecklist.mainActions}>
         <TouchableOpacity
-          style={[stylestemplateManagement.actionButton, stylestemplateManagement.addAreaButton]}
+          style={[stylestemplateChecklist.actionButton, stylestemplateChecklist.addAreaButton]}
           onPress={() => setShowAddAreaModal(true)}
         >
           <Icon name="add-circle-outline" size={20} color="white" />
-          <Text style={stylestemplateManagement.actionButtonText}>Agregar Área</Text>
+          <Text style={stylestemplateChecklist.actionButtonText}>Agregar Área</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[stylestemplateManagement.actionButton, stylestemplateManagement.resetButton]}
+          style={[stylestemplateChecklist.actionButton, stylestemplateChecklist.resetButton]}
           onPress={handleResetTemplate}
         >
           <Icon name="restore" size={20} color="white" />
-          <Text style={stylestemplateManagement.actionButtonText}>Restablecer</Text>
+          <Text style={stylestemplateChecklist.actionButtonText}>Restablecer</Text>
         </TouchableOpacity>
       </View>
 
@@ -505,28 +504,28 @@ export default function TemplateManagementScreen() {
         data={template}
         renderItem={renderAreaItem}
         keyExtractor={(item) => item.area}
-        contentContainerStyle={stylestemplateManagement.listContainer}
+        contentContainerStyle={stylestemplateChecklist.listContainer}
         showsVerticalScrollIndicator={true}
         refreshing={loading}
         onRefresh={loadData}
         ListEmptyComponent={
-          <View style={stylestemplateManagement.emptyState}>
+          <View style={stylestemplateChecklist.emptyState}>
             <MaterialCommunityIcons name="folder-alert" size={64} color="#9CA3AF" />
-            <Text style={stylestemplateManagement.emptyStateTitle}>No hay áreas configuradas</Text>
-            <Text style={stylestemplateManagement.emptyStateText}>
+            <Text style={stylestemplateChecklist.emptyStateTitle}>No hay áreas configuradas</Text>
+            <Text style={stylestemplateChecklist.emptyStateText}>
               Comienza agregando tu primera área usando el botón "Agregar Área"
             </Text>
           </View>
         }
         ListFooterComponent={
           template.length > 0 ? (
-            <View style={stylestemplateManagement.footerInfo}>
-              <Text style={stylestemplateManagement.footerText}>
+            <View style={stylestemplateChecklist.footerInfo}>
+              <Text style={stylestemplateChecklist.footerText}>
                 Total: {template.length} áreas • {
                   template.reduce((sum, area) => sum + area.aspectos.length, 0)
                 } aspectos
               </Text>
-              <Text style={stylestemplateManagement.footerNote}>
+              <Text style={stylestemplateChecklist.footerNote}>
                 Las personalizaciones se guardan automáticamente en tu dispositivo
               </Text>
             </View>
@@ -540,55 +539,55 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={stylestemplateManagement.modalOverlay}>
-          <View style={stylestemplateManagement.modalContent}>
-            <Text style={stylestemplateManagement.modalTitle}>Agregar Nueva Área</Text>
+        <View style={stylestemplateChecklist.modalOverlay}>
+          <View style={stylestemplateChecklist.modalContent}>
+            <Text style={stylestemplateChecklist.modalTitle}>Agregar Nueva Área</Text>
             
             <TextInput
-              style={stylestemplateManagement.modalInput}
+              style={stylestemplateChecklist.modalInput}
               placeholder="Nombre del área (ej: RECEPCIÓN)"
               value={newAreaName}
               onChangeText={setNewAreaName}
               autoCapitalize="characters"
             />
 
-            <Text style={stylestemplateManagement.modalSubtitle}>Seleccionar ícono:</Text>
+            <Text style={stylestemplateChecklist.modalSubtitle}>Seleccionar ícono:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {availableIcons.slice(0, 15).map((icon) => (
                 <TouchableOpacity
                   key={icon}
                   style={[
-                    stylestemplateManagement.iconOption,
-                    newAreaIcon === icon && stylestemplateManagement.iconOptionSelected
+                    stylestemplateChecklist.iconOption,
+                    newAreaIcon === icon && stylestemplateChecklist.iconOptionSelected
                   ]}
                   onPress={() => setNewAreaIcon(icon)}
                 >
-                  <Text style={stylestemplateManagement.iconOptionText}>{icon}</Text>
+                  <Text style={stylestemplateChecklist.iconOptionText}>{icon}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             
-            <View style={stylestemplateManagement.modalButtons}>
+            <View style={stylestemplateChecklist.modalButtons}>
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.cancelButton]}
                 onPress={() => {
                   setNewAreaName('');
                   setNewAreaIcon('');
                   setShowAddAreaModal(false);
                 }}
               >
-                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateChecklist.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.saveButton]}
                 onPress={handleAddArea}
                 disabled={!newAreaName.trim() || loading}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={stylestemplateManagement.saveButtonText}>Agregar</Text>
+                  <Text style={stylestemplateChecklist.saveButtonText}>Agregar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -602,29 +601,29 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={stylestemplateManagement.modalOverlay}>
-          <View style={stylestemplateManagement.modalContent}>
-            <Text style={stylestemplateManagement.modalTitle}>Agregar Aspecto</Text>
-            <Text style={stylestemplateManagement.modalSubtitle}>Selecciona el área:</Text>
+        <View style={stylestemplateChecklist.modalOverlay}>
+          <View style={stylestemplateChecklist.modalContent}>
+            <Text style={stylestemplateChecklist.modalTitle}>Agregar Aspecto</Text>
+            <Text style={stylestemplateChecklist.modalSubtitle}>Selecciona el área:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {template.map((area) => (
                 <TouchableOpacity
                   key={area.area}
                   style={[
-                    stylestemplateManagement.areaOption,
-                    selectedArea === area.area && stylestemplateManagement.areaOptionSelected
+                    stylestemplateChecklist.areaOption,
+                    selectedArea === area.area && stylestemplateChecklist.areaOptionSelected
                   ]}
                   onPress={() => setSelectedArea(area.area)}
                 >
-                  <Text style={stylestemplateManagement.areaOptionText}>{area.area}</Text>
+                  <Text style={stylestemplateChecklist.areaOptionText}>{area.area}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             
-            <Text style={stylestemplateManagement.modalSubtitle}>Área seleccionada: {selectedArea || 'Ninguna'}</Text>
+            <Text style={stylestemplateChecklist.modalSubtitle}>Área seleccionada: {selectedArea || 'Ninguna'}</Text>
             
             <TextInput
-              style={[stylestemplateManagement.modalInput, stylestemplateManagement.textArea]}
+              style={[stylestemplateChecklist.modalInput, stylestemplateChecklist.textArea]}
               placeholder="Descripción del aspecto (ej: Limpieza general)"
               value={newAspectoText}
               onChangeText={setNewAspectoText}
@@ -632,27 +631,27 @@ export default function TemplateManagementScreen() {
               numberOfLines={3}
             />
 
-            <View style={stylestemplateManagement.modalButtons}>
+            <View style={stylestemplateChecklist.modalButtons}>
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.cancelButton]}
                 onPress={() => {
                   setNewAspectoText('');
                   setSelectedArea('');
                   setShowAddAspectoModal(false);
                 }}
               >
-                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateChecklist.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.saveButton]}
                 onPress={handleAddAspecto}
                 disabled={!selectedArea || !newAspectoText.trim() || loading}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={stylestemplateManagement.saveButtonText}>Agregar</Text>
+                  <Text style={stylestemplateChecklist.saveButtonText}>Agregar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -666,37 +665,37 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={stylestemplateManagement.modalOverlay}>
-          <View style={stylestemplateManagement.modalContent}>
-            <Text style={stylestemplateManagement.modalTitle}>Editar Aspecto</Text>
-            <Text style={stylestemplateManagement.modalSubtitle}>Área: {selectedArea}</Text>
+        <View style={stylestemplateChecklist.modalOverlay}>
+          <View style={stylestemplateChecklist.modalContent}>
+            <Text style={stylestemplateChecklist.modalTitle}>Editar Aspecto</Text>
+            <Text style={stylestemplateChecklist.modalSubtitle}>Área: {selectedArea}</Text>
             
             <TextInput
-              style={[stylestemplateManagement.modalInput, stylestemplateManagement.textArea]}
+              style={[stylestemplateChecklist.modalInput, stylestemplateChecklist.textArea]}
               value={editAspectoText}
               onChangeText={setEditAspectoText}
               multiline
               numberOfLines={3}
             />
 
-            <View style={stylestemplateManagement.modalButtons}>
+            <View style={stylestemplateChecklist.modalButtons}>
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.cancelButton]}
                 onPress={() => {
                   setEditAspectoText('');
                   setSelectedAspecto(null);
                   setShowEditAspectoModal(false);
                 }}
               >
-                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateChecklist.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.saveButton]}
                 onPress={handleEditAspecto}
                 disabled={!editAspectoText.trim()}
               >
-                <Text style={stylestemplateManagement.saveButtonText}>Guardar Cambios</Text>
+                <Text style={stylestemplateChecklist.saveButtonText}>Guardar Cambios</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -709,38 +708,38 @@ export default function TemplateManagementScreen() {
         transparent={true}
         animationType="slide"
       >
-        <View style={stylestemplateManagement.modalOverlay}>
-          <View style={stylestemplateManagement.modalContent}>
-            <Text style={stylestemplateManagement.modalTitle}>Editar Área</Text>
-            <Text style={stylestemplateManagement.modalSubtitle}>Área actual: {selectedArea}</Text>
+        <View style={stylestemplateChecklist.modalOverlay}>
+          <View style={stylestemplateChecklist.modalContent}>
+            <Text style={stylestemplateChecklist.modalTitle}>Editar Área</Text>
+            <Text style={stylestemplateChecklist.modalSubtitle}>Área actual: {selectedArea}</Text>
             
             <TextInput
-              style={stylestemplateManagement.modalInput}
+              style={stylestemplateChecklist.modalInput}
               placeholder="Nuevo nombre del área"
               value={editAreaName}
               onChangeText={setEditAreaName}
               autoCapitalize="characters"
             />
 
-            <Text style={stylestemplateManagement.modalSubtitle}>Seleccionar nuevo ícono:</Text>
+            <Text style={stylestemplateChecklist.modalSubtitle}>Seleccionar nuevo ícono:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {availableIcons.slice(0, 15).map((icon) => (
                 <TouchableOpacity
                   key={icon}
                   style={[
-                    stylestemplateManagement.iconOption,
-                    editAreaIcon === icon && stylestemplateManagement.iconOptionSelected
+                    stylestemplateChecklist.iconOption,
+                    editAreaIcon === icon && stylestemplateChecklist.iconOptionSelected
                   ]}
                   onPress={() => setEditAreaIcon(icon)}
                 >
-                  <Text style={stylestemplateManagement.iconOptionText}>{icon}</Text>
+                  <Text style={stylestemplateChecklist.iconOptionText}>{icon}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            <View style={stylestemplateManagement.modalButtons}>
+            <View style={stylestemplateChecklist.modalButtons}>
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.cancelButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.cancelButton]}
                 onPress={() => {
                   setEditAreaName('');
                   setEditAreaIcon('')
@@ -748,14 +747,14 @@ export default function TemplateManagementScreen() {
                   setShowEditAreaModal(false);
                 }}
               >
-                <Text style={stylestemplateManagement.cancelButtonText}>Cancelar</Text>
+                <Text style={stylestemplateChecklist.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[stylestemplateManagement.modalButton, stylestemplateManagement.saveButton]}
+                style={[stylestemplateChecklist.modalButton, stylestemplateChecklist.saveButton]}
                 onPress={handleEditArea}
               >
-                <Text style={stylestemplateManagement.saveButtonText}>Guardar Cambios</Text>
+                <Text style={stylestemplateChecklist.saveButtonText}>Guardar Cambios</Text>
               </TouchableOpacity>
             </View>
           </View>

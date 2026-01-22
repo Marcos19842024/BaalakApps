@@ -16,7 +16,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CLINIC_OPTIONS, SUCURSALES, SucursalType } from 'src/types/checklist';
 import { ChecklistScreenNavigationProp } from 'src/types/navigation';
 
-const MainMenuScreen = () => {
+export const MainMenuScreen = () => {
   const navigation = useNavigation<ChecklistScreenNavigationProp>();
   const [hasUpdate, setHasUpdate] = useState(false);
   const [showClinicSelector, setShowClinicSelector] = useState(false);
@@ -38,7 +38,7 @@ const MainMenuScreen = () => {
       description: 'Editar áreas y elementos de checklist',
       icon: 'settings',
       color: '#9C27B0',
-      route: 'TemplateManagement',
+      route: 'TemplateChecklist',
     },
     {
       id: 'reminders',
@@ -47,22 +47,6 @@ const MainMenuScreen = () => {
       icon: 'notifications',
       color: '#2196F3',
       route: 'Reminders',
-    },
-    {
-      id: 'templateMessages',
-      title: 'Mensajes de plantilla',
-      description: 'Configura mensajes predefinidos',
-      icon: 'message',
-      color: '#FF9800',
-      route: 'TemplateMessages',
-    },
-    {
-      id: 'whatsapp',
-      title: 'WhatsApp',
-      description: 'Conexión y configuración',
-      icon: 'whatsapp',
-      color: '#25D366',
-      route: 'WhatsAppConnection',
     },
     {
       id: 'updates',
@@ -108,13 +92,13 @@ const MainMenuScreen = () => {
       });
       return;
     }
-    else if (route === 'TemplateManagement') {
+    else if (route === 'TemplateChecklist') {
       Toast.show({
         type: 'info',
-        text1: 'Navegando a Configuración de Checklists',
+        text1: 'Navegando a Configuración de Checklist',
         text2: `Sucursal actual: ${sucursalName}`,
       });
-      navigation.navigate('TemplateManagement', { sucursalKey: sucursalKey });
+      navigation.navigate('TemplateChecklist', { sucursalKey: sucursalKey });
     }
     else if (route === 'Checklist') {
       Toast.show({
@@ -268,5 +252,3 @@ const MainMenuScreen = () => {
     </View>
   );
 };
-
-export default MainMenuScreen;

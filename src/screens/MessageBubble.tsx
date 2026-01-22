@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { stylesmessageBubble } from 'src/styles/messageBubble';
 import { MessageBubbleProps } from 'src/types/reminders';
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({
+export const MessageBubble: React.FC<MessageBubbleProps> = ({
     mensaje
 }) => {
     const alignment = mensaje.esPropio ? 'flex-end' : 'flex-start';
@@ -20,5 +20,3 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         </View>
     );
 };
-
-export default MessageBubble;
