@@ -46,7 +46,8 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "updates": {
       "url": "https://u.expo.dev/c438269a-0bee-4ebc-ac19-9a592c308fe6",

@@ -16,13 +16,13 @@
     "@react-navigation/stack": "^6.4.1",
     "@types/xlsx": "^0.0.35",
     "axios": "^1.13.2",
-    "expo": "~54.0.31",
+    "expo": "~54.0.32",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
-    "expo-font": "~14.0.10",
+    "expo-font": "~14.0.11",
     "expo-image-picker": "~17.0.10",
     "expo-media-library": "~18.2.1",
     "expo-print": "~15.0.8",
@@ -47,7 +47,6 @@
   "devDependencies": {
     "@types/lodash": "^4.17.23",
     "@types/react": "~19.1.0",
-    "@types/react-native": "^0.72.8",
     "@types/react-navigation": "^3.0.8",
     "typescript": "~5.9.2"
   },
