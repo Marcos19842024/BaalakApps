@@ -2,7 +2,7 @@
   "expo": {
     "name": "Baalak Apps",
     "slug": "baalakapps",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.Baalak.Apps",
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
