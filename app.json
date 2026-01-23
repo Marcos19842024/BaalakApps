@@ -36,7 +36,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "56ab224e-f8fd-4d3b-a242-053cd5d032f0"
+        "projectId": "c438269a-0bee-4ebc-ac19-9a592c308fe6"
       }
     },
     "plugins": [
@@ -49,7 +49,7 @@
       ]
     ],
     "updates": {
-      "url": "https://u.expo.dev/56ab224e-f8fd-4d3b-a242-053cd5d032f0",
+      "url": "https://u.expo.dev/c438269a-0bee-4ebc-ac19-9a592c308fe6",
       "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
