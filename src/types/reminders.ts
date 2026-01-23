@@ -19,6 +19,13 @@ export interface Cliente {
     mascotas: Mascota[];
     mensajes: Mensaje[];
     status: boolean;
+    // Campos específicos para citas
+    fechaCita?: string;
+    horaCita?: string;
+    tipoVisita?: string;
+    asunto?: string;
+    agenda?: string;
+    estado?: string;
 }
 
 export interface Mensaje {
@@ -28,52 +35,22 @@ export interface Mensaje {
     esPropio: boolean;
 }
 
-export interface ContactoWhatsApp {
-    id: { server: string };
-    name: string;
-    number: string;
-    isMyContact: boolean;
-}
-
-export interface ContactoResponse {
-    statusText: ContactoWhatsApp[];
-}
-
-export interface MessageBubbleProps {
-    mensaje: Mensaje;
-}
-
 export interface ExcelTemplate {
-  id: string;
-  nombre: string;
-  tipo: 'vacunas' | 'citas' | 'personalizado';
-  descripcion: string;
-  activo: boolean;
-  encabezados: TemplateHeader[];
-  mensajeTemplate: string;
-  variablesDisponibles: string[];
-  fechaCreacion: string;
-  fechaActualizacion: string;
+    id: string;
+    nombre: string;
+    tipo: 'vacunas' | 'citas' | 'personalizado';
+    descripcion: string;
+    activo: boolean;
+    encabezados: TemplateHeader[];
+    mensajeTemplate: string;
 }
 
 export interface TemplateHeader {
-  nombre: string;          // Nombre exacto del encabezado en Excel
-  alias: string;           // Nombre amigable para mostrar
-  variable: string;        // Variable para usar en el mensaje {nombre}
-  requerido: boolean;
-  tipo: 'texto' | 'numero' | 'fecha' | 'telefono';
-  formatoFecha?: string;   // 'YYYY-MM-DD', 'DD/MM/YYYY', etc.
-  ejemplo?: string;
-}
-
-export interface VariableMapping {
-  variable: string;
-  valor: string;
-  tipo: string;
-}
-
-export interface MensajeConfigurado {
-  templateId: string;
-  variables: VariableMapping[];
-  mensajeFinal: string;
+    nombre: string;
+    alias: string;
+    variable: string;
+    requerido: boolean;
+    tipo: 'texto' | 'numero' | 'fecha' | 'telefono';
+    formatoFecha?: string;
+    ejemplo?: string;
 }

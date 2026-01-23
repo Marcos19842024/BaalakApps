@@ -1,10 +1,9 @@
-import { SucursalType } from "./checklist";
+import { SucursalType } from "./sucursal";
 
 export type RootStackParamList = {
   Checklist: undefined;
   TemplateChecklist: { sucursalKey: string };
-  Reminders: undefined;
-  TemplateReminders: { sucursalKey: string };
+  Reminders: { sucursalKey: string };
 };
 
 // Tipos básicos para navigation
@@ -18,7 +17,4 @@ export type RouteParams = {
 };
 
 // Tipos específicos
-export type ChecklistScreenNavigationProp = NavigationProp;
-export type TemplateChecklistScreenNavigationProp = NavigationProp;
-export type RemindersScreenNavigationProp = NavigationProp;
-export type TemplateRemindersScreenNavigationProp = NavigationProp;
+export type ScreenNavigationProp = NavigationProp;

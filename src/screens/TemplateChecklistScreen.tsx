@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChecklistArea, ChecklistAspect, SUCURSALES, SucursalType } from 'src/types/checklist';
+import { ChecklistArea, ChecklistAspect } from 'src/types/checklist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
@@ -31,6 +31,7 @@ import {
 } from '../utils/checklistData';
 import { stylestemplateChecklist } from 'src/styles/templateChecklist';
 import { RouteParams } from 'src/types/navigation';
+import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 
 export default function TemplateChecklistScreen() {
   const route = useRoute();

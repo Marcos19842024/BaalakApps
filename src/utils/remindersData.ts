@@ -1,12 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ExcelTemplate, TemplateHeader } from '../types/reminders';
-
-const TEMPLATES_KEY = 'excel_templates';
-const TEMPLATE_SELECCIONADO_KEY = 'template_seleccionado';
+import { ExcelTemplate, Cliente, Mascota, Recordatorio, Mensaje } from '../types/reminders';
 
 class remindersData {
-    // Plantillas predefinidas
-    private templatesPredefinidos: ExcelTemplate[] = [
+    // Plantillas fijas (no editables)
+    private templatesFijos: ExcelTemplate[] = [
         {
             id: 'vacunas_template',
             nombre: 'Recordatorios de Vacunas',
@@ -64,21 +60,7 @@ class remindersData {
                     ejemplo: '2024-12-15'
                 }
             ],
-            mensajeTemplate: `Hola {cliente}.
-
-                La clínica veterinaria Baalak le informa sobre el cuidado de {mascota}.
-
-                Tiene pendiente la aplicación de {tipo_recordatorio} ({vacuna}) para el {fecha_proxima_formatted}.
-
-                Por favor confirme su asistencia.
-
-                ¡Gracias por confiar en nosotros! 🐾`,
-            variablesDisponibles: [
-                'cliente', 'telefono', 'mascota', 'tipo_recordatorio', 
-                'vacuna', 'fecha_proxima', 'fecha_proxima_formatted'
-            ],
-            fechaCreacion: new Date().toISOString(),
-            fechaActualizacion: new Date().toISOString()
+            mensajeTemplate: ''
         },
         {
             id: 'citas_template',
@@ -161,616 +143,475 @@ class remindersData {
                     ejemplo: 'Corte de pelo'
                 }
             ],
-            mensajeTemplate: `Hola {propietario}.
-
-                Recordatorio de cita para {mascota}.
-
-                📅 Fecha: {fecha_formatted}
-                ⏰ Hora: {hora_inicio}
-                👨‍⚕️ Tipo: {tipo_visita}
-                📝 Asunto: {asunto}
-                👤 Agenda: {agenda}
-
-                Estado: {estado}
-
-                Por favor confirme su asistencia con anticipación.
-
-                ¡Gracias! 🐾`,
-            variablesDisponibles: [
-                'fecha', 'fecha_formatted', 'hora_inicio', 'tipo_visita',
-                'propietario', 'mascota', 'telefono', 'asunto', 'agenda', 'estado'
-            ],
-            fechaCreacion: new Date().toISOString(),
-            fechaActualizacion: new Date().toISOString()
+            mensajeTemplate: ''
         }
     ];
 
     // Obtener todas las plantillas
-    async obtenerTemplates(): Promise<ExcelTemplate[]> {
-        try {
-            const templatesGuardados = await AsyncStorage.getItem(TEMPLATES_KEY);
-        
-            if (templatesGuardados) {
-                const parsed = JSON.parse(templatesGuardados);
-                // Combinar con predefinidos, dando prioridad a los guardados
-                const todosTemplates = [...this.templatesPredefinidos];
-                
-                parsed.forEach((template: ExcelTemplate) => {
-                    const index = todosTemplates.findIndex(t => t.id === template.id);
-                    if (index !== -1) {
-                        todosTemplates[index] = template;
-                    } else {
-                        todosTemplates.push(template);
-                    }
-                });
-                
-                return todosTemplates;
-            }
-        
-            return this.templatesPredefinidos;
-        } catch (error) {
-            console.error('Error obteniendo templates:', error);
-            return this.templatesPredefinidos;
-        }
+    obtenerTemplates(): ExcelTemplate[] {
+        return this.templatesFijos.filter(t => t.activo);
     }
 
     // Obtener template por ID
-    async obtenerTemplate(id: string): Promise<ExcelTemplate | null> {
-        const templates = await this.obtenerTemplates();
-        return templates.find(t => t.id === id) || null;
+    obtenerTemplate(id: string): ExcelTemplate | null {
+        return this.templatesFijos.find(t => t.id === id) || null;
     }
 
-    // Guardar template
-    async guardarTemplate(template: ExcelTemplate): Promise<boolean> {
-        try {
-            const templates = await this.obtenerTemplates();
-            const index = templates.findIndex(t => t.id === template.id);
-        
-            if (index !== -1) {
-                templates[index] = {
-                    ...template,
-                    fechaActualizacion: new Date().toISOString()
-                };
-            } else {
-                templates.push({
-                    ...template,
-                    id: template.id || `template_${Date.now()}`,
-                    fechaCreacion: new Date().toISOString(),
-                    fechaActualizacion: new Date().toISOString()
-                });
-            }
-        
-            await AsyncStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
-            return true;
-        } catch (error) {
-            console.error('Error guardando template:', error);
-            return false;
-        }
-    }
-
-    // Eliminar template
-    async eliminarTemplate(id: string): Promise<boolean> {
-        try {
-            const templates = await this.obtenerTemplates();
-            const filtrados = templates.filter(t => t.id !== id);
-            
-            // No permitir eliminar templates predefinidos
-            const template = templates.find(t => t.id === id);
-            if (template?.tipo === 'vacunas' || template?.tipo === 'citas') {
-                return false;
-            }
-        
-            await AsyncStorage.setItem(TEMPLATES_KEY, JSON.stringify(filtrados));
-            return true;
-        } catch (error) {
-            console.error('Error eliminando template:', error);
-            return false;
-        }
-    }
-
-    // Obtener template seleccionado
-    async obtenerTemplateSeleccionado(): Promise<string | null> {
-        try {
-            return await AsyncStorage.getItem(TEMPLATE_SELECCIONADO_KEY);
-        } catch (error) {
-            console.error('Error obteniendo template seleccionado:', error);
-            return null;
-        }
-    }
-
-    // Guardar template seleccionado
-    async guardarTemplateSeleccionado(templateId: string): Promise<boolean> {
-        try {
-            await AsyncStorage.setItem(TEMPLATE_SELECCIONADO_KEY, templateId);
-            return true;
-        } catch (error) {
-            console.error('Error guardando template seleccionado:', error);
-            return false;
-        }
-    }
-
-    // Crear template personalizado
-    async crearTemplatePersonalizado(
-        nombre: string,
-        descripcion: string,
-        encabezados: TemplateHeader[],
-        mensajeTemplate: string
-    ): Promise<ExcelTemplate> {
-        const nuevoTemplate: ExcelTemplate = {
-            id: `personalizado_${Date.now()}`,
-            nombre,
-            tipo: 'personalizado',
-            descripcion,
-            activo: true,
-            encabezados,
-            mensajeTemplate,
-            variablesDisponibles: encabezados.map(h => h.variable),
-            fechaCreacion: new Date().toISOString(),
-            fechaActualizacion: new Date().toISOString()
-        };
-        
-        await this.guardarTemplate(nuevoTemplate);
-        return nuevoTemplate;
-    }
-
-    // Procesar datos de Excel según template
+    // Procesar datos de Excel según el tipo de plantilla
     procesarDatosConTemplate(
         datos: any[][],
-        template: ExcelTemplate
-    ): { cliente: any; variables: Record<string, string> }[] {
-            if (!datos || datos.length === 0) {
+        template: ExcelTemplate,
+        nombreClinica: string
+    ): Cliente[] {
+        if (!datos || datos.length === 0) {
             return [];
         }
 
+        // Validar encabezados según el tipo de template
         const encabezadosExcel = datos[0];
-        const filasDatos = datos.slice(1);
         
-        // Validar encabezados
-        const encabezadosRequeridos = template.encabezados.filter(h => h.requerido);
+        if (template.tipo === 'vacunas') {
+            return this.procesarVacunas(datos, nombreClinica);
+        } else if (template.tipo === 'citas') {
+            return this.procesarCitas(datos, nombreClinica);
+        }
         
-        for (const encabezadoRequerido of encabezadosRequeridos) {
-            const existe = encabezadosExcel.some((enc: string) => 
-                enc?.toString().trim().toUpperCase() === encabezadoRequerido.nombre.toUpperCase()
-            );
+        return [];
+    }
+
+    // Procesar template de vacunas
+    private procesarVacunas(datos: any[][], nombreClinica: string): Cliente[] {
+        const encabezadosExcel = datos[0];
+        const titles = ["CLIENTE", "TELÉFONO 1", "MASCOTA", "TIPO DE RECORDATORIO", "VACUNA", "PRÓXIMA FECHA"];
         
-            if (!existe) {
-                throw new Error(`Falta encabezado requerido: ${encabezadoRequerido.nombre}`);
-            }
+        // Verificar que los encabezados coincidan (case insensitive)
+        const headersMatch = titles.every((title, index) => {
+            const excelHeader = encabezadosExcel[index]?.toString().trim().toUpperCase() || '';
+            return excelHeader === title.toUpperCase();
+        });
+        
+        if (!headersMatch) {
+            throw new Error(`Formato incorrecto para vacunas. Se requieren:\n${titles.join(' | ')}`);
         }
 
-        // Procesar cada fila
-        return filasDatos.map((fila, index) => {
-            const variables: Record<string, string> = {};
+        const filasDatos = datos.slice(1);
         
-            // Mapear cada columna a su variable
-            template.encabezados.forEach(encabezado => {
-                const colIndex = encabezadosExcel.findIndex((enc: string) => 
-                    enc?.toString().trim().toUpperCase() === encabezado.nombre.toUpperCase()
-                );
-                
-                if (colIndex !== -1 && fila[colIndex] !== undefined) {
-                    let valor = fila[colIndex]?.toString().trim() || '';
-                
-                    // Aplicar formato según tipo
-                    if (encabezado.tipo === 'fecha' && valor) {
-                        variables[`${encabezado.variable}_formatted`] = this.formatearFecha(
-                            valor, 
-                            encabezado.formatoFecha
-                        );
-                    }
-                    
-                    variables[encabezado.variable] = valor;
-                }
-            });
+        if (filasDatos.length === 0) {
+            throw new Error('El Excel no contiene datos');
+        }
 
-            // Obtener datos principales para el cliente
-            const nombreCliente = variables['cliente'] || variables['propietario'] || `Cliente ${index + 1}`;
-            const telefono = variables['telefono'] || '';
+        const clientes = this.prepareClientsVacunas(filasDatos);
+        this.ListPetsVacunas(clientes, nombreClinica);
         
-            return {
-                cliente: {
-                    id: `cliente_${Date.now()}_${index}`,
-                    nombre: nombreCliente,
-                    telefono: this.limpiarTelefono(telefono),
-                    mascotas: variables['mascota'] ? [
-                        {
-                            nombre: variables['mascota'],
+        return clientes;
+    }
+
+    // Procesar template de citas
+    private procesarCitas(datos: any[][], nombreClinica: string): Cliente[] {
+        const encabezadosExcel = datos[0];
+        const titles = ["FECHA", "INICIO", "TIPOVISITA", "PROPIETARIO", "MASCOTA", "TELEFONO", "ASUNTO", "AGENDA", "ESTADO"];
+        
+        // Verificar que los encabezados coincidan (case insensitive)
+        const headersMatch = titles.every((title, index) => {
+            const excelHeader = encabezadosExcel[index]?.toString().trim().toUpperCase() || '';
+            return excelHeader === title.toUpperCase();
+        });
+        
+        if (!headersMatch) {
+            throw new Error(`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`);
+        }
+
+        const filasDatos = datos.slice(1);
+        
+        if (filasDatos.length === 0) {
+            throw new Error('El Excel no contiene datos');
+        }
+
+        const clientes = this.prepareClientsCitas(filasDatos);
+        this.ListCitas(clientes, nombreClinica);
+        
+        return clientes;
+    }
+
+    // PrepareClients para vacunas (igual que la versión web)
+    private prepareClientsVacunas(rows: any[][]): Cliente[] {
+        return rows.reduce((acc: Cliente[], cell: any[], index) => {
+            try {
+                const nombreCliente = this.formatString(cell[0]?.toString() || '');
+                const telefono = this.formatNumbers(cell[1]?.toString() || '');
+                const nombreMascota = this.formatString(cell[2]?.toString() || '');
+                const nombreRecordatorio = this.formatString(cell[3]?.toString() || '');
+                const tipoRecordatorio = this.formatString(cell[4]?.toString() || '');
+                const fecha = cell[5]?.toString() || '';
+
+                // Validar datos mínimos
+                if (!nombreCliente || nombreCliente.trim() === '' || !telefono || telefono.trim() === '') {
+                    console.log(`Fila ${index + 1} ignorada: datos insuficientes`);
+                    return acc;
+                }
+
+                // Buscar o crear el cliente
+                let cliente = acc.find(c => c.nombre === nombreCliente && c.telefono === telefono);
+            
+                if (!cliente) {
+                    cliente = {
+                        nombre: nombreCliente,
+                        telefono,
+                        mascotas: [],
+                        mensajes: [],
+                        status: false
+                    };
+                    acc.push(cliente);
+                }
+
+                // Solo agregar mascota si tiene nombre
+                if (nombreMascota && nombreMascota.trim() !== '') {
+                    let mascota = cliente.mascotas.find(m => m.nombre === nombreMascota);
+                    if (!mascota) {
+                        mascota = {
+                            nombre: nombreMascota,
                             recordatorios: []
+                        };
+                        cliente.mascotas.push(mascota);
+                    }
+
+                    // Solo agregar recordatorio si tiene nombre
+                    if (nombreRecordatorio && nombreRecordatorio.trim() !== '') {
+                        let recordatorio = mascota.recordatorios.find(r => r.nombre === nombreRecordatorio);
+                        if (!recordatorio) {
+                            recordatorio = {
+                                nombre: nombreRecordatorio,
+                                tipos: []
+                            };
+                            mascota.recordatorios.push(recordatorio);
                         }
-                    ] : [],
-                    mensajes: [],
-                    status: false
-                },
-                variables
-            };
-        });
-    }
 
-    // Generar mensaje con template y variables
-    generarMensajeConTemplate(
-        template: ExcelTemplate,
-        variables: Record<string, string>
-    ): string {
-        let mensaje = template.mensajeTemplate;
-        
-        // Reemplazar variables en el mensaje
-        Object.entries(variables).forEach(([key, value]) => {
-            const regex = new RegExp(`\\{${key}\\}`, 'g');
-            mensaje = mensaje.replace(regex, value);
-        });
-        
-        // Limpiar variables no utilizadas
-        mensaje = mensaje.replace(/\{[^}]+\}/g, '');
-        
-        return mensaje;
-    }
-
-    // Helper: Formatear fecha
-    private formatearFecha(fechaStr: string, formato?: string): string {
-        try {
-            const fecha = new Date(fechaStr);
-            if (isNaN(fecha.getTime())) {
-                return fechaStr;
-            }
-        
-            if (formato === 'DD/MM/YYYY') {
-                return fecha.toLocaleDateString('es-ES');
-            }
-        
-            // Formato por defecto: texto completo
-            return fecha.toLocaleDateString('es-ES', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        } catch (error) {
-            return fechaStr;
-        }
-    }
-
-    // Helper: Limpiar teléfono
-    private limpiarTelefono(telefono: string): string {
-        const clean = telefono.replace(/\D/g, '');
-        
-        if (clean.startsWith('521')) {
-            return clean;
-        } else if (clean.length === 10) {
-            return '521' + clean;
-        } else if (clean.length === 12 && clean.startsWith('52')) {
-            return clean;
-        }
-        
-        return clean;
-    }
-
-    validarTemplateCompleto(template: ExcelTemplate): { valido: boolean; errores: string[] } {
-        const errores: string[] = [];
-
-        // Validar nombre
-        if (!template.nombre || template.nombre.trim().length < 3) {
-            errores.push('El nombre debe tener al menos 3 caracteres');
-        }
-
-        // Validar encabezados
-        if (template.encabezados.length === 0) {
-            errores.push('Debe tener al menos un encabezado');
-        }
-
-        // Validar que haya encabezados requeridos
-        const tieneRequeridos = template.encabezados.some(h => h.requerido);
-        if (!tieneRequeridos) {
-            errores.push('Debe tener al menos un campo requerido');
-        }
-
-        // Validar encabezados duplicados
-        const nombresEncabezados = template.encabezados.map(h => h.nombre.toUpperCase());
-        const duplicadosEncabezados = nombresEncabezados.filter((item, index) => 
-            nombresEncabezados.indexOf(item) !== index
-        );
-        if (duplicadosEncabezados.length > 0) {
-            errores.push(`Encabezados duplicados: ${duplicadosEncabezados.join(', ')}`);
-        }
-
-        // Validar variables duplicadas
-        const variables = template.encabezados.map(h => h.variable.toLowerCase());
-        const variablesDuplicadas = variables.filter((item, index) => 
-            variables.indexOf(item) !== index
-        );
-
-        if (variablesDuplicadas.length > 0) {
-            errores.push(`Variables duplicadas: ${variablesDuplicadas.join(', ')}`);
-        }
-
-        // Validar formato de variables
-        const variablesInvalidas = template.encabezados.filter(h => 
-            !/^[a-z][a-z0-9_]*$/.test(h.variable)
-        );
-    
-        if (variablesInvalidas.length > 0) {
-            errores.push(`Variables inválidas (solo minúsculas, números y _): ${
-                variablesInvalidas.map(h => h.variable).join(', ')
-            }`);
-        }
-
-        // Validar mensaje template
-        if (!template.mensajeTemplate || template.mensajeTemplate.trim().length < 10) {
-            errores.push('El mensaje debe tener al menos 10 caracteres');
-        }
-
-        // Validar variables usadas en mensaje
-        const regex = /\{([^}]+)\}/g;
-        const variablesUsadas = new Set<string>();
-        let match;
-        
-        while ((match = regex.exec(template.mensajeTemplate)) !== null) {
-            variablesUsadas.add(match[1]);
-        }
-
-        const variablesDisponibles = new Set(template.variablesDisponibles);
-        const variablesNoDefinidas = Array.from(variablesUsadas).filter(v => 
-            !variablesDisponibles.has(v)
-        );
-    
-        if (variablesNoDefinidas.length > 0) {
-            errores.push(`Variables no definidas en el mensaje: ${variablesNoDefinidas.join(', ')}`);
-        }
-
-        // Validar que todas las variables requeridas estén definidas
-        const variablesRequeridas = template.encabezados
-        .filter(h => h.requerido)
-        .map(h => h.variable);
-        
-        const variablesFaltantes = variablesRequeridas.filter(v => 
-            !variablesUsadas.has(v)
-        );
-    
-        if (variablesFaltantes.length > 0) {
-            errores.push(`Variables requeridas no usadas en el mensaje: ${variablesFaltantes.join(', ')}`);
-        }
-
-        return {
-            valido: errores.length === 0,
-            errores
-        };
-    }
-
-    // Generar datos de ejemplo para previsualización
-    generarDatosEjemplo(template: ExcelTemplate): Record<string, string> {
-        const datos: Record<string, string> = {};
-    
-        template.encabezados.forEach(encabezado => {
-            let valorEjemplo = '';
-      
-            switch (encabezado.tipo) {
-                case 'texto':
-                valorEjemplo = encabezado.ejemplo || 'Ejemplo';
-                break;
-          
-                case 'numero':
-                valorEjemplo = encabezado.ejemplo || '123';
-                break;
-          
-                case 'telefono':
-                valorEjemplo = encabezado.ejemplo || '5551234567';
-                break;
-          
-                case 'fecha':
-                if (encabezado.formatoFecha === 'YYYY-MM-DD') {
-                    valorEjemplo = '2024-12-15';
-                } else if (encabezado.formatoFecha === 'DD/MM/YYYY') {
-                    valorEjemplo = '15/12/2024';
-                } else {
-                    valorEjemplo = '15-12-2024';
-                }
-                break;
-            }
-      
-            datos[encabezado.variable] = valorEjemplo;
-      
-            // Agregar versión formateada para fechas
-            if (encabezado.tipo === 'fecha') {
-                datos[`${encabezado.variable}_formatted`] = this.formatearFecha(
-                    valorEjemplo,
-                    encabezado.formatoFecha
-                );
-            }
-        });
-    
-        return datos;
-    }
-
-    // Previsualizar mensaje con datos de ejemplo
-    previsualizarMensaje(template: ExcelTemplate): string {
-        const datosEjemplo = this.generarDatosEjemplo(template);
-        return this.generarMensajeConTemplate(template, datosEjemplo);
-    }
-
-    // Validar datos de Excel contra template
-    validarDatosExcel(datos: any[][], template: ExcelTemplate): { 
-        valido: boolean; 
-        errores: string[];
-        detalles: Record<string, any>;
-    } {
-        const errores: string[] = [];
-        const detalles: Record<string, any> = {
-            totalFilas: datos.length - 1, // Excluyendo encabezados
-            encabezadosEncontrados: [],
-            encabezadosFaltantes: [],
-            filasValidas: 0,
-            filasInvalidas: 0
-        };
-
-        if (datos.length === 0) {
-            errores.push('El archivo Excel está vacío');
-            return { valido: false, errores, detalles };
-        }
-
-        // Obtener encabezados del Excel
-            const encabezadosExcel = datos[0].map((enc: any) => 
-            enc?.toString().trim().toUpperCase()
-        );
-    
-        detalles.encabezadosEncontrados = encabezadosExcel;
-
-        // Validar encabezados requeridos
-        const encabezadosRequeridos = template.encabezados
-        .filter(h => h.requerido)
-        .map(h => h.nombre.toUpperCase());
-
-        const encabezadosFaltantes = encabezadosRequeridos.filter(requerido => 
-            !encabezadosExcel.includes(requerido)
-        );
-    
-        detalles.encabezadosFaltantes = encabezadosFaltantes;
-
-        if (encabezadosFaltantes.length > 0) {
-            errores.push(`Encabezados faltantes: ${encabezadosFaltantes.join(', ')}`);
-        }
-
-        // Validar tipos de datos en cada fila
-        const filasDatos = datos.slice(1);
-    
-        filasDatos.forEach((fila, index) => {
-            let filaValida = true;
-            const erroresFila: string[] = [];
-
-            template.encabezados.forEach(encabezado => {
-                const colIndex = encabezadosExcel.findIndex(enc => 
-                    enc === encabezado.nombre.toUpperCase()
-                );
-            
-                if (colIndex !== -1) {
-                    const valor = fila[colIndex]?.toString().trim() || '';
-            
-                    // Validar según tipo
-                    switch (encabezado.tipo) {
-                        case 'telefono':
-                        const soloNumeros = valor.replace(/\D/g, '');
-                        if (valor && soloNumeros.length < 10) {
-                            filaValida = false;
-                            erroresFila.push(`${encabezado.alias}: teléfono inválido`);
-                        }
-                        break;
+                        // Solo agregar tipo si tiene nombre y fecha
+                        if (tipoRecordatorio && tipoRecordatorio.trim() !== '' && fecha && fecha.trim() !== '') {
+                            const existeTipo = recordatorio.tipos.some(t => 
+                                t.nombre === tipoRecordatorio && t.fecha === fecha
+                            );
                             
-                        case 'numero':
-                        if (valor && isNaN(Number(valor))) {
-                            filaValida = false;
-                            erroresFila.push(`${encabezado.alias}: no es un número válido`);
-                        }
-                        break;
-                            
-                        case 'fecha':
-                        if (valor) {
-                            const fecha = new Date(valor);
-                            if (isNaN(fecha.getTime())) {
-                            filaValida = false;
-                            erroresFila.push(`${encabezado.alias}: fecha inválida`);
+                            if (!existeTipo) {
+                                recordatorio.tipos.push({
+                                    nombre: tipoRecordatorio,
+                                    fecha
+                                });
                             }
                         }
-                        break;
                     }
                 }
-            });
 
-            if (filaValida) {
-                detalles.filasValidas++;
+            } catch (error) {
+                console.error(`Error procesando fila ${index + 1}:`, error);
+            }
+
+            return acc;
+        }, []);
+    }
+
+    // PrepareClients para citas
+    private prepareClientsCitas(rows: any[][]): Cliente[] {
+        return rows.reduce((acc: Cliente[], cell: any[], index) => {
+            try {
+                const fecha = this.formatDateLong(cell[0]?.toString() || '');
+                const hora_inicio = cell[1]?.toString() || '';
+                const tipo_visita = this.formatString(cell[2]?.toString() || '');
+                const propietario = this.formatString(cell[3]?.toString() || '');
+                const nombreMascota = this.formatString(cell[4]?.toString() || '');
+                const telefono = this.formatNumbers(cell[5]?.toString() || '');
+                const asunto = this.formatString(cell[6]?.toString() || '');
+                const agenda = this.formatString(cell[7]?.toString() || '');
+                const estado = this.formatString(cell[8]?.toString() || '');
+
+                // Validar datos mínimos
+                if (!propietario || propietario.trim() === '' || !telefono || telefono.trim() === '') {
+                    console.log(`Fila ${index + 1} ignorada: datos insuficientes`);
+                    return acc;
+                }
+
+                // Buscar o crear el cliente
+                let cliente = acc.find(c => c.nombre === propietario && c.telefono === telefono);
+            
+                if (!cliente) {
+                    cliente = {
+                        nombre: propietario,
+                        telefono,
+                        mascotas: [],
+                        mensajes: [],
+                        status: false,
+                        // Datos específicos de citas
+                        fechaCita: fecha,
+                        horaCita: hora_inicio,
+                        tipoVisita: tipo_visita,
+                        asunto: asunto,
+                        agenda: agenda,
+                        estado: estado
+                    };
+                    acc.push(cliente);
+                } else {
+                    // Si ya existe, podemos actualizar o acumular datos
+                    // Para simplificar, tomamos los datos de la primera fila
+                }
+
+                // Solo agregar mascota si tiene nombre
+                if (nombreMascota && nombreMascota.trim() !== '') {
+                    let mascota = cliente.mascotas.find(m => m.nombre === nombreMascota);
+                    if (!mascota) {
+                        mascota = {
+                            nombre: nombreMascota,
+                            recordatorios: []
+                        };
+                        cliente.mascotas.push(mascota);
+                    }
+                }
+
+            } catch (error) {
+                console.error(`Error procesando fila ${index + 1}:`, error);
+            }
+
+            return acc;
+        }, []);
+    }
+
+    // ListPets para vacunas
+    private ListPetsVacunas(clientes: Cliente[], nombreClinica: string) {
+        clientes.forEach(cliente => {
+            const mascotas = cliente.mascotas;
+            let mensaje;
+            
+            // Mensaje de saludo
+            cliente.mensajes.push(this.createNewMsg(`Hola ${cliente.nombre}.`));
+
+            if (mascotas.length === 1) {
+                mensaje = "su mascota '" + mascotas[0].nombre + "'," + this.ListReminders(mascotas[0]);
             } else {
-                detalles.filasInvalidas++;
-                if (erroresFila.length > 0) {
-                    errores.push(`Fila ${index + 2}: ${erroresFila.join(', ')}`);
+                mensaje = "sus mascotas: ";
+        
+                for (let i = 0; i < mascotas.length; i++) {
+                    if (i === 0) {
+                        mensaje += "'" + mascotas[i].nombre + "'," + this.ListReminders(mascotas[i]);
+                    } else {
+                        if (i === (mascotas.length - 1)) {
+                            mensaje += " y '" + mascotas[i].nombre + "'," + this.ListReminders(mascotas[i]);
+                        } else {
+                            mensaje += ", '" + mascotas[i].nombre + "'," + this.ListReminders(mascotas[i]);
+                        }
+                    }
                 }
             }
+        
+            // Agregar fecha si existe
+            if (mascotas.length > 0 && 
+                mascotas[0].recordatorios.length > 0 && 
+                mascotas[0].recordatorios[0].tipos.length > 0) {
+            
+                const fecha = mascotas[0].recordatorios[0].tipos[0].fecha;
+                mensaje += " el día " + this.formatDateLong(fecha) + ".";
+            } else {
+                mensaje += ".";
+            }
+        
+            // CORREGIDO: Usar nombre limpio de la clínica
+            const nombreClinicaLimpio = this.extraerNombreClinica(nombreClinica);
+            cliente.mensajes.push(this.createNewMsg(`${nombreClinicaLimpio} le informa que ${mensaje}`));
         });
-
-        return {
-            valido: errores.length === 0,
-            errores: errores.slice(0, 10), // Limitar a 10 errores
-            detalles
-        };
     }
 
-    // Validar encabezado individual
-    validarEncabezado(encabezado: TemplateHeader, todosEncabezados: TemplateHeader[]): {
-        valido: boolean;
-        errores: string[];
-        sugerencias: string[];
-    } {
-        const errores: string[] = [];
-        const sugerencias: string[] = [];
-
-        // Validar nombre
-        if (!encabezado.nombre || encabezado.nombre.trim().length === 0) {
-            errores.push('El nombre del encabezado es requerido');
-        } else if (!/^[A-ZÁÉÍÓÚÑ0-9_ ]+$/.test(encabezado.nombre)) {
-            errores.push('El nombre debe estar en mayúsculas y sin caracteres especiales');
-            sugerencias.push('Usar solo letras mayúsculas, números, espacios y guiones bajos');
-        }
-
-        // Validar alias
-        if (!encabezado.alias || encabezado.alias.trim().length === 0) {
-            errores.push('El nombre para mostrar es requerido');
-        }
-
-        // Validar variable
-        if (!encabezado.variable || encabezado.variable.trim().length === 0) {
-            errores.push('La variable es requerida');
-        } else if (!/^[a-z][a-z0-9_]*$/.test(encabezado.variable)) {
-            errores.push('La variable debe empezar con minúscula y solo contener letras, números y _');
-            sugerencias.push('Ejemplos válidos: cliente, telefono_1, fecha_nacimiento');
-        }
-
-        // Verificar duplicados
-        const mismoNombre = todosEncabezados.filter(h => 
-            h.nombre.toUpperCase() === encabezado.nombre.toUpperCase()
-        );
+    // ListCitas para citas
+    private ListCitas(clientes: Cliente[], nombreClinica: string) {
+        clientes.forEach(cliente => {
+            // Mensaje de saludo
+            cliente.mensajes.push(this.createNewMsg(`Hola ${cliente.nombre}.`));
+        
+            // CORREGIDO: Usar nombre limpio de la clínica
+            const nombreClinicaLimpio = this.extraerNombreClinica(nombreClinica);
+        
+            // Mensaje de cita CORREGIDO
+            let mensajeCita = `${nombreClinicaLimpio} le recuerda su cita`;
+        
+            if (cliente.mascotas.length > 0) {
+                mensajeCita += ` para ${cliente.mascotas.map(m => `"${m.nombre}"`).join(', ')}`;
+            }
+        
+            mensajeCita += `.\n\n`;
+        
+            // Agregar detalles de la cita
+            if (cliente.fechaCita) {
+                mensajeCita += `📅 Fecha: ${cliente.fechaCita}\n`;
+            }
+        
+            if (cliente.horaCita) {
+                mensajeCita += `⏰ Hora: ${cliente.horaCita}\n`;
+            }
+        
+            if (cliente.tipoVisita) {
+                mensajeCita += `👨‍⚕️ Tipo: ${cliente.tipoVisita}\n`;
+            }
+        
+            if (cliente.asunto) {
+                mensajeCita += `📝 Asunto: ${cliente.asunto}\n`;
+            }
+        
+            if (cliente.agenda) {
+                mensajeCita += `👤 Agenda: ${cliente.agenda}\n`;
+            }
+        
+            if (cliente.estado) {
+                mensajeCita += `\nEstado: ${cliente.estado}\n`;
+            }
+        
+            mensajeCita += `\nPor favor confirme su asistencia con anticipación.\n\n¡Gracias! 🐾`;
+        
+            cliente.mensajes.push(this.createNewMsg(mensajeCita));
+        });
+    }
     
-        if (mismoNombre.length > 1) {
-            errores.push(`El nombre "${encabezado.nombre}" ya está usado`);
-        }
-
-        const mismaVariable = todosEncabezados.filter(h => 
-            h.variable.toLowerCase() === encabezado.variable.toLowerCase()
-        );
+    // Helper: Extraer solo el nombre de la clínica sin "Clínica Veterinaria"
+    private extraerNombreClinica(nombreCompleto: string): string {
+        if (!nombreCompleto) return '';
         
-        if (mismaVariable.length > 1) {
-            errores.push(`La variable "${encabezado.variable}" ya está usada`);
-        }
-
-        // Sugerencias según tipo
-        switch (encabezado.tipo) {
-            case 'fecha':
-                if (!encabezado.formatoFecha) {
-                    sugerencias.push('Para fechas, especificar formato: YYYY-MM-DD, DD/MM/YYYY o DD-MM-YYYY');
-                }
+        let nombre = nombreCompleto.trim();
+        
+        // Quitar "Clínica Veterinaria" si está al inicio
+        const prefijos = [
+            'Clínica Veterinaria ',
+            'La clínica veterinaria ',
+            'la clínica veterinaria '
+        ];
+        
+        for (const prefijo of prefijos) {
+            if (nombre.toLowerCase().startsWith(prefijo.toLowerCase())) {
+                nombre = nombre.substring(prefijo.length);
                 break;
-                
-            case 'telefono':
-                sugerencias.push('Los teléfonos se limpiarán automáticamente (quitar espacios, guiones)');
-            break;
+            }
         }
+        
+        return nombre;
+    }
 
+    // ListReminders (igual que la versión web)
+    private ListReminders(mascota: Mascota): string {
+        let recordatorio = " tiene pendiente la aplicación de ";
+        const recordatorios = mascota.recordatorios;
+
+        if (recordatorios.length === 1) {
+            recordatorio += recordatorios[0].nombre + this.ListTypes(recordatorios[0]);
+        } else {
+            for (let i = 0; i < recordatorios.length; i++) {
+                if (i === 0) {
+                    recordatorio += recordatorios[i].nombre + this.ListTypes(recordatorios[i]);
+                } else {
+                    if (i === (recordatorios.length - 1)) {
+                        recordatorio += " y " + recordatorios[i].nombre + this.ListTypes(recordatorios[i]);
+                    } else {
+                        recordatorio += ", " + recordatorios[i].nombre + this.ListTypes(recordatorios[i]);
+                    }
+                }
+            }
+        }
+        return recordatorio;
+    }
+
+    // ListTypes (igual que la versión web)
+    private ListTypes(recordatorio: Recordatorio): string {
+        let tipo = '';
+        const tipos = recordatorio.tipos;
+    
+        if (tipos.length === 1) {
+            tipo += " (" + tipos[0].nombre + ")";
+        } else {
+            for (let i = 0; i < tipos.length; i++) {
+                if (i === 0) {
+                    tipo += " (" + tipos[i].nombre;
+                } else {
+                    if (i === (tipos.length - 1)) {
+                        tipo += " y " + tipos[i].nombre + ")";
+                    } else {
+                        tipo += ", " + tipos[i].nombre;
+                    }
+                }
+            }
+        }
+        return tipo;
+    }
+
+    // Crear nuevo mensaje
+    private createNewMsg(contenido: string): Mensaje {
         return {
-            valido: errores.length === 0,
-            errores,
-            sugerencias
+            id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            contenido: contenido,
+            timestamp: new Date().toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }),
+            esPropio: true
         };
     }
 
-    // Sugerir variable basada en nombre
-    sugerirVariable(nombre: string): string {
-        // Convertir a minúsculas y reemplazar espacios/acentos
-        let variable = nombre.toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quitar acentos
-        .replace(/[^a-z0-9 ]/g, '') // Quitar caracteres especiales
-        .replace(/\s+/g, '_'); // Reemplazar espacios con _
-        
-        // Asegurar que empiece con letra
-        if (!/^[a-z]/.test(variable)) {
-            variable = 'campo_' + variable;
+    // Helper: Formatear texto a formato Oración
+    private formatString(cadena: string): string {
+        if (!cadena || cadena.trim() === '') {
+            return '';
         }
         
-        return variable;
+        let oracion = cadena.replace(/[-_]/g, " ");
+        let palabras = oracion.toLowerCase().split(" ")
+            .map((palabra) => {
+                return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+            });
+            
+        return palabras.join(" ");
+    }
+
+    // Helper: Extraer solo números
+    private formatNumbers(cadena: string): string {
+        if (!cadena) return '';
+        const numbers = "0123456789";
+        let numeros = "";
+        
+        for(let i = 0; i < cadena.length; i++) {
+            for(let x = 0; x < numbers.length; x++) {
+                if(cadena.charAt(i) === numbers.charAt(x)){
+                    numeros += cadena.charAt(i);
+                    break;
+                }
+            }
+        }
+        return numeros;
+    }
+
+    // Helper: Formatear fecha larga
+    private formatDateLong(date: string): string {
+        if (!date) return '';
+        
+        let dateObject;
+        
+        // Si la fecha está en formato ISO (YYYY-MM-DD)
+        if (date.includes('-')) {
+            const [year, month, day] = date.split('-').map(Number);
+            dateObject = new Date(year, month - 1, day);
+        } 
+        // Si ya es un string de fecha válido
+        else {
+            dateObject = new Date(date);
+            // Ajustar por diferencia de zona horaria
+            if (!isNaN(dateObject.getTime())) {
+                dateObject.setMinutes(dateObject.getMinutes() + dateObject.getTimezoneOffset());
+            } else {
+                return date; // Retornar la fecha original si no es válida
+            }
+        }
+        
+        if (isNaN(dateObject.getTime())) {
+            return date;
+        }
+        
+        return dateObject.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     }
 }
 

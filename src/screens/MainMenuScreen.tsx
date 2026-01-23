@@ -13,15 +13,14 @@ import * as Updates from 'expo-updates';
 import Toast from 'react-native-toast-message';
 import { stylesmainMenu } from 'src/styles/mainMenu';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { CLINIC_OPTIONS, SUCURSALES, SucursalType } from 'src/types/checklist';
-import { ChecklistScreenNavigationProp } from 'src/types/navigation';
+import { ScreenNavigationProp } from 'src/types/navigation';
+import { CLINIC_OPTIONS, SUCURSALES, SucursalType } from 'src/types/sucursal';
 
 export const MainMenuScreen = () => {
-  const navigation = useNavigation<ChecklistScreenNavigationProp>();
+  const navigation = useNavigation<ScreenNavigationProp>();
   const [hasUpdate, setHasUpdate] = useState(false);
   const [showClinicSelector, setShowClinicSelector] = useState(false);
   const [sucursalKey, setSucursalKey] = useState<SucursalType>('BAALAK_CENTRAL');
-  const [sucursalName, setSucursalName] = useState<string>(SUCURSALES.BAALAK_CENTRAL);
 
   const menuItems = [
     {
@@ -93,6 +92,7 @@ export const MainMenuScreen = () => {
       return;
     }
     else if (route === 'TemplateChecklist') {
+      const sucursalName = SUCURSALES[sucursalKey];
       Toast.show({
         type: 'info',
         text1: 'Navegando a Configuración de Checklist',
@@ -101,12 +101,22 @@ export const MainMenuScreen = () => {
       navigation.navigate('TemplateChecklist', { sucursalKey: sucursalKey });
     }
     else if (route === 'Checklist') {
+      const sucursalName = SUCURSALES[sucursalKey];
       Toast.show({
         type: 'info',
         text1: 'Navegando a Checklist',
         text2: `Sucursal actual: ${sucursalName}`,
       });
       navigation.navigate('Checklist', { sucursalKey: sucursalKey });
+    }
+    else if (route === 'Reminders') {
+      const sucursalName = SUCURSALES[sucursalKey];
+      Toast.show({
+        type: 'info',
+        text1: 'Navegando a Recordatorios',
+        text2: `Sucursal actual: ${sucursalName}`,
+      });
+      navigation.navigate('Reminders', { sucursalKey: sucursalKey });
     }
     else {
       navigation.navigate(route as never);
@@ -118,8 +128,6 @@ export const MainMenuScreen = () => {
     const newSucursalName = SUCURSALES[newSucursalKey];
     
     setSucursalKey(newSucursalKey);
-    setSucursalName(newSucursalName);
-    
     setShowClinicSelector(false);
     
     Toast.show({
@@ -148,7 +156,9 @@ export const MainMenuScreen = () => {
           >
             <View style={stylesmainMenu.clinicButtonContent}>
               <MaterialCommunityIcons name="hospital-building" size={20} color="#ff006f" />
-              <Text style={stylesmainMenu.clinicName} numberOfLines={1}>{sucursalName}</Text>
+              <Text style={stylesmainMenu.clinicName} numberOfLines={1}>
+                {SUCURSALES[sucursalKey]}
+              </Text>
             </View>
             <Icon name="arrow-drop-down" size={24} color="#ff006f" />
           </TouchableOpacity>
@@ -216,7 +226,7 @@ export const MainMenuScreen = () => {
                       <View style={stylesmainMenu.clinicIconContainer}>
                         <MaterialCommunityIcons 
                           name="hospital-building" 
-                          size={28} // Aumentado el tamaño
+                          size={28}
                           color={sucursalKey === clinic.id ? '#ff008cea' : '#6B7280'} 
                         />
                       </View>

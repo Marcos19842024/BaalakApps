@@ -1,4 +1,5 @@
-import { ChecklistArea, ChecklistAspect, ChecklistData, ChecklistItem, SUCURSALES, SucursalType } from '../types/checklist';
+import { SUCURSALES, SucursalType } from 'src/types/sucursal';
+import { ChecklistArea, ChecklistAspect, ChecklistData, ChecklistItem } from '../types/checklist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Plantillas por defecto para cada sucursal

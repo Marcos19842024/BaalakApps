@@ -16,7 +16,6 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import * as DocumentPicker from 'expo-document-picker';
-import { getWhatsAppContactsSimulated } from '../utils/clients';
 import { Cliente, ExcelTemplate } from 'src/types/reminders';
 import { stylesreminders } from 'src/styles/reminders';
 import { MessageBubble } from './MessageBubble';
@@ -25,9 +24,9 @@ import remindersData from 'src/utils/remindersData';
 import XLSX from 'xlsx';
 import { RouteParams } from 'src/types/navigation';
 import { useRoute } from '@react-navigation/native';
-import { SucursalType } from 'src/types/checklist';
+import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 
-export const RemindersScreen = ({ navigation }: { navigation: any }) => {
+export const RemindersScreen = () => {
     const route = useRoute();
     const params = route.params as RouteParams;
     const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -39,45 +38,234 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
     const [selectedSucursal, setSelectedSucursal] = useState<SucursalType>(
         params?.sucursalKey || 'BAALAK_CENTRAL'
     );
+    const [clientesCargados, setClientesCargados] = useState(false);
 
-    // Cargar clientes guardados
+    // Cargar templates al inicio
     useEffect(() => {
         cargarTemplates();
-        cargarTemplateSeleccionado();
     }, []);
 
-    const cargarTemplates = async () => {
-        try {
-            const templatesData = await remindersData.obtenerTemplates();
-            setTemplates(templatesData.filter(t => t.activo));
-        } catch (error) {
-            console.error('Error cargando templates:', error);
+    // Cargar clientes guardados al inicio
+    useEffect(() => {
+        const cargarDatosIniciales = async () => {
+            try {
+                const storedClientes = await AsyncStorage.getItem('reminders_clientes');
+                if (storedClientes) {
+                    const clientesGuardados = JSON.parse(storedClientes);
+                    console.log('📂 Clientes cargados de AsyncStorage:', clientesGuardados.length);
+                    setClientes(clientesGuardados);
+                    
+                    if (clientesGuardados.length > 0) {
+                        setSelectedCliente(clientesGuardados[0]);
+                    }
+                    
+                    // Marcar que los clientes ya están cargados
+                    setClientesCargados(true);
+                } else {
+                    console.log('📭 No hay clientes guardados en AsyncStorage');
+                    setClientesCargados(true);
+                }
+            } catch (error) {
+                console.error('Error cargando clientes:', error);
+                setClientesCargados(true);
+            }
+        };
+        
+        cargarDatosIniciales();
+    }, []);
+
+    // Actualizar la sucursal cuando viene por parámetro
+    useEffect(() => {
+        if (params?.sucursalKey) {
+            console.log('📍 Sucursal recibida por navegación:', params.sucursalKey);
+            setSelectedSucursal(params.sucursalKey);
+        }
+    }, [params?.sucursalKey]);
+
+    // ACTUALIZAR MENSAJES cuando cambia la sucursal Y ya se cargaron los clientes
+    useEffect(() => {
+        if (clientesCargados && clientes.length > 0) {
+            console.log('🔄 Detonando actualización de mensajes');
+            console.log('- Clientes cargados:', clientesCargados);
+            console.log('- Número de clientes:', clientes.length);
+            console.log('- Sucursal actual:', selectedSucursal);
+            console.log('- Nombre clínica:', getNombreClinica(selectedSucursal));
+            
+            actualizarMensajesConClinica();
+        } else {
+            console.log('⏳ Esperando para actualizar mensajes...');
+            console.log('- Clientes cargados:', clientesCargados);
+            console.log('- Número de clientes:', clientes.length);
+        }
+    }, [selectedSucursal, clientesCargados]);
+
+    const cargarTemplates = () => {
+        const templatesData = remindersData.obtenerTemplates();
+        setTemplates(templatesData);
+        
+        if (templatesData.length > 0 && !selectedTemplate) {
+            setSelectedTemplate(templatesData[0]);
         }
     };
 
-    const cargarTemplateSeleccionado = async () => {
-        try {
-            const templateId = await remindersData.obtenerTemplateSeleccionado();
-            if (templateId) {
-                const template = await remindersData.obtenerTemplate(templateId);
-                setSelectedTemplate(template);
+    const getNombreClinica = (sucursalKey: string): string => {
+        return SUCURSALES[sucursalKey as SucursalType] || sucursalKey;
+    };
+
+    // Función mejorada para actualizar mensajes cuando cambia la clínica
+    const actualizarMensajesConClinica = () => {
+        const nombreClinica = getNombreClinica(selectedSucursal);
+        
+        console.log('🔄 Actualizando mensajes para nueva clínica:', nombreClinica);
+        
+        if (clientes.length === 0) {
+            console.log('📭 No hay clientes para actualizar');
+            return;
+        }
+        
+        // Extraer solo el nombre de la clínica (sin "Clínica Veterinaria")
+        const extraerNombreLimpio = (nombreCompleto: string) => {
+            if (!nombreCompleto) return '';
+            let nombre = nombreCompleto.trim();
+            
+            // Quitar prefijos comunes
+            const prefijos = [
+                'Clínica Veterinaria ',
+                'La clínica veterinaria ',
+                'la clínica veterinaria '
+            ];
+            
+            for (const prefijo of prefijos) {
+                if (nombre.toLowerCase().startsWith(prefijo.toLowerCase())) {
+                    nombre = nombre.substring(prefijo.length);
+                    break;
+                }
             }
-        } catch (error) {
-            console.error('Error cargando template seleccionado:', error);
+            
+            return nombre;
+        };
+        
+        const nombreClinicaLimpio = extraerNombreLimpio(nombreClinica);
+        console.log('🏥 Nombre limpio para usar:', nombreClinicaLimpio);
+        
+        // Ver primer mensaje antes del cambio
+        if (clientes[0]?.mensajes?.[1]) {
+            console.log('📝 Mensaje ANTES (primeros 120 chars):');
+            console.log(clientes[0].mensajes[1].contenido.substring(0, 120));
+        }
+        
+        const clientesActualizados = clientes.map(cliente => {
+            // Solo actualizar si tiene al menos 2 mensajes (saludo + info clínica)
+            if (cliente.mensajes.length >= 2) {
+                const mensajesActualizados = [...cliente.mensajes];
+                
+                // El segundo mensaje (índice 1) contiene la información de la clínica
+                const mensajeOriginal = mensajesActualizados[1].contenido;
+                
+                // Buscar el patrón: [nombre clínica] le informa/recuerda que...
+                const patron = /^([^.]*?)\s+(le informa|le recuerda)/i;
+                const match = mensajeOriginal.match(patron);
+                
+                if (match) {
+                    const textoClinicAnterior = match[1].trim();
+                    console.log(`🔍 Encontrado nombre anterior: "${textoClinicAnterior}"`);
+                    
+                    // Reemplazar solo la parte del nombre de la clínica
+                    const nuevoMensaje = mensajeOriginal.replace(
+                        new RegExp(`^${textoClinicAnterior.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`),
+                        `${nombreClinicaLimpio} `
+                    );
+                    
+                    mensajesActualizados[1] = {
+                        ...mensajesActualizados[1],
+                        contenido: nuevoMensaje
+                    };
+                    
+                    console.log(`✅ Reemplazado por: "${nombreClinicaLimpio}"`);
+                } else {
+                    // Si no encuentra el patrón, intentar otro enfoque
+                    console.log('⚠️ No se encontró patrón estándar, intentando enfoque alternativo');
+                    
+                    // Buscar cualquier mención de clínicas conocidas
+                    const clinicasConocidas = ['Baalak', 'Animalia', 'Clínica Veterinaria'];
+                    let mensajeModificado = mensajeOriginal;
+                    let reemplazos = 0;
+                    
+                    clinicasConocidas.forEach(clinica => {
+                        if (mensajeOriginal.includes(clinica)) {
+                            const regex = new RegExp(clinica, 'g');
+                            mensajeModificado = mensajeModificado.replace(regex, nombreClinicaLimpio);
+                            reemplazos++;
+                            console.log(`🔄 Reemplazando "${clinica}" por "${nombreClinicaLimpio}"`);
+                        }
+                    });
+                    
+                    if (reemplazos > 0) {
+                        mensajesActualizados[1] = {
+                            ...mensajesActualizados[1],
+                            contenido: mensajeModificado
+                        };
+                    }
+                }
+                
+                return {
+                    ...cliente,
+                    mensajes: mensajesActualizados
+                };
+            }
+            
+            return cliente;
+        });
+        
+        // Ver primer mensaje después del cambio
+        if (clientesActualizados[0]?.mensajes?.[1]) {
+            console.log('✅ Mensaje DESPUÉS (primeros 120 chars):');
+            console.log(clientesActualizados[0].mensajes[1].contenido.substring(0, 120));
+        }
+        
+        // Verificar si hubo cambios reales
+        const huboCambios = JSON.stringify(clientes) !== JSON.stringify(clientesActualizados);
+        
+        if (huboCambios) {
+            // Actualizar estado
+            setClientes(clientesActualizados);
+            
+            // Guardar en AsyncStorage
+            saveClientes(clientesActualizados);
+            
+            // Actualizar cliente seleccionado
+            if (selectedCliente) {
+                const clienteActualizado = clientesActualizados.find(
+                    c => c.nombre === selectedCliente.nombre && c.telefono === selectedCliente.telefono
+                );
+                if (clienteActualizado) {
+                    setSelectedCliente(clienteActualizado);
+                }
+            }
+            
+            Toast.show({
+                type: 'success',
+                text1: 'Mensajes actualizados',
+                text2: `Ahora muestran: ${nombreClinicaLimpio}`,
+            });
+            
+            console.log('✅ Mensajes actualizados correctamente');
+        } else {
+            console.log('ℹ️ No se encontraron cambios necesarios en los mensajes');
         }
     };
 
     const saveClientes = async (updatedClientes: Cliente[]) => {
         try {
             await AsyncStorage.setItem('reminders_clientes', JSON.stringify(updatedClientes));
+            console.log('💾 Clientes guardados en AsyncStorage');
         } catch (error) {
             console.error('Error saving clientes:', error);
         }
     };
 
-    const handleSelectTemplate = async (template: ExcelTemplate) => {
+    const handleSelectTemplate = (template: ExcelTemplate) => {
         setSelectedTemplate(template);
-        await remindersData.guardarTemplateSeleccionado(template.id);
     };
 
     const handleImportExcel = async () => {
@@ -106,8 +294,9 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                     const file = result.assets[0];
                     console.log('📄 Archivo seleccionado:', file.uri);
                     
-                    // Procesar el Excel usando la función correcta
-                    const clientesProcesados = await procesarExcelConTemplate(file.uri, selectedTemplate);
+                    // Procesar el Excel usando la plantilla seleccionada
+                    const nombreClinica = getNombreClinica(selectedSucursal);
+                    const clientesProcesados = await procesarExcel(file.uri, selectedTemplate, nombreClinica);
                     
                     console.log('✅ Clientes procesados:', clientesProcesados.length);
                     
@@ -137,12 +326,12 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                             text2: 'El archivo Excel no contiene datos válidos',
                         });
                     }
-                } catch (error) {
+                } catch (error: any) {
                     console.error('❌ Error procesando Excel:', error);
                     Toast.show({
                         type: 'error',
                         text1: 'Error',
-                        text2: 'No se pudo procesar el archivo Excel',
+                        text2: error.message || 'No se pudo procesar el archivo Excel',
                     });
                 } finally {
                     setLoading(false);
@@ -156,7 +345,7 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
         }
     };
 
-    const procesarExcelConTemplate = async (fileUri: string, template: ExcelTemplate) => {
+    const procesarExcel = async (fileUri: string, template: ExcelTemplate, nombreClinica: string) => {
         try {
             console.log('📊 Procesando Excel con template:', template.nombre);
             
@@ -170,60 +359,21 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
             
             console.log('📈 Datos leídos:', data.length, 'filas');
             
-            // Procesar con template usando remindersData
-            const datosProcesados = remindersData.procesarDatosConTemplate(data, template);
+            // Usar la clínica ACTUAL seleccionada
+            const clinicaActual = getNombreClinica(selectedSucursal);
+            console.log('🏥 Usando clínica actual:', clinicaActual);
             
-            console.log('👥 Datos procesados:', datosProcesados.length);
-            
-            // Crear clientes con mensajes personalizados
-            return datosProcesados.map(item => {
-                const mensaje = remindersData.generarMensajeConTemplate(template, item.variables);
-                
-                return {
-                    ...item.cliente,
-                    mensajes: [
-                        {
-                            id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                            contenido: mensaje,
-                            timestamp: new Date().toLocaleTimeString('es-ES', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }),
-                            esPropio: true
-                        }
-                    ]
-                };
-            });
+            // Procesar con la clínica actual
+            return remindersData.procesarDatosConTemplate(data, template, clinicaActual);
             
         } catch (error) {
-            console.error('❌ Error procesando Excel con template:', error);
+            console.error('❌ Error procesando Excel:', error);
             throw error;
         }
     };
 
-    // Obtener contactos simulados (para desarrollo)
     const handleGetContacts = () => {
-        setLoading(true);
-        
-        setTimeout(() => {
-            const contactosSimulados = getWhatsAppContactsSimulated();
-            const updatedClientes = [...clientes, ...contactosSimulados];
-            
-            setClientes(updatedClientes);
-            saveClientes(updatedClientes);
-            
-            if (contactosSimulados.length > 0 && !selectedCliente) {
-                setSelectedCliente(contactosSimulados[0]);
-            }
-            
-            Toast.show({
-                type: 'success',
-                text1: 'Éxito',
-                text2: `${contactosSimulados.length} contactos obtenidos`,
-            });
-            
-            setLoading(false);
-        }, 1500);
+        return 
     };
 
     // Enviar mensaje por WhatsApp
@@ -232,11 +382,8 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
             // 1. Preparar mensaje completo
             let mensajeCompleto = '';
             
-            cliente.mensajes.forEach((msg, index) => {
-                mensajeCompleto += msg.contenido + '\n';
-                if (index === 0) {
-                    mensajeCompleto += '\n';
-                }
+            cliente.mensajes.forEach((msg) => {
+                mensajeCompleto += msg.contenido + '\n\n';
             });
 
             // 2. Copiar número al portapapeles
@@ -348,6 +495,16 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                     <Text style={stylesreminders.clienteTelefono} numberOfLines={1}>
                         {item.telefono}
                     </Text>
+                    {item.mascotas.length > 0 && (
+                        <Text style={stylesreminders.clienteMascotas} numberOfLines={1}>
+                            {item.mascotas.length} mascota{item.mascotas.length !== 1 ? 's' : ''}
+                        </Text>
+                    )}
+                    {item.fechaCita && (
+                        <Text style={stylesreminders.clienteCita} numberOfLines={1}>
+                            📅 {item.fechaCita}
+                        </Text>
+                    )}
                 </View>
             </View>
         </TouchableOpacity>
@@ -361,6 +518,7 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
         <SafeAreaView style={stylesreminders.container}>
             {/* Header */}
             <View style={stylesreminders.header}>
+                
                 {/* Estadísticas */}
                 {clientes.length > 0 && (
                     <View style={stylesreminders.statsContainer}>
@@ -381,7 +539,7 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                             onPress={handleClearAll}
                         >
                             <Icon name="delete-sweep" size={20} color="#ff4444" />
-                            <Text style={stylesreminders.statLabel}>Eliminar todo</Text>
+                            <Text style={stylesreminders.statLabel}>Eliminar</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -395,6 +553,13 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                     <Text style={stylesreminders.emptyDescription}>
                         Importa un archivo Excel para comenzar
                     </Text>
+                    
+                    {/* Info de clínica */}
+                    <View style={stylesreminders.clinicaBadge}>
+                        <Text style={stylesreminders.clinicaBadgeText}>
+                            {getNombreClinica(selectedSucursal)}
+                        </Text>
+                    </View>
                 
                     <View style={stylesreminders.emptyButtons}>
                         <TouchableOpacity
@@ -407,16 +572,22 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                                 Importar Excel
                             </Text>
                         </TouchableOpacity>
-                        <Text>{selectedSucursal}</Text>
+                        
                         <TouchableOpacity
                             style={[stylesreminders.actionButton, stylesreminders.actionButtonSecondary]}
                             onPress={handleGetContacts}
                             disabled={loading}
                         >
                             <Icon name="contacts" size={24} color="#fff" />
-                            <Text style={stylesreminders.actionButtonText}>Importar Contactos</Text>
+                            <Text style={stylesreminders.actionButtonText}>Contactos Demo</Text>
                         </TouchableOpacity>
                     </View>
+                    
+                    {selectedTemplate && (
+                        <Text style={stylesreminders.templateInfo}>
+                            Plantilla seleccionada: {selectedTemplate.nombre}
+                        </Text>
+                    )}
                 </View>
             ) : (
                 <View style={stylesreminders.mainContent}>
@@ -424,7 +595,7 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                     <FlatList
                         data={clientes}
                         renderItem={renderClienteItem}
-                        keyExtractor={(item) => `${item.nombre}-${item.telefono}`}
+                        keyExtractor={(item, index) => `${item.nombre}-${item.telefono}-${index}`}
                         style={stylesreminders.clientesList}
                         contentContainerStyle={stylesreminders.clientesListContent}
                     />
@@ -441,10 +612,30 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                                     <Text style={stylesreminders.selectedClientPhone}>
                                         {selectedCliente.telefono}
                                     </Text>
+                                    
                                     {selectedCliente.mascotas.length > 0 && (
                                         <Text style={stylesreminders.selectedClientPets}>
-                                            {selectedCliente.mascotas.map(m => m.nombre).join(', ')}
+                                            Mascotas: {selectedCliente.mascotas.map(m => m.nombre).join(', ')}
                                         </Text>
+                                    )}
+                                    
+                                    {/* Mostrar info adicional para citas */}
+                                    {selectedCliente.fechaCita && (
+                                        <View style={stylesreminders.citaInfo}>
+                                            <Text style={stylesreminders.citaInfoItem}>
+                                                📅 {selectedCliente.fechaCita}
+                                            </Text>
+                                            {selectedCliente.horaCita && (
+                                                <Text style={stylesreminders.citaInfoItem}>
+                                                    ⏰ {selectedCliente.horaCita}
+                                                </Text>
+                                            )}
+                                            {selectedCliente.tipoVisita && (
+                                                <Text style={stylesreminders.citaInfoItem}>
+                                                    👨‍⚕️ {selectedCliente.tipoVisita}
+                                                </Text>
+                                            )}
+                                        </View>
                                     )}
                                 </View>
 
@@ -461,7 +652,7 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                                     ))}
                                 </ScrollView>
 
-                                {/* Botón de enviar (ESPACIO PARA BOTONES ANDROID) */}
+                                {/* Botón de enviar */}
                                 <View style={stylesreminders.sendButtonContainer}>
                                     <TouchableOpacity
                                         style={[
@@ -526,10 +717,21 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                             data={templates}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
-                                    style={stylesreminders.templateOption}
-                                    onPress={() => handleSelectTemplate(item)}
+                                    style={[
+                                        stylesreminders.templateOption,
+                                        selectedTemplate?.id === item.id && stylesreminders.templateOptionSelected
+                                    ]}
+                                    onPress={() => {
+                                        handleSelectTemplate(item);
+                                        setShowTemplateSelector(false);
+                                    }}
                                 >
-                                    <View style={stylesreminders.templateOptionIcon}>
+                                    <View style={[
+                                        stylesreminders.templateOptionIcon,
+                                        item.tipo === 'vacunas' ? stylesreminders.templateIconVacunas :
+                                        item.tipo === 'citas' ? stylesreminders.templateIconCitas :
+                                        stylesreminders.templateIconPersonalizado
+                                    ]}>
                                         <Icon 
                                             name={item.tipo === 'vacunas' ? 'vaccines' : 
                                                 item.tipo === 'citas' ? 'event' : 'description'
@@ -542,7 +744,7 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                                         <Text style={stylesreminders.templateOptionName}>{item.nombre}</Text>
                                         <Text style={stylesreminders.templateOptionDesc}>{item.descripcion}</Text>
                                         <Text style={stylesreminders.templateOptionFields}>
-                                            {item.encabezados.length} campos
+                                            {item.encabezados.length} campos requeridos
                                         </Text>
                                     </View>
                                     {selectedTemplate?.id === item.id && (
@@ -558,14 +760,14 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
                             onPress={() => {
                                 setShowTemplateSelector(false);
                                 handleImportExcel();
-                                navigation.navigate('RemindersScreen');
                             }}
+                            disabled={!selectedTemplate}
                         >
                             <Icon name="download" size={20} color="#fff" />
                             <Text style={stylesreminders.configTemplateButtonText}>
                                 {selectedTemplate 
                                     ? `Importar ${selectedTemplate.nombre}`
-                                    : 'Importar Excel'
+                                    : 'Selecciona una plantilla'
                                 }
                             </Text>
                         </TouchableOpacity>
@@ -574,8 +776,6 @@ export const RemindersScreen = ({ navigation }: { navigation: any }) => {
             </Modal>
 
             <Toast />
-
         </SafeAreaView>
-
     );
 };

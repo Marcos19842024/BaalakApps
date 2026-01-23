@@ -26,6 +26,21 @@ export const stylesreminders = StyleSheet.create({
         color: '#333',
         marginLeft: 16,
     },
+    // ESTILOS NUEVOS PARA LA CLÍNICA
+    clinicaBadge: {
+        backgroundColor: '#2196F3',
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 20,
+        marginBottom: 20,
+    },
+    clinicaBadgeText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    // FIN ESTILOS CLÍNICA
+    
     clearButton: {
         flex: 1,
         alignItems: 'center',
@@ -48,6 +63,14 @@ export const stylesreminders = StyleSheet.create({
         color: '#999',
         textAlign: 'center',
         marginBottom: 32,
+    },
+    templateInfo: {
+        fontSize: 12,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 20,
+        paddingHorizontal: 20,
+        fontStyle: 'italic',
     },
     emptyButtons: {
         width: '100%',
@@ -189,6 +212,18 @@ export const stylesreminders = StyleSheet.create({
         color: '#ffffff',
         marginTop: 2,
     },
+    clienteMascotas: {
+        fontSize: 10,
+        color: '#ccc',
+        marginTop: 2,
+        fontStyle: 'italic',
+    },
+    clienteCita: {
+        fontSize: 10,
+        color: '#90CAF9',
+        marginTop: 2,
+        fontStyle: 'italic',
+    },
     messagesArea: {
         flex: 1,
         backgroundColor: '#666',
@@ -214,6 +249,12 @@ export const stylesreminders = StyleSheet.create({
         fontSize: 13,
         color: 'white',
         marginTop: 4,
+        fontStyle: 'italic',
+    },
+    selectedClientRecordatorios: {
+        fontSize: 11,
+        color: '#4CAF50',
+        marginTop: 2,
         fontStyle: 'italic',
     },
     messagesContainer: {
@@ -316,6 +357,11 @@ export const stylesreminders = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
     },
+    templateOptionSelected: {
+        backgroundColor: '#F5F9FF',
+        borderLeftWidth: 3,
+        borderLeftColor: '#2196F3',
+    },
     templateOptionIcon: {
         width: 40,
         height: 40,
@@ -324,6 +370,15 @@ export const stylesreminders = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
+    },
+    templateIconVacunas: {
+        backgroundColor: '#4CAF50',
+    },
+    templateIconCitas: {
+        backgroundColor: '#FF9800',
+    },
+    templateIconPersonalizado: {
+        backgroundColor: '#9C27B0',
     },
     templateOptionInfo: {
         flex: 1,
@@ -352,6 +407,9 @@ export const stylesreminders = StyleSheet.create({
         borderRadius: 8,
         marginTop: 16,
     },
+    configTemplateButtonDisabled: {
+        backgroundColor: '#BDBDBD',
+    },
     configTemplateButtonText: {
         color: '#fff',
         fontSize: 14,
@@ -375,5 +433,109 @@ export const stylesreminders = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         marginRight: 4,
+    },
+    citaInfo: {
+        marginTop: 8,
+        backgroundColor: '#e3f2fd',
+        padding: 8,
+        borderRadius: 8,
+    },
+    citaInfoItem: {
+        fontSize: 12,
+        color: '#1976d2',
+        marginVertical: 2,
+    },
+    // ESTILOS PARA INFORMACIÓN DE TEMPLATE
+    templateHeader: {
+        padding: 12,
+        backgroundColor: '#F8F9FA',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+        alignItems: 'center',
+    },
+    templateCurrent: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: '600',
+    },
+    templateName: {
+        fontSize: 16,
+        color: '#2196F3',
+        fontWeight: 'bold',
+        marginTop: 4,
+    },
+    // ESTILOS PARA ENCABEZADOS DE TEMPLATE
+    templateHeadersInfo: {
+        padding: 12,
+        backgroundColor: '#FFF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+    },
+    templateHeadersTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
+    },
+    templateHeaderItem: {
+        flexDirection: 'row',
+        marginBottom: 4,
+    },
+    templateHeaderName: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '600',
+        width: 120,
+    },
+    templateHeaderDesc: {
+        fontSize: 12,
+        color: '#888',
+        flex: 1,
+    },
+    // ESTILOS PARA BOTÓN DE CAMBIAR TEMPLATE
+    changeTemplateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFF',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#2196F3',
+        marginTop: 8,
+    },
+    changeTemplateButtonText: {
+        color: '#2196F3',
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 6,
+    },
+    // ESTILOS PARA INDICADOR DE FORMATO
+    formatInfo: {
+        padding: 16,
+        backgroundColor: '#FFF3CD',
+        borderWidth: 1,
+        borderColor: '#FFEEBA',
+        borderRadius: 8,
+        marginHorizontal: 16,
+        marginTop: 8,
+    },
+    formatTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#856404',
+        marginBottom: 8,
+    },
+    formatItem: {
+        fontSize: 12,
+        color: '#856404',
+        marginBottom: 4,
+    },
+    formatRequired: {
+        fontWeight: 'bold',
+    },
+    formatOptional: {
+        fontStyle: 'italic',
     },
 });

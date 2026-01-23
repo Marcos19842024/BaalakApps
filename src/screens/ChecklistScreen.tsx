@@ -8,7 +8,7 @@ import * as MediaLibrary from 'expo-media-library';
 import Toast from 'react-native-toast-message';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { ChecklistData, ChecklistItem, ChecklistPhoto, SUCURSALES, SucursalType } from '../types/checklist';
+import { ChecklistData, ChecklistItem, ChecklistPhoto } from '../types/checklist';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
 import {
   View,
@@ -32,6 +32,7 @@ import {
 } from '../utils/checklistData';
 import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
+import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 
 export default function ChecklistScreen() {
   const route = useRoute();
