@@ -4,15 +4,15 @@ export const stylesreminders = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F9FAFB',
-        marginTop: -28,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#e0e0e0',
-        elevation: 2,
+        paddingHorizontal: 5,
+        paddingVertical: 5,
+        marginTop: -30,
     },
     backButton: {
         backgroundColor: '#ff006f',
@@ -176,7 +176,7 @@ export const stylesreminders = StyleSheet.create({
         borderRadius: 10,
     },
     clienteItemSelected: {
-        backgroundColor: '#0399ba',
+        backgroundColor: '#05aaca',
     },
     clienteEnviado: {
         opacity: 0.7,
@@ -214,7 +214,7 @@ export const stylesreminders = StyleSheet.create({
     },
     clienteMascotas: {
         fontSize: 10,
-        color: '#ccc',
+        color: '#ffffff',
         marginTop: 2,
         fontStyle: 'italic',
     },

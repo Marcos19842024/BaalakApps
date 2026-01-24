@@ -4,7 +4,7 @@ export const styleschecklist = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f0f2f5',
-        marginTop: -28,
+        marginTop: -30,
     },
     // Sección fija superior
     fixedSection: {
@@ -15,6 +15,7 @@ export const styleschecklist = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 3,
         elevation: 5,
+        paddingVertical: 4,
     },
     // ScrollView solo para áreas
     areasScrollView: {
@@ -26,7 +27,7 @@ export const styleschecklist = StyleSheet.create({
         flex: 1,
     },
     header: {
-        paddingBottom: 1,
+        paddingVertical: 1,
         paddingHorizontal: 15,
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -193,7 +194,7 @@ export const styleschecklist = StyleSheet.create({
     cameraButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#10b981',
+        backgroundColor: '#05aaca',
         paddingHorizontal: 15,
         paddingVertical: 10,
         borderRadius: 8,
@@ -698,7 +699,7 @@ export const styleschecklist = StyleSheet.create({
     headerButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#ff066f',
+        backgroundColor: '#05aaca',
         paddingHorizontal: 15,
         paddingVertical: 10,
         borderRadius: 8,

@@ -12,7 +12,7 @@ export const stylesmessageBubble = StyleSheet.create({
         maxWidth: '100%',
     },
     bubbleOwn: {
-        backgroundColor: '#0c7d9c',
+        backgroundColor: '#05aaca',
         borderBottomRightRadius: 4,
     },
     bubbleOther: {

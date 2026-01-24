@@ -18,9 +18,16 @@ export default function App() {
         initialRouteName="MainMenu"
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#ff006f',
+            backgroundColor: '#white',
+            borderBottomWidth: 1,
+            borderBottomColor: '#e0e0e0',
+            elevation: 2,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
           },
-          headerTintColor: 'white',
+          headerTintColor: '#05aaca',
           headerTitleStyle: {
             fontWeight: 'bold',
           },

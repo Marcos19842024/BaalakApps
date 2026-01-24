@@ -517,33 +517,34 @@ export const RemindersScreen = () => {
     return (
         <SafeAreaView style={stylesreminders.container}>
             {/* Header */}
-            <View style={stylesreminders.header}>
-                
-                {/* Estadísticas */}
-                {clientes.length > 0 && (
-                    <View style={stylesreminders.statsContainer}>
-                        <View style={stylesreminders.statItem}>
-                            <Text style={stylesreminders.statNumber}>{totalClientes}</Text>
-                            <Text style={stylesreminders.statLabel}>Total</Text>
+            {clientes.length > 0 && (
+                <View style={stylesreminders.header}>
+                    
+                    {/* Estadísticas */}
+                        <View style={stylesreminders.statsContainer}>
+                            <View style={stylesreminders.statItem}>
+                                <Text style={stylesreminders.statNumber}>{totalClientes}</Text>
+                                <Text style={stylesreminders.statLabel}>Total</Text>
+                            </View>
+                            <View style={stylesreminders.statItem}>
+                                <Text style={[stylesreminders.statNumber, stylesreminders.statEnviados]}>{enviadosCount}</Text>
+                                <Text style={stylesreminders.statLabel}>Enviados</Text>
+                            </View>
+                            <View style={stylesreminders.statItem}>
+                                <Text style={[stylesreminders.statNumber, stylesreminders.statPendientes]}>{pendientesCount}</Text>
+                                <Text style={stylesreminders.statLabel}>Pendientes</Text>
+                            </View>
+                            <TouchableOpacity
+                                style={stylesreminders.clearButton}
+                                onPress={handleClearAll}
+                            >
+                                <Icon name="delete-sweep" size={20} color="#ff4444" />
+                                <Text style={stylesreminders.statLabel}>Eliminar</Text>
+                            </TouchableOpacity>
                         </View>
-                        <View style={stylesreminders.statItem}>
-                            <Text style={[stylesreminders.statNumber, stylesreminders.statEnviados]}>{enviadosCount}</Text>
-                            <Text style={stylesreminders.statLabel}>Enviados</Text>
-                        </View>
-                        <View style={stylesreminders.statItem}>
-                            <Text style={[stylesreminders.statNumber, stylesreminders.statPendientes]}>{pendientesCount}</Text>
-                            <Text style={stylesreminders.statLabel}>Pendientes</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={stylesreminders.clearButton}
-                            onPress={handleClearAll}
-                        >
-                            <Icon name="delete-sweep" size={20} color="#ff4444" />
-                            <Text style={stylesreminders.statLabel}>Eliminar</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
+                    
+                </View>
+            )}
 
             {/* Contenido Principal */}
             {clientes.length === 0 ? (
@@ -723,7 +724,6 @@ export const RemindersScreen = () => {
                                     ]}
                                     onPress={() => {
                                         handleSelectTemplate(item);
-                                        setShowTemplateSelector(false);
                                     }}
                                 >
                                     <View style={[

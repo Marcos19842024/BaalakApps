@@ -4,7 +4,6 @@ export const stylestemplateChecklist = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-    marginTop: -28,
   },
   header: {
     flexDirection: 'row',
@@ -60,8 +59,10 @@ export const stylestemplateChecklist = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: 'white',
-    margin: 16,
-    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 10,
+    marginTop: -25,
+    padding: 5,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
