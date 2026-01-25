@@ -51,8 +51,10 @@
     ],
     "updates": {
       "url": "https://u.expo.dev/c438269a-0bee-4ebc-ac19-9a592c308fe6",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
     },
+    "newArchEnabled": false,
     "runtimeVersion": {
       "policy": "sdkVersion"
     }

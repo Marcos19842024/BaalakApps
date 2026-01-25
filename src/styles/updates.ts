@@ -1,6 +1,5 @@
 import { StyleSheet } from "react-native";
 
-
 export const stylesupdates = StyleSheet.create({
     container: {
         flex: 1,
@@ -35,6 +34,10 @@ export const stylesupdates = StyleSheet.create({
         padding: 20,
         borderRadius: 12,
         elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     versionHeader: {
         flexDirection: 'row',
@@ -64,6 +67,10 @@ export const stylesupdates = StyleSheet.create({
         padding: 20,
         borderRadius: 12,
         elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     statusHeader: {
         flexDirection: 'row',
@@ -82,22 +89,40 @@ export const stylesupdates = StyleSheet.create({
         marginBottom: 16,
         lineHeight: 20,
     },
+    checkingContainer: {
+        alignItems: 'center',
+        padding: 20,
+    },
+    updateInfoHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
     updateVersion: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: 'bold',
         color: '#FF5722',
-        marginBottom: 4,
+    },
+    updateDate: {
+        fontSize: 14,
+        color: '#666',
     },
     updateSize: {
         fontSize: 14,
         color: '#666',
         marginBottom: 16,
+        padding: 8,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 6,
     },
     changesContainer: {
         backgroundColor: '#f9f9f9',
         padding: 16,
         borderRadius: 8,
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
     changesTitle: {
         fontSize: 16,
@@ -117,6 +142,9 @@ export const stylesupdates = StyleSheet.create({
         flex: 1,
         lineHeight: 20,
     },
+    updateButtonsContainer: {
+        gap: 12,
+    },
     updateButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -124,6 +152,9 @@ export const stylesupdates = StyleSheet.create({
         backgroundColor: '#FF5722',
         padding: 16,
         borderRadius: 8,
+    },
+    manualButton: {
+        backgroundColor: '#2196F3',
     },
     updateButtonText: {
         color: '#fff',
@@ -138,6 +169,7 @@ export const stylesupdates = StyleSheet.create({
         backgroundColor: '#2196F3',
         padding: 16,
         borderRadius: 8,
+        marginTop: 8,
     },
     checkButtonText: {
         color: '#fff',
@@ -151,6 +183,10 @@ export const stylesupdates = StyleSheet.create({
         padding: 20,
         borderRadius: 12,
         elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     sectionTitle: {
         fontSize: 18,
@@ -167,6 +203,7 @@ export const stylesupdates = StyleSheet.create({
     backupButtons: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        gap: 12,
     },
     backupButton: {
         flexDirection: 'row',
@@ -176,7 +213,6 @@ export const stylesupdates = StyleSheet.create({
         padding: 16,
         borderRadius: 8,
         flex: 1,
-        marginHorizontal: 4,
     },
     restoreButton: {
         backgroundColor: '#2196F3',
@@ -193,23 +229,42 @@ export const stylesupdates = StyleSheet.create({
         padding: 20,
         borderRadius: 12,
         elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     progressText: {
         fontSize: 16,
         color: '#333',
-        marginBottom: 12,
+        marginBottom: 8,
         textAlign: 'center',
+        fontWeight: '600',
+    },
+    progressPercent: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#4CAF50',
+        textAlign: 'center',
+        marginBottom: 12,
     },
     progressBar: {
-        height: 8,
+        height: 12,
         backgroundColor: '#e0e0e0',
-        borderRadius: 4,
+        borderRadius: 6,
         overflow: 'hidden',
+        marginBottom: 8,
     },
     progressFill: {
         height: '100%',
         backgroundColor: '#4CAF50',
-        borderRadius: 4,
+        borderRadius: 6,
+    },
+    progressComplete: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        fontStyle: 'italic',
     },
     tipsSection: {
         backgroundColor: '#fff',
@@ -217,6 +272,10 @@ export const stylesupdates = StyleSheet.create({
         padding: 20,
         borderRadius: 12,
         elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
         marginBottom: 32,
     },
     tipsTitle: {
@@ -229,12 +288,34 @@ export const stylesupdates = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 12,
+        padding: 8,
+        backgroundColor: '#f9f9f9',
+        borderRadius: 6,
     },
     tipText: {
         fontSize: 14,
         color: '#666',
         marginLeft: 12,
         flex: 1,
+        lineHeight: 20,
+    },
+    devInfo: {
+        backgroundColor: '#FFF3CD',
+        margin: 16,
+        padding: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#FFEAA7',
+    },
+    devInfoTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#856404',
+        marginBottom: 8,
+    },
+    devInfoText: {
+        fontSize: 14,
+        color: '#856404',
         lineHeight: 20,
     },
 });
