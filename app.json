@@ -1,62 +1,47 @@
 {
   "expo": {
-    "name": "Baalak Apps",
+    "name": "BaalakApps",
     "slug": "baalakapps",
-    "version": "1.1.0",
-    "orientation": "portrait",
+    "version": "3.1.0",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.Baalak.Apps"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.Baalak.Apps",
-      "versionCode": 2,
-      "permissions": [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.INTERNET"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    
     "extra": {
       "eas": {
         "projectId": "c438269a-0bee-4ebc-ac19-9a592c308fe6"
       }
     },
-    "plugins": [
-      "expo-updates",
-      [
-        "expo-document-picker",
-        {
-          "iCloudContainerEnvironment": "Production"
-        }
-      ],
-      "expo-font"
-    ],
+    
     "updates": {
-      "url": "https://u.expo.dev/c438269a-0bee-4ebc-ac19-9a592c308fe6",
+      "enabled": true,
       "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/c438269a-0bee-4ebc-ac19-9a592c308fe6",
       "checkAutomatically": "ON_LOAD"
     },
-    "newArchEnabled": false,
+    
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "appVersion"
+    },
+
+    "plugins": ["expo-updates"],
+    
+    "android": {
+    "package": "com.marcos19842024sorganization.baalakapps",
+    "versionCode": 3,
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#FFFFFF"
+    },
+    "icon": "./assets/icon.png"
+  },
+    
+    "ios": {
+      "icon": "./assets/icon-ios.png",
+      "supportsTablet": true
     }
   }
 }

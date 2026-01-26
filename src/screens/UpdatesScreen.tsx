@@ -7,6 +7,7 @@ import {
     Alert,
     ActivityIndicator,
     Linking,
+    Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as Updates from 'expo-updates';
@@ -48,25 +49,25 @@ export const UpdatesScreen = () => {
         try {
             // En desarrollo, mostrar información simulada
             if (__DEV__) {
-                setTimeout(() => {
-                    setHasUpdate(true);
-                    setUpdateInfo({
-                        version: '1.1.0',
-                        date: '2024-12-15',
-                        changes: [
-                            'Nueva función de recordatorios por WhatsApp',
-                            'Mejoras en la interfaz de usuario',
-                            'Corrección de errores menores',
-                            'Optimización del rendimiento'
-                        ],
-                        mandatory: false,
-                        size: '15 MB'
-                    });
-                    setChecking(false);
-                }, 1500);
-                return;
+            setTimeout(() => {
+                setHasUpdate(true);
+                setUpdateInfo({
+                version: '1.1.0',
+                date: new Date().toLocaleDateString('es-ES'),
+                changes: [
+                    'Nueva función de recordatorios por WhatsApp',
+                    'Mejoras en la interfaz de usuario',
+                    'Corrección de errores menores',
+                    'Optimización del rendimiento'
+                ],
+                mandatory: false,
+                size: '15 MB'
+                });
+                setChecking(false);
+            }, 1500);
+            return;
             }
-
+            
             // En producción, verificar actualizaciones reales
             console.log('🔍 Verificando actualizaciones...');
             const update = await Updates.checkForUpdateAsync();
@@ -75,28 +76,41 @@ export const UpdatesScreen = () => {
             setHasUpdate(update.isAvailable);
             
             if (update.isAvailable) {
+                let version = '1.1.0';
+                let changes = ['Mejoras generales y corrección de errores'];
+            
                 if (update.manifest) {
+                    // CORREGIDO: Usar el tipo correcto
                     const manifest = update.manifest as any;
-                    setUpdateInfo({
-                        version: manifest.version || '1.1.0',
-                        date: new Date().toISOString().split('T')[0],
-                        changes: manifest.metadata?.expoClient?.extra?.changelog || 
-                               manifest.extra?.changelog || 
-                               ['Mejoras generales y corrección de errores'],
-                        mandatory: manifest.metadata?.expoClient?.extra?.mandatory || false,
-                        size: '15 MB'
-                    });
-                } else {
-                    // Si no hay manifest, mostrar información por defecto
-                    setUpdateInfo({
-                        version: 'Nueva versión',
-                        date: new Date().toISOString().split('T')[0],
-                        changes: ['Actualización disponible'],
-                        mandatory: false,
-                        size: '10-20 MB'
-                    });
+                    
+                    // Extraer versión de diferentes formas
+                    if (manifest.version) {
+                        version = manifest.version;
+                    } else if (manifest.metadata?.version) {
+                        version = manifest.metadata.version;
+                    } else if (manifest.extra?.expoClient?.version) {
+                        version = manifest.extra.expoClient.version;
+                    }
+                    
+                    // Extraer changelog
+                    if (manifest.extra?.changelog) {
+                        changes = Array.isArray(manifest.extra.changelog) 
+                        ? manifest.extra.changelog 
+                        : [manifest.extra.changelog];
+                    } else if (manifest.metadata?.expoClient?.extra?.changelog) {
+                        const changelog = manifest.metadata.expoClient.extra.changelog;
+                        changes = Array.isArray(changelog) ? changelog : [changelog];
+                    }
                 }
-                
+            
+                setUpdateInfo({
+                    version,
+                    date: new Date().toLocaleDateString('es-ES'),
+                    changes,
+                    mandatory: false,
+                    size: Platform.OS === 'ios' ? '20 MB' : '15 MB'
+                });
+            
                 Toast.show({
                     type: 'success',
                     text1: 'Actualización disponible',
@@ -121,11 +135,10 @@ export const UpdatesScreen = () => {
             setHasUpdate(true);
             setUpdateInfo({
                 version: '1.1.0',
-                date: '2024-12-15',
+                date: new Date().toLocaleDateString('es-ES'),
                 changes: ['Descarga manual disponible'],
                 mandatory: false,
-                size: '15 MB',
-                downloadUrl: 'https://expo.dev/accounts/[tu-usuario]/projects/baalakapps/builds'
+                size: '15 MB'
             });
         } finally {
             setChecking(false);
@@ -133,96 +146,55 @@ export const UpdatesScreen = () => {
     };
 
     const handleUpdate = async () => {
-        if (!updateInfo) return;
-
-        // Si estamos en desarrollo, simular actualización
         if (__DEV__) {
             Alert.alert(
                 'Modo Desarrollo',
-                'En desarrollo, las actualizaciones OTA están deshabilitadas. Compila una nueva versión.',
-                [
-                    { text: 'Entendido', style: 'cancel' }
-                ]
+                'En desarrollo, usa "eas update" para publicar actualizaciones.',
+                [{ text: 'Entendido' }]
             );
             return;
         }
 
-        Alert.alert(
-            updateInfo.mandatory ? 'Actualización Obligatoria' : 'Actualización Disponible',
-            `Versión ${updateInfo.version} está disponible (${updateInfo.size}).\n\n¿Quieres descargar e instalar ahora?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Actualizar',
-                    onPress: async () => {
-                        setUpdating(true);
-                        setDownloadProgress(0);
-                        
-                        try {
-                            console.log('⬇️  Iniciando descarga de actualización...');
-                            
-                            // Configurar intervalo para simular progreso
-                            const progressInterval = setInterval(() => {
-                                setDownloadProgress(prev => {
-                                    if (prev >= 100) {
-                                        clearInterval(progressInterval);
-                                        return 100;
-                                    }
-                                    return prev + 10;
-                                });
-                            }, 500);
-                            
-                            // Descargar la actualización
-                            await Updates.fetchUpdateAsync();
-                            
-                            clearInterval(progressInterval);
-                            setDownloadProgress(100);
-                            
-                            // Pequeña pausa para mostrar 100%
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            
-                            console.log('✅ Actualización descargada, reiniciando...');
-                            
-                            Toast.show({
-                                type: 'success',
-                                text1: 'Actualización lista',
-                                text2: 'Reiniciando aplicación para aplicar cambios...',
-                            });
-                            
-                            // Reiniciar la aplicación
-                            await Updates.reloadAsync();
-                            
-                        } catch (error: any) {
-                            console.error('❌ Error durante la actualización:', error);
-                            
-                            Toast.show({
-                                type: 'error',
-                                text1: 'Error en actualización',
-                                text2: error.message || 'No se pudo completar la actualización',
-                            });
-                            
-                            // Ofrecer descarga manual como alternativa
-                            Alert.alert(
-                                'Error de Actualización',
-                                'No se pudo completar la actualización automática. ¿Quieres descargar manualmente?',
-                                [
-                                    { text: 'Cancelar', style: 'cancel' },
-                                    {
-                                        text: 'Descargar',
-                                        onPress: () => {
-                                            Linking.openURL('https://expo.dev/accounts/[tu-usuario]/projects/baalakapps/builds');
-                                        }
-                                    }
-                                ]
-                            );
-                        } finally {
-                            setUpdating(false);
-                            setDownloadProgress(0);
-                        }
+        setUpdating(true);
+        try {
+            // Mostrar progreso simulado
+            const interval = setInterval(() => {
+                setDownloadProgress(prev => {
+                    if (prev >= 95) {
+                        clearInterval(interval);
+                        return 95;
                     }
-                }
-            ]
-        );
+                    return prev + 10;
+                });
+            }, 300);
+
+            // Descargar actualización real
+            await Updates.fetchUpdateAsync();
+            
+            clearInterval(interval);
+            setDownloadProgress(100);
+            
+            // Pequeña pausa antes de reiniciar
+            setTimeout(async () => {
+                Toast.show({
+                    type: 'success',
+                    text1: '✅ Actualizado',
+                    text2: 'Reiniciando con los nuevos cambios...'
+                });
+            
+                await Updates.reloadAsync();
+            }, 1000);
+            
+        } catch (error: any) {
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: error.message || 'Fallo en la actualización'
+            });
+            setDownloadProgress(0);
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const handleManualDownload = () => {
