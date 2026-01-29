@@ -281,7 +281,6 @@ export const RemindersScreen = () => {
 
         try {
             const result = await DocumentPicker.getDocumentAsync({
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 copyToCacheDirectory: true,
             });
 
@@ -293,10 +292,28 @@ export const RemindersScreen = () => {
                 try {
                     const file = result.assets[0];
                     console.log('📄 Archivo seleccionado:', file.uri);
+                    console.log('📄 Nombre del archivo:', file.name);
+                    console.log('📄 Tamaño:', file.size, 'bytes');
+                    
+                    // Verificar extensión del archivo
+                    const fileName = file.name.toLowerCase();
+                    const extension = fileName.split('.').pop();
+                    
+                    // Aceptar ambos formatos: .xlsx y .xls
+                    if (extension !== 'xlsx' && extension !== 'xls') {
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Formato no válido',
+                            text2: 'Solo se aceptan archivos Excel (.xlsx o .xls)',
+                            visibilityTime: 3000,
+                        });
+                        setLoading(false);
+                        return;
+                    }
                     
                     // Procesar el Excel usando la plantilla seleccionada
                     const nombreClinica = getNombreClinica(selectedSucursal);
-                    const clientesProcesados = await procesarExcel(file.uri, selectedTemplate, nombreClinica);
+                    const clientesProcesados = await procesarExcel(file.uri, selectedTemplate, nombreClinica, extension);
                     
                     console.log('✅ Clientes procesados:', clientesProcesados.length);
                     
@@ -345,35 +362,97 @@ export const RemindersScreen = () => {
         }
     };
 
-    const procesarExcel = async (fileUri: string, template: ExcelTemplate, nombreClinica: string) => {
+    const procesarExcel = async (fileUri: string, template: ExcelTemplate, nombreClinica: string, extension: string) => {
         try {
             console.log('📊 Procesando Excel con template:', template.nombre);
+            console.log('🏥 Para clínica:', nombreClinica);
+            console.log('📄 Extensión del archivo:', extension);
             
             // Leer Excel
             const response = await fetch(fileUri);
+            if (!response.ok) {
+                throw new Error(`Error al leer el archivo: ${response.status}`);
+            }
+            
             const arrayBuffer = await response.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            
+            // Verificar si el arrayBuffer tiene datos
+            if (arrayBuffer.byteLength === 0) {
+                throw new Error('El archivo está vacío');
+            }
+            
+            console.log('📊 Tamaño del archivo:', arrayBuffer.byteLength, 'bytes');
+            
+            let workbook;
+            try {
+                // Configuración para leer Excel según la extensión
+                const readOptions = {
+                    type: 'array' as const,
+                    cellDates: true,
+                    cellNF: false,
+                    cellText: false
+                };
+                
+                // Intentar leer el archivo
+                workbook = XLSX.read(arrayBuffer, readOptions);
+                
+            } catch (readError) {
+                console.error('❌ Error específico de lectura:', readError);
+                throw new Error('No se pudo leer el archivo Excel. Verifica que sea un archivo Excel válido (.xls o .xlsx)');
+            }
+            
+            if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                throw new Error('El archivo Excel no contiene hojas');
+            }
+            
             const sheetName = workbook.SheetNames[0];
+            console.log('📑 Hoja seleccionada:', sheetName);
+            
             const worksheet = workbook.Sheets[sheetName];
-            const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+            
+            if (!worksheet) {
+                throw new Error('No se pudo acceder a la primera hoja del Excel');
+            }
+            
+            // Convertir a JSON con opciones robustas
+            const data = XLSX.utils.sheet_to_json(worksheet, { 
+                header: 1, 
+                defval: '', 
+                blankrows: false,
+                raw: false // Convertir valores a texto
+            }) as any[][];
             
             console.log('📈 Datos leídos:', data.length, 'filas');
             
-            // Usar la clínica ACTUAL seleccionada
-            const clinicaActual = getNombreClinica(selectedSucursal);
-            console.log('🏥 Usando clínica actual:', clinicaActual);
+            if (data.length === 0) {
+                throw new Error('La hoja de Excel está vacía');
+            }
             
-            // Procesar con la clínica actual
-            return remindersData.procesarDatosConTemplate(data, template, clinicaActual);
+            // Mostrar los primeros encabezados para debugging
+            if (data[0]) {
+                console.log('📋 Encabezados encontrados:', data[0]);
+            }
+            
+            // Procesar con template usando remindersData
+            return remindersData.procesarDatosConTemplate(data, template, nombreClinica);
             
         } catch (error) {
             console.error('❌ Error procesando Excel:', error);
-            throw error;
+            
+            // Mensaje de error más específico
+            let errorMessage = 'No se pudo procesar el archivo Excel';
+            if (error instanceof Error) {
+                if (error.message.includes('encabezado')) {
+                    errorMessage = error.message;
+                } else if (error.message.includes('vacío')) {
+                    errorMessage = 'El archivo Excel está vacío';
+                } else if (error.message.includes('leer')) {
+                    errorMessage = 'El archivo no es un Excel válido o está dañado';
+                }
+            }
+            
+            throw new Error(errorMessage);
         }
-    };
-
-    const handleGetContacts = () => {
-        return 
     };
 
     // Enviar mensaje por WhatsApp
@@ -572,15 +651,6 @@ export const RemindersScreen = () => {
                             <Text style={stylesreminders.actionButtonText}>
                                 Importar Excel
                             </Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity
-                            style={[stylesreminders.actionButton, stylesreminders.actionButtonSecondary]}
-                            onPress={handleGetContacts}
-                            disabled={loading}
-                        >
-                            <Icon name="contacts" size={24} color="#fff" />
-                            <Text style={stylesreminders.actionButtonText}>Contactos Demo</Text>
                         </TouchableOpacity>
                     </View>
                     

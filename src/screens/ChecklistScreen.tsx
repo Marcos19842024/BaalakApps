@@ -34,7 +34,7 @@ import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 
-export default function ChecklistScreen() {
+export const ChecklistScreen = () => {
   const route = useRoute();
   const params = route.params as RouteParams;
   const [sucursalKey, setSucursalKey] = useState<SucursalType>(params?.sucursalKey || 'BAALAK_CENTRAL');
@@ -81,6 +81,7 @@ export default function ChecklistScreen() {
         const areas = getUniqueAreasForSucursal(sucursalKey);
         if (areas.length > 0) {
           setCurrentArea(areas[0]);
+          handleSucursalChange(sucursalKey);
         }
         
         Toast.show({
@@ -322,17 +323,20 @@ export default function ChecklistScreen() {
       });
 
       Alert.alert(
-        'Checklist Guardado',
-        '¿Deseas compartir el PDF por WhatsApp?',
+        '✅ Checklist Generado',
+        `Checklist PDF creado exitosamente para ${sucursalName}`,
         [
-          { text: 'No', style: 'cancel' },
           { 
-            text: 'Sí, compartir', 
-            onPress: () => shareViaWhatsApp(pdfUri, updatedData)
+            text: 'Cancelar', 
+            style: 'cancel' 
           },
           { 
             text: 'Descargar PDF',
             onPress: () => savePDFToDownloads(pdfUri, updatedData)
+          },
+          { 
+            text: 'Compartir por WhatsApp',
+            onPress: () => shareViaWhatsApp(pdfUri, updatedData)
           }
         ]
       );

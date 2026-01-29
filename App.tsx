@@ -6,7 +6,8 @@ import {
   ChecklistScreen, 
   TemplateChecklistScreen,
   RemindersScreen,
-  UpdatesScreen 
+  ReportsScreen,
+  UpdatesScreen
 } from './src/screens';
 
 const Stack = createStackNavigator();
@@ -52,6 +53,11 @@ export default function App() {
           name="Reminders" 
           component={RemindersScreen}
           options={{ title: 'Recordatorios' }}
+        />
+        <Stack.Screen 
+          name="Reports" 
+          component={ReportsScreen}
+          options={{ title: 'Generador de Reportes' }}
         />
         <Stack.Screen 
           name="Updates" 

@@ -1,5 +1,3 @@
-import { SucursalType } from "./sucursal";
-
 export interface ChecklistItem {
   id: string;
   area: string;
@@ -28,22 +26,4 @@ export interface ChecklistData {
   completed: boolean;
   sucursal?: string;
   sucursalKey?: string;
-}
-
-export interface ChecklistAspect {
-  id: string;
-  aspecto: string;
-  editable?: boolean;
-}
-
-export interface ChecklistArea {
-  area: string;
-  aspectos: ChecklistAspect[];
-  icon?: string;
-  editable?: boolean;
-}
-
-export interface SucursalTemplate {
-  sucursal: SucursalType;
-  areas: ChecklistArea[];
 }

@@ -48,6 +48,14 @@ export const MainMenuScreen = () => {
       route: 'Reminders',
     },
     {
+      id: 'reports',
+      title: 'Generador de Reportes',
+      description: 'Crea reportes de incidentes y problemas',
+      icon: 'description',
+      color: '#FF9800',
+      route: 'Reports',
+    },
+    {
       id: 'updates',
       title: 'Actualizaciones',
       description: 'Actualiza la aplicación',
@@ -199,64 +207,64 @@ export const MainMenuScreen = () => {
         </Text>
       </View>
 
-        {/* Modal para seleccionar clínica */}
-        <Modal
-          visible={showClinicSelector}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowClinicSelector(false)}
-        >
-          <View style={stylesmainMenu.modalOverlay}>
-            <View style={stylesmainMenu.clinicModalContent}>
-              <Text style={stylesmainMenu.modalTitle}>Seleccionar Sucursal</Text>
-                
-              {CLINIC_OPTIONS.map((clinic) => {
-                const clinicKey = clinic.id as SucursalType;
+      {/* Modal para seleccionar clínica */}
+      <Modal
+        visible={showClinicSelector}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowClinicSelector(false)}
+      >
+        <View style={stylesmainMenu.modalOverlay}>
+          <View style={stylesmainMenu.clinicModalContent}>
+            <Text style={stylesmainMenu.modalTitle}>Seleccionar Sucursal</Text>
               
-                return (
-                  <TouchableOpacity
-                    key={clinic.id}
-                    style={[
-                        stylesmainMenu.clinicOption,
-                        sucursalKey === clinic.id && stylesmainMenu.clinicOptionSelected
-                    ]}
-                    onPress={() => handleSucursalChange(clinicKey)}
-                  >
-                    <View style={stylesmainMenu.clinicOptionContent}>
-                      <View style={stylesmainMenu.clinicIconContainer}>
-                        <MaterialCommunityIcons 
-                          name="hospital-building" 
-                          size={28}
-                          color={sucursalKey === clinic.id ? '#ff008cea' : '#6B7280'} 
-                        />
-                      </View>
-                      <View style={stylesmainMenu.clinicTextContainer}>
-                        <Text style={[
-                          stylesmainMenu.clinicOptionText,
-                          sucursalKey === clinic.id && stylesmainMenu.clinicOptionTextSelected
-                        ]}>
-                          {clinic.name}
-                        </Text>
-                      </View>
+            {CLINIC_OPTIONS.map((clinic) => {
+              const clinicKey = clinic.id as SucursalType;
+            
+              return (
+                <TouchableOpacity
+                  key={clinic.id}
+                  style={[
+                      stylesmainMenu.clinicOption,
+                      sucursalKey === clinic.id && stylesmainMenu.clinicOptionSelected
+                  ]}
+                  onPress={() => handleSucursalChange(clinicKey)}
+                >
+                  <View style={stylesmainMenu.clinicOptionContent}>
+                    <View style={stylesmainMenu.clinicIconContainer}>
+                      <MaterialCommunityIcons 
+                        name="hospital-building" 
+                        size={28}
+                        color={sucursalKey === clinic.id ? '#ff008cea' : '#6B7280'} 
+                      />
                     </View>
-                    {sucursalKey === clinic.id && (
-                      <View style={stylesmainMenu.checkIconContainer}>
-                        <Icon name="check-circle" size={24} color="#10B981" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-                
-              <TouchableOpacity
-                style={stylesmainMenu.modalCloseButton}
-                onPress={() => setShowClinicSelector(false)}
-              >
-                <Text style={stylesmainMenu.modalCloseButtonText}>Cerrar</Text>
-              </TouchableOpacity>
-            </View>
+                    <View style={stylesmainMenu.clinicTextContainer}>
+                      <Text style={[
+                        stylesmainMenu.clinicOptionText,
+                        sucursalKey === clinic.id && stylesmainMenu.clinicOptionTextSelected
+                      ]}>
+                        {clinic.name}
+                      </Text>
+                    </View>
+                  </View>
+                  {sucursalKey === clinic.id && (
+                    <View style={stylesmainMenu.checkIconContainer}>
+                      <Icon name="check-circle" size={24} color="#10B981" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+              
+            <TouchableOpacity
+              style={stylesmainMenu.modalCloseButton}
+              onPress={() => setShowClinicSelector(false)}
+            >
+              <Text style={stylesmainMenu.modalCloseButtonText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
+        </View>
+      </Modal>
         
       <Toast />
     </View>
