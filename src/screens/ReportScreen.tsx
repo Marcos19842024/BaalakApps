@@ -19,24 +19,116 @@ import Toast from 'react-native-toast-message';
 import { stylesreport } from 'src/styles/report';
 import { ReportFormData } from 'src/types/report';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { initializeReportData, reportTypes } from 'src/utils/reportData';
+import { Calendar, DateData } from 'react-native-calendars';
+import { RouteParams } from 'src/types/navigation';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 
 export const ReportsScreen = () => {
+    const route = useRoute();
+    const params = route.params as RouteParams;
     const areasScrollViewRef = useRef<ScrollView>(null);
     const [activeReport, setActiveReport] = useState<string>('rpc');
     const [isLoading, setIsLoading] = useState(false);
-    const [sucursalKey, setSucursalKey] = useState<SucursalType>('BAALAK_CENTRAL');
+    const [sucursalKey, setSucursalKey] = useState<SucursalType>(params?.sucursalKey || 'BAALAK_CENTRAL');
     const [sucursalName, setSucursalName] = useState<string>(SUCURSALES.BAALAK_CENTRAL);
     const [formData, setFormData] = useState<ReportFormData>(initializeReportData());
+    const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+    const [selectedDate, setSelectedDate] = useState<string>('');
 
     // Efecto para recargar cuando la pantalla recibe foco
     useFocusEffect(
         useCallback(() => {
+            // Si recibimos una sucursal por parámetro, seleccionarla
+            if (params?.sucursalKey) {
+                setSucursalKey(params.sucursalKey);
+                return
+            }
             console.log('ReportsScreen recibió foco, recargando...');
             handleSucursalChange(sucursalKey);
         }, [sucursalKey])
     );
+
+    // Función para formatear fecha a DD/MM/AAAA
+    const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        
+        // Asegurarnos de manejar correctamente la zona horaria
+        // Crear fecha usando partes específicas
+        const [year, month, day] = dateString.split('-').map(Number);
+        
+        // Crear fecha en zona horaria local
+        const date = new Date(year, month - 1, day); // mes es 0-indexed
+        
+        const formattedDay = date.getDate().toString().padStart(2, '0');
+        const formattedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+        const formattedYear = date.getFullYear();
+        
+        return `${formattedDay}/${formattedMonth}/${formattedYear}`;
+    };
+
+    // Función para convertir fecha de DD/MM/AAAA a YYYY-MM-DD
+    const parseDateToCalendar = (dateString: string): string => {
+        if (!dateString) return '';
+        
+        // Parsear la fecha DD/MM/AAAA
+        const parts = dateString.split('/');
+        if (parts.length !== 3) return '';
+        
+        const [day, month, year] = parts.map(Number);
+        
+        // Validar que la fecha sea válida
+        const date = new Date(year, month - 1, day);
+        if (isNaN(date.getTime())) return '';
+        
+        // Formatear a YYYY-MM-DD
+        const formattedYear = date.getFullYear();
+        const formattedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+        const formattedDay = date.getDate().toString().padStart(2, '0');
+        
+        return `${formattedYear}-${formattedMonth}-${formattedDay}`;
+    };
+
+    // Obtener fecha actual en formato YYYY-MM-DD para el calendario
+    const getCurrentCalendarDate = (): string => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        const day = today.getDate().toString().padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+    };
+
+    // Abrir calendario para un campo específico
+    const openDatePicker = (field: string, currentValue?: string) => {
+        let initialDate = getCurrentCalendarDate();
+        
+        if (currentValue) {
+            const calendarDate = parseDateToCalendar(currentValue);
+            if (calendarDate) {
+                initialDate = calendarDate;
+            }
+        }
+        
+        setSelectedDate(initialDate);
+        setShowDatePicker(field);
+    };
+
+    // Manejar selección de fecha - VERSIÓN CORREGIDA
+    const handleDateSelect = (date: DateData) => {
+        // Usar directamente la fecha del calendario (ya está en formato YYYY-MM-DD)
+        const selectedDateStr = formatDate(date.dateString);
+        
+        if (showDatePicker) {
+            setFormData(prev => ({
+                ...prev,
+                [showDatePicker]: selectedDateStr
+            }));
+        }
+        
+        setShowDatePicker(null);
+    };
 
     // Actualizar sucursal cuando cambia
     const handleSucursalChange = (newSucursalKey: SucursalType) => {
@@ -115,6 +207,86 @@ export const ReportsScreen = () => {
         }
         return true;
     };
+    
+    // Función para renombrar el archivo PDF
+    const renamePDFFile = async (originalUri: string, newFileName: string): Promise<{success: boolean, uri: string, message: string}> => {
+        try {
+            console.log('=== INICIANDO RENOMBRE DE ARCHIVO ===');
+            console.log('URI original:', originalUri);
+            console.log('Nuevo nombre:', newFileName);
+            
+            // Obtener directorio del archivo original
+            const directoryPath = getFileDirectory(originalUri);
+            const newUri = `${directoryPath}${newFileName}`;
+            
+            console.log('Directorio:', directoryPath);
+            console.log('Nueva URI:', newUri);
+            
+            // Verificar que el archivo original existe
+            const fileInfo = await LegacyFileSystem.getInfoAsync(originalUri);
+            if (!fileInfo.exists) {
+                console.error('❌ El archivo original no existe');
+                return {
+                    success: false,
+                    uri: originalUri,
+                    message: 'El archivo original no existe'
+                };
+            }
+            
+            console.log('✅ Archivo original existe, tamaño:', fileInfo.size, 'bytes');
+            
+            // Copiar a nuevo nombre
+            console.log('📋 Copiando archivo...');
+            await LegacyFileSystem.copyAsync({
+                from: originalUri,
+                to: newUri
+            });
+            
+            // Verificar que se copió
+            const newFileInfo = await LegacyFileSystem.getInfoAsync(newUri);
+            if (newFileInfo.exists) {
+                console.log('✅ Archivo copiado exitosamente, tamaño:', newFileInfo.size, 'bytes');
+                
+                // Intentar eliminar original (opcional)
+                try {
+                    await LegacyFileSystem.deleteAsync(originalUri);
+                    console.log('🗑️ Archivo original eliminado');
+                } catch (deleteError) {
+                    console.warn('⚠️ No se pudo eliminar el archivo original:', deleteError);
+                    // No es crítico, continuamos
+                }
+                
+                console.log('=== RENOMBRE COMPLETADO ===');
+                return {
+                    success: true,
+                    uri: newUri,
+                    message: `Archivo renombrado a: ${newFileName}`
+                };
+            } else {
+                console.error('❌ El archivo no se copió correctamente');
+                return {
+                    success: false,
+                    uri: originalUri,
+                    message: 'No se pudo copiar el archivo'
+                };
+            }
+            
+        } catch (error: any) {
+            console.error('❌ Error renombrando archivo:', error.message);
+            return {
+                success: false,
+                uri: originalUri,
+                message: `Error: ${error.message}`
+            };
+        }
+    };
+
+    // Función para obtener el directorio del archivo
+    const getFileDirectory = (fileUri: string): string => {
+        const uriParts = fileUri.split('/');
+        uriParts.pop(); // Remover nombre del archivo
+        return uriParts.join('/') + '/';
+    };
 
     const generateFileName = (): string => {
         const reportType = reportTypes.find(r => r.id === activeReport)?.title || 'Reporte';
@@ -125,6 +297,13 @@ export const ReportsScreen = () => {
         return `${reportType.replace(/\s+/g, '_')}${clientName}_${date}.pdf`;
     };
 
+    // Función para extraer nombre del archivo de la URI
+    const extractFileNameFromUri = (uri: string): string => {
+        const parts = uri.split('/');
+        const fileNameWithExtension = parts[parts.length - 1];
+        return fileNameWithExtension;
+    };
+
     // Función para generar y mostrar opciones de PDF
     const handleGenerateReport = async () => {
         try {
@@ -132,29 +311,55 @@ export const ReportsScreen = () => {
             
             setIsLoading(true);
             
-            const pdfUri = await generateReportPDF(formData, sucursalName);
+            // Generar nombre del archivo
             const fileName = generateFileName();
+            
+            Toast.show({
+                type: 'info',
+                text1: 'Generando PDF...',
+                text2: `Archivo: ${fileName}`,
+            });
+            
+            // Generar PDF
+            const tempPdfUri = await generateReportPDF(formData, sucursalName);
+            
+            // Renombrar el archivo
+            const renameResult = await renamePDFFile(tempPdfUri, fileName);
             
             setIsLoading(false);
             
-            Alert.alert(
-                '✅ Reporte Generado',
-                `Reporte PDF creado exitosamente para ${sucursalName}`,
-                [
-                    { 
-                        text: 'Cancelar', 
-                        style: 'cancel' 
-                    },
-                    { 
-                        text: 'Descargar PDF',
-                        onPress: () => sharePDF(pdfUri, fileName)
-                    },
-                    { 
-                        text: 'Compartir por WhatsApp',
-                        onPress: () => shareViaWhatsApp(pdfUri, fileName)
-                    }
-                ]
-            );
+            if (renameResult.success) {
+                Alert.alert(
+                    '✅ Reporte Generado',
+                    `${fileName}`,
+                    [
+                        { 
+                            text: 'Cancelar', 
+                            style: 'cancel' 
+                        },
+                        { 
+                            text: 'Abrir PDF',
+                            onPress: () => sharePDF(renameResult.uri, extractFileNameFromUri(renameResult.uri))
+                        },
+                        { 
+                            text: 'Compartir por WhatsApp',
+                            onPress: () => shareViaWhatsApp(renameResult.uri, extractFileNameFromUri(renameResult.uri))
+                        }
+                    ]
+                );
+            } else {
+                // Si falla el rename, usar el archivo original
+                Alert.alert(
+                    '⚠️ PDF Generado',
+                    `Se generó el PDF pero no se pudo renombrar.\n\n${renameResult.message}`,
+                    [
+                        { 
+                            text: 'OK',
+                            onPress: () => sharePDF(tempPdfUri, extractFileNameFromUri(tempPdfUri))
+                        }
+                    ]
+                );
+            }
             
         } catch (error) {
             setIsLoading(false);
@@ -184,7 +389,7 @@ export const ReportsScreen = () => {
             Toast.show({
                 type: 'success',
                 text1: '✅ PDF listo',
-                text2: 'Usa el menú para guardar o compartir',
+                text2: `Usa el menú para guardar o compartir ${fileName}`,
             });
         
         } catch (error) {
@@ -214,6 +419,7 @@ export const ReportsScreen = () => {
                 `*Área:* ${formData.area}\n` +
                 `*Fecha del problema:* ${formData.fechaProblema}\n` +
                 `*Estado:* ${formData.quejaResuelta === 'SI' ? 'Resuelta' : formData.quejaResuelta === 'NO' ? 'No resuelta' : 'En proceso'}\n\n` +
+                `*Archivo adjunto:* ${fileName}\n\n` + 
                 `Adjunto el reporte completo.`;
 
                 await Sharing.shareAsync(pdfUri, {
@@ -225,7 +431,7 @@ export const ReportsScreen = () => {
                 Toast.show({
                     type: 'success',
                     text1: 'Compartiendo...',
-                    text2: 'Selecciona WhatsApp para enviar',
+                    text2: `Selecciona WhatsApp para enviar ${fileName}`,
                 });
             } else {
                 // Para iOS
@@ -240,6 +446,37 @@ export const ReportsScreen = () => {
             });
         }
     };
+
+    // Componente para campos de fecha con calendario
+    const renderDateInput = (
+        label: string,
+        field: keyof ReportFormData,
+        placeholder: string,
+        isRequired: boolean = false
+    ) => (
+        <View style={stylesreport.inputGroup}>
+            <Text style={stylesreport.inputLabel}>
+                {label} {isRequired && <Text style={{ color: '#EF4444' }}>*</Text>}
+            </Text>
+            <TouchableOpacity
+                style={stylesreport.dateInputContainer}
+                onPress={() => openDatePicker(field, formData[field])}
+                disabled={isLoading}
+            >
+                <TextInput
+                    style={stylesreport.dateInput}
+                    value={formData[field]}
+                    placeholder={placeholder}
+                    placeholderTextColor="#9ca3af"
+                    editable={false}
+                    pointerEvents="none"
+                />
+                <View style={stylesreport.dateIcon}>
+                    <Icon name="calendar-today" size={20} color="#05aaca" />
+                </View>
+            </TouchableOpacity>
+        </View>
+    );
 
     const renderInput = (
         label: string,
@@ -288,10 +525,10 @@ export const ReportsScreen = () => {
             >
                 <View style={stylesreport.gridContainer}>
                     <View style={stylesreport.gridColumn}>
-                        {renderInput(
+                        {renderDateInput(
                             'Fecha del problema',
                             'fechaProblema',
-                            'DD/MM/AAAA',
+                            'Seleccionar fecha',
                             true
                         )}
                         {renderInput(
@@ -319,6 +556,11 @@ export const ReportsScreen = () => {
                     </View>
                 
                     <View style={stylesreport.gridColumn}>
+                        {renderDateInput(
+                            'Fecha Plan de Acción',
+                            'planAccion',
+                            'Seleccionar fecha',
+                        )}
                         {renderInput(
                             'Área',
                             'area',
@@ -330,11 +572,6 @@ export const ReportsScreen = () => {
                             'personal',
                             'Ej: ALICIA GOMEZ',
                             true
-                        )}
-                        {renderInput(
-                            'Fecha Plan de Acción',
-                            'planAccion',
-                            'DD/MM/AAAA'
                         )}
                         {renderInput(
                             'Responsable del plan',
@@ -486,6 +723,63 @@ export const ReportsScreen = () => {
             >
                 {renderForm()}
             </ScrollView>
+
+            {/* Modal del calendario */}
+            <Modal
+                visible={showDatePicker !== null}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowDatePicker(null)}
+            >
+                <View style={stylesreport.calendarModalOverlay}>
+                    <View style={stylesreport.calendarModalContent}>
+                        <TouchableOpacity
+                            style={stylesreport.calendarCloseButton}
+                            onPress={() => setShowDatePicker(null)}
+                        >
+                            <Icon name="close" size={30} color="#374151" />
+                        </TouchableOpacity>
+                        <Calendar
+                            onDayPress={handleDateSelect}
+                            markedDates={{
+                                [selectedDate]: {
+                                    selected: true,
+                                    selectedColor: '#05aaca',
+                                    selectedTextColor: 'white'
+                                }
+                            }}
+                            minDate={'2000-01-01'}
+                            maxDate={'2100-12-31'}
+                            hideExtraDays={true}
+                            disableMonthChange={false}
+                            firstDay={1} // Lunes como primer día
+                            hideDayNames={false}
+                            showWeekNumbers={false}
+                            disableArrowLeft={false}
+                            disableArrowRight={false}
+                            disableAllTouchEventsForDisabledDays={true}
+                            enableSwipeMonths={true}
+                            theme={{
+                                backgroundColor: '#E5E7EB',
+                                calendarBackground: '#E5E7EB',
+                                textSectionTitleColor: '#374151',
+                                selectedDayBackgroundColor: '#05aaca',
+                                selectedDayTextColor: '#ffffff',
+                                todayTextColor: '#05aaca',
+                                dayTextColor: '#1F2937',
+                                textDisabledColor: '#9CA3AF',
+                                dotColor: '#05aaca',
+                                selectedDotColor: '#ffffff',
+                                arrowColor: '#05aaca',
+                                monthTextColor: '#05aaca',
+                                textDayFontSize: 16,
+                                textMonthFontSize: 18,
+                                textDayHeaderFontSize: 14,
+                            }}
+                        />
+                    </View>
+                </View>
+            </Modal>
 
             {/* Loading Overlay */}
             <Modal

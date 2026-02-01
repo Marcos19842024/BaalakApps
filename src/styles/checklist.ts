@@ -497,10 +497,10 @@ export const styleschecklist = StyleSheet.create({
         alignItems: 'center',
     },
     cancelButton: {
-        backgroundColor: '#8f5c03',
+        backgroundColor: '#e72525',
     },
     savePhotoButton: {
-        backgroundColor: '#ff006f',
+        backgroundColor: '#05aaca',
     },
     cancelButtonText: {
         color: 'white',
@@ -631,7 +631,7 @@ export const styleschecklist = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
-        backgroundColor: '#3B82F6',
+        backgroundColor: '#05aaca',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
@@ -669,7 +669,7 @@ export const styleschecklist = StyleSheet.create({
         flexDirection: 'row',
     },
     cancelValidationButton: {
-        backgroundColor: '#8f5c03',
+        backgroundColor: '#e72525',
     },
     cancelValidationButtonText: {
         color: 'white',
@@ -677,7 +677,7 @@ export const styleschecklist = StyleSheet.create({
         fontSize: 14,
     },
     forceSaveButton: {
-        backgroundColor: '#ff006f',
+        backgroundColor: '#05aaca',
     },
     forceSaveButtonText: {
         color: 'white',
@@ -733,5 +733,25 @@ export const styleschecklist = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
         fontSize: 16,
+    },
+    loadingOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingContent: {
+        backgroundColor: 'white',
+        padding: 30,
+        borderRadius: 12,
+        alignItems: 'center',
+        width: '80%',
+    },
+    loadingText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginTop: 16,
+        textAlign: 'center',
     },
 });

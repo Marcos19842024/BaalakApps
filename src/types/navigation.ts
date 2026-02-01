@@ -4,6 +4,7 @@ export type RootStackParamList = {
   Checklist: undefined;
   TemplateChecklist: { sucursalKey: string };
   Reminders: { sucursalKey: string };
+  Reports: undefined;
 };
 
 // Tipos básicos para navigation

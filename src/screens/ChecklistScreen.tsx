@@ -20,6 +20,7 @@ import {
   Alert,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import {
   getCurrentTime,
@@ -33,6 +34,7 @@ import {
 import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 
 export const ChecklistScreen = () => {
   const route = useRoute();
@@ -47,6 +49,7 @@ export const ChecklistScreen = () => {
   const [tempPhoto, setTempPhoto] = useState<string | null>(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const areasScrollViewRef = useRef<ScrollView>(null);
 
   // Solicitar permisos
@@ -99,15 +102,13 @@ export const ChecklistScreen = () => {
 
   // Efecto para recargar cuando la pantalla recibe foco
   useFocusEffect(
-
     useCallback(() => {
-
       console.log('ChecklistScreen recibió foco, recargando...');
       reloadChecklist();
       
       // Limpiar si es necesario cuando pierde el foco
       return () => {
-        console.log('ChecklistScreen perdió foco');
+        console.log('ChecklistScreen perdió el foco');
       };
     }, [reloadChecklist])
   );
@@ -301,48 +302,171 @@ export const ChecklistScreen = () => {
     await handleSaveInternal();
   };
 
-  // Función interna para guardar (sin validación)
+  // Función para renombrar el archivo PDF - ADAPTADA DE REPORTS SCREEN
+  const renamePDFFile = async (originalUri: string, newFileName: string): Promise<{success: boolean, uri: string, message: string}> => {
+    try {
+      console.log('=== INICIANDO RENOMBRE DE ARCHIVO CHECKLIST ===');
+      console.log('URI original:', originalUri);
+      console.log('Nuevo nombre:', newFileName);
+      
+      // Obtener directorio del archivo original
+      const directoryPath = getFileDirectory(originalUri);
+      const newUri = `${directoryPath}${newFileName}`;
+      
+      console.log('Directorio:', directoryPath);
+      console.log('Nueva URI:', newUri);
+      
+      // Verificar que el archivo original existe
+      const fileInfo = await LegacyFileSystem.getInfoAsync(originalUri);
+      if (!fileInfo.exists) {
+        console.error('❌ El archivo original no existe');
+        return {
+          success: false,
+          uri: originalUri,
+          message: 'El archivo original no existe'
+        };
+      }
+      
+      console.log('✅ Archivo original existe, tamaño:', fileInfo.size, 'bytes');
+      
+      // Copiar a nuevo nombre
+      console.log('📋 Copiando archivo...');
+      await LegacyFileSystem.copyAsync({
+        from: originalUri,
+        to: newUri
+      });
+      
+      // Verificar que se copió
+      const newFileInfo = await LegacyFileSystem.getInfoAsync(newUri);
+      if (newFileInfo.exists) {
+        console.log('✅ Archivo copiado exitosamente, tamaño:', newFileInfo.size, 'bytes');
+        
+        // Intentar eliminar original (opcional)
+        try {
+          await LegacyFileSystem.deleteAsync(originalUri);
+          console.log('🗑️ Archivo original eliminado');
+        } catch (deleteError) {
+          console.warn('⚠️ No se pudo eliminar el archivo original:', deleteError);
+          // No es crítico, continuamos
+        }
+        
+        console.log('=== RENOMBRE CHECKLIST COMPLETADO ===');
+        return {
+          success: true,
+          uri: newUri,
+          message: `Archivo renombrado a: ${newFileName}`
+        };
+      } else {
+        console.error('❌ El archivo no se copió correctamente');
+        return {
+          success: false,
+          uri: originalUri,
+          message: 'No se pudo copiar el archivo'
+        };
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error renombrando archivo checklist:', error.message);
+      return {
+        success: false,
+        uri: originalUri,
+        message: `Error: ${error.message}`
+      };
+    }
+  };
+
+  // Función para obtener el directorio del archivo
+  const getFileDirectory = (fileUri: string): string => {
+    const uriParts = fileUri.split('/');
+    uriParts.pop(); // Remover nombre del archivo
+    return uriParts.join('/') + '/';
+  };
+
+  // Función para generar nombre de archivo para checklist
+  const generateChecklistFileName = (data: ChecklistData): string => {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const sucursal = data.sucursalKey || sucursalKey;
+    const responsible = data.responsable 
+      ? `_${data.responsable.trim().replace(/\s+/g, '_')}` 
+      : '';
+    
+    return `Checklist_${sucursal}${responsible}_${date}.pdf`;
+  };
+
+  // Función para extraer nombre del archivo de la URI
+  const extractFileNameFromUri = (uri: string): string => {
+    const parts = uri.split('/');
+    const fileNameWithExtension = parts[parts.length - 1];
+    return fileNameWithExtension;
+  };
+
+  // Función interna para guardar (sin validación) - MODIFICADA PARA INCLUIR RENOMBRE
   const handleSaveInternal = async () => {
     try {
+      setIsLoading(true);
+      
       // Actualizar datos
       const updatedData = {
         ...formData,
         horaFin: getCurrentTime(),
         sucursal: sucursalName,
         sucursalKey: sucursalKey,
-        completed: areAllAreasComplete(formData.items, sucursalKey) // Agregar estado de completado
+        completed: areAllAreasComplete(formData.items, sucursalKey)
       };
       
-      // Generar PDF
-      const pdfUri = await generateChecklistPDF(updatedData, sucursalName);
+      // Generar nombre del archivo
+      const fileName = generateChecklistFileName(updatedData);
       
       Toast.show({
-        type: 'success',
-        text1: '✅ Checklist guardado',
-        text2: 'PDF y JSON generados correctamente',
+        type: 'info',
+        text1: 'Generando PDF...',
+        text2: `Archivo: ${fileName}`,
       });
+      
+      // Generar PDF temporal
+      const tempPdfUri = await generateChecklistPDF(updatedData, sucursalName);
+      
+      // Renombrar el archivo
+      const renameResult = await renamePDFFile(tempPdfUri, fileName);
+      
+      setIsLoading(false);
 
-      Alert.alert(
-        '✅ Checklist Generado',
-        `Checklist PDF creado exitosamente para ${sucursalName}`,
-        [
-          { 
-            text: 'Cancelar', 
-            style: 'cancel' 
-          },
-          { 
-            text: 'Descargar PDF',
-            onPress: () => savePDFToDownloads(pdfUri, updatedData)
-          },
-          { 
-            text: 'Compartir por WhatsApp',
-            onPress: () => shareViaWhatsApp(pdfUri, updatedData)
-          }
-        ]
-      );
+      if (renameResult.success) {
+        Alert.alert(
+          '✅ Checklist Generado',
+          `${fileName}`,
+          [
+            { 
+              text: 'Cancelar', 
+              style: 'cancel' 
+            },
+            { 
+              text: 'Descargar PDF',
+              onPress: () => savePDFToDownloads(renameResult.uri, extractFileNameFromUri(renameResult.uri))
+            },
+            { 
+              text: 'Compartir por WhatsApp',
+              onPress: () => shareViaWhatsApp(renameResult.uri, extractFileNameFromUri(renameResult.uri), updatedData)
+            }
+          ]
+        );
+      } else {
+        // Si falla el rename, usar el archivo original
+        Alert.alert(
+          '⚠️ Checklist Generado',
+          `Se generó el PDF pero no se pudo renombrar.\n\n${renameResult.message}`,
+          [
+            { 
+              text: 'OK',
+              onPress: () => savePDFToDownloads(tempPdfUri, extractFileNameFromUri(tempPdfUri))
+            }
+          ]
+        );
+      }
 
     } catch (error) {
-      console.error('Error guardando:', error);
+      setIsLoading(false);
+      console.error('Error guardando checklist:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -378,8 +502,8 @@ export const ChecklistScreen = () => {
     });
   };
 
-  // Compartir por WhatsApp
-  const shareViaWhatsApp = async (pdfUri: string, data: ChecklistData) => {
+  // Compartir por WhatsApp - MODIFICADA PARA ACEPTAR NOMBRE DE ARCHIVO
+  const shareViaWhatsApp = async (pdfUri: string, fileName: string, data: ChecklistData) => {
     try {
       if (!await Sharing.isAvailableAsync()) {
         Alert.alert('Error', 'La función de compartir no está disponible en este dispositivo');
@@ -395,6 +519,7 @@ export const ChecklistScreen = () => {
         `*Hora:* ${data.horaInicio} - ${data.horaFin}\n` +
         `*Áreas evaluadas:* ${areas.length}\n` +
         `*Evaluación:* ${data.items.filter(item => item.cumplimiento !== '').length}/${data.items.length} items\n\n` +
+        `*Archivo adjunto:* ${fileName}\n\n` +
         `Adjunto el reporte completo.`;
 
         await Sharing.shareAsync(pdfUri, {
@@ -406,7 +531,7 @@ export const ChecklistScreen = () => {
         Toast.show({
           type: 'success',
           text1: 'Compartiendo...',
-          text2: 'Selecciona WhatsApp para enviar',
+          text2: `Selecciona WhatsApp para enviar ${fileName}`,
         });
       } else {
         // Para iOS
@@ -422,8 +547,8 @@ export const ChecklistScreen = () => {
     }
   };
 
-  // Guardar PDF en descargas
-  const savePDFToDownloads = async (pdfUri: string, data: ChecklistData) => {
+  // Guardar PDF en descargas - MODIFICADA PARA ACEPTAR NOMBRE DE ARCHIVO
+  const savePDFToDownloads = async (pdfUri: string, fileName: string) => {
     try {
       await Sharing.shareAsync(pdfUri, {
         mimeType: 'application/pdf',
@@ -434,7 +559,7 @@ export const ChecklistScreen = () => {
       Toast.show({
         type: 'success',
         text1: '✅ PDF listo',
-        text2: 'Usa el menú para guardar o compartir',
+        text2: `Usa el menú para guardar o compartir ${fileName}`,
       });
       
     } catch (error) {
@@ -504,6 +629,7 @@ export const ChecklistScreen = () => {
           <TouchableOpacity
             style={styleschecklist.headerButton}
             onPress={handleSave}
+            disabled={isLoading}
           >
             <Icon name="save" size={24} color="white" />
             <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
@@ -512,6 +638,7 @@ export const ChecklistScreen = () => {
           <TouchableOpacity
             style={styleschecklist.headerButton}
             onPress={handleNewChecklist}
+            disabled={isLoading}
           >
             <Icon name="add-circle-outline" size={24} color="white" />
             <Text style={styleschecklist.cameraButtonText}>Nuevo</Text>
@@ -520,7 +647,7 @@ export const ChecklistScreen = () => {
           <TouchableOpacity
             style={styleschecklist.cameraButton}
             onPress={takePhoto}
-            disabled={hasCameraPermission === false}
+            disabled={hasCameraPermission === false || isLoading}
           >
             <MaterialCommunityIcons name="camera" size={24} color="white" />
             <Text style={styleschecklist.cameraButtonText}>Tomar Foto</Text>
@@ -529,13 +656,12 @@ export const ChecklistScreen = () => {
 
         {/* Información general */}
         <View style={styleschecklist.infoCard}>
-          
           <View style={styleschecklist.infoGrid}>
-              <Text style={styleschecklist.infoLabel}>FECHA:</Text>
-              <Text style={styleschecklist.infoValue}>{formData.fecha}</Text>
-              <Text></Text><Text></Text><Text></Text>
-              <Text style={styleschecklist.infoLabel}>HORA INICIO:</Text>
-              <Text style={styleschecklist.infoValue}>{formData.horaInicio} hrs.</Text>
+            <Text style={styleschecklist.infoLabel}>FECHA:</Text>
+            <Text style={styleschecklist.infoValue}>{formData.fecha}</Text>
+            <Text></Text><Text></Text><Text></Text>
+            <Text style={styleschecklist.infoLabel}>HORA INICIO:</Text>
+            <Text style={styleschecklist.infoValue}>{formData.horaInicio} hrs.</Text>
           </View>
           
           <View style={styleschecklist.infoItem}>
@@ -545,6 +671,7 @@ export const ChecklistScreen = () => {
               placeholder="Nombre del responsable"
               value={formData.responsable}
               onChangeText={(text) => setFormData(prev => ({ ...prev, responsable: text }))}
+              editable={!isLoading}
             />
           </View>
         </View>
@@ -616,6 +743,7 @@ export const ChecklistScreen = () => {
                     // Opcional: hacer scroll automático al área
                     scrollToArea(index);
                   }}
+                  disabled={isLoading}
                 >
                   <Text style={styleschecklist.areaIcon}>{getAreaIcon(area)}</Text>
                   <Text style={[
@@ -653,6 +781,7 @@ export const ChecklistScreen = () => {
                   <TouchableOpacity
                     style={styleschecklist.deleteButton}
                     onPress={() => removePhoto(photo.id)}
+                    disabled={isLoading}
                   >
                     <Icon name="delete" size={20} color="white" />
                   </TouchableOpacity>
@@ -681,7 +810,6 @@ export const ChecklistScreen = () => {
       >
         {/* Evaluación del área actual */}
         <View style={styleschecklist.evaluationSection}>
-          
           {(itemsByArea[currentArea] || []).map((item) => (
             <View key={item.id} style={styleschecklist.itemCard}>
               <Text style={styleschecklist.itemText}>{item.aspecto}</Text>
@@ -703,6 +831,7 @@ export const ChecklistScreen = () => {
                       );
                       setFormData(prev => ({ ...prev, items: newItems }));
                     }}
+                    disabled={isLoading}
                   >
                     <View style={[
                       styleschecklist.radioCircle,
@@ -738,6 +867,7 @@ export const ChecklistScreen = () => {
                   setFormData(prev => ({ ...prev, items: newItems }));
                 }}
                 multiline
+                editable={!isLoading}
               />
             </View>
           ))}
@@ -753,6 +883,7 @@ export const ChecklistScreen = () => {
             onChangeText={(text) => setFormData(prev => ({ ...prev, comentariosAdicionales: text }))}
             multiline
             numberOfLines={4}
+            editable={!isLoading}
           />
         </View>
       </ScrollView>
@@ -780,6 +911,7 @@ export const ChecklistScreen = () => {
                   key={area}
                   style={styleschecklist.incompleteAreaItem}
                   onPress={() => navigateToIncompleteArea(area)}
+                  disabled={isLoading}
                 >
                   <View style={styleschecklist.areaItemContent}>
                     <View style={styleschecklist.areaItemNumber}>
@@ -801,6 +933,7 @@ export const ChecklistScreen = () => {
               <TouchableOpacity
                 style={[styleschecklist.validationButton, styleschecklist.cancelValidationButton]}
                 onPress={() => setShowValidationModal(false)}
+                disabled={isLoading}
               >
                 <Text style={styleschecklist.cancelValidationButtonText}>Cancelar</Text>
               </TouchableOpacity>
@@ -808,6 +941,7 @@ export const ChecklistScreen = () => {
               <TouchableOpacity
                 style={[styleschecklist.validationButton, styleschecklist.forceSaveButton]}
                 onPress={handleForceSave}
+                disabled={isLoading}
               >
                 <MaterialCommunityIcons name="file-document-outline" size={20} color="white" />
                 <Text style={styleschecklist.forceSaveButtonText}>Guardar como Incompleto</Text>
@@ -842,6 +976,7 @@ export const ChecklistScreen = () => {
               value={photoDescription}
               onChangeText={setPhotoDescription}
               multiline
+              editable={!isLoading}
             />
             
             <View style={styleschecklist.modalButtons}>
@@ -851,6 +986,7 @@ export const ChecklistScreen = () => {
                   setTempPhoto(null);
                   setCameraVisible(false);
                 }}
+                disabled={isLoading}
               >
                 <Text style={styleschecklist.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
@@ -858,6 +994,7 @@ export const ChecklistScreen = () => {
               <TouchableOpacity
                 style={[styleschecklist.modalButton, styleschecklist.savePhotoButton]}
                 onPress={savePhoto}
+                disabled={isLoading}
               >
                 <Text style={styleschecklist.savePhotoButtonText}>Guardar Foto</Text>
               </TouchableOpacity>
@@ -866,7 +1003,23 @@ export const ChecklistScreen = () => {
         </View>
       </Modal>
 
+      {/* Loading Overlay */}
+      <Modal
+        visible={isLoading}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styleschecklist.loadingOverlay}>
+          <View style={styleschecklist.loadingContent}>
+            <ActivityIndicator size="large" color="#05aaca" />
+            <Text style={styleschecklist.loadingText}>
+              Generando PDF para {sucursalName}...
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       <Toast />
     </SafeAreaView>
   );
-}
+};

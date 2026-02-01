@@ -281,11 +281,10 @@ export const stylestemplateChecklist = StyleSheet.create({
     marginHorizontal: 6,
   },
   cancelButton: {
-    backgroundColor: '#8f5c03',
-    borderWidth: 1,
+    backgroundColor: '#e72525',
   },
   saveButton: {
-    backgroundColor: '#ff006f',
+    backgroundColor: '#05aaca',
   },
   cancelButtonText: {
     color: 'white',

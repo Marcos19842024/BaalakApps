@@ -376,7 +376,7 @@ export const generateChecklistPDF = async (
 // 2. PDF para Reporte de Problemas (nuevo)
 export const generateReportPDF = async (
   data: ReportFormData,
-  sucursal: string
+  sucursal: string,
 ): Promise<string> => {
   try {
     // Generar HTML para el PDF del reporte
