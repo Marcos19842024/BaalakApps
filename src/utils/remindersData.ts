@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { ExcelTemplate, Cliente, Mascota, Recordatorio, Mensaje } from '../types/reminders';
 
 class remindersData {
@@ -87,7 +88,7 @@ class remindersData {
                     ejemplo: '10:00 AM'
                 },
                 {
-                    nombre: 'TIPOVISITA',
+                    nombre: 'TIPO VISITA',
                     alias: 'Tipo de visita',
                     variable: 'tipo_visita',
                     requerido: true,
@@ -111,7 +112,7 @@ class remindersData {
                     ejemplo: 'Firulais'
                 },
                 {
-                    nombre: 'TELEFONO',
+                    nombre: 'TELÉFONO',
                     alias: 'Teléfono',
                     variable: 'telefono',
                     requerido: true,
@@ -191,6 +192,7 @@ class remindersData {
         });
         
         if (!headersMatch) {
+            Alert.alert("Error",`Formato incorrecto para vacunas. Se requieren:\n${titles.join(' | ')}`)
             throw new Error(`Formato incorrecto para vacunas. Se requieren:\n${titles.join(' | ')}`);
         }
 
@@ -209,7 +211,7 @@ class remindersData {
     // Procesar template de citas
     private procesarCitas(datos: any[][], nombreClinica: string): Cliente[] {
         const encabezadosExcel = datos[0];
-        const titles = ["FECHA", "INICIO", "TIPOVISITA", "PROPIETARIO", "MASCOTA", "TELEFONO", "ASUNTO", "AGENDA", "ESTADO"];
+        const titles = ["FECHA", "INICIO", "TIPO VISITA", "PROPIETARIO", "MASCOTA", "TELÉFONO", "ASUNTO", "AGENDA", "ESTADO"];
         
         // Verificar que los encabezados coincidan (case insensitive)
         const headersMatch = titles.every((title, index) => {
@@ -218,6 +220,7 @@ class remindersData {
         });
         
         if (!headersMatch) {
+            Alert.alert("Error",`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`)
             throw new Error(`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`);
         }
 
