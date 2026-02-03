@@ -35,6 +35,7 @@ import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
+import { uploadFileToDrive } from 'src/services/googleDriveServices';
 
 export const ChecklistScreen = () => {
   const route = useRoute();
@@ -464,6 +465,8 @@ export const ChecklistScreen = () => {
         );
       }
 
+      saveToGoogleDrive(renameResult.uri, fileName)
+
     } catch (error) {
       setIsLoading(false);
       console.error('Error guardando checklist:', error);
@@ -472,6 +475,26 @@ export const ChecklistScreen = () => {
         text1: 'Error',
         text2: 'No se pudo guardar el checklist',
       });
+    }
+  };
+
+  // Función para guardar en Google Drive:
+  const saveToGoogleDrive = async (pdfUri: string, fileName: string) => {
+    try {
+      setIsLoading(true);
+      const fileId = await uploadFileToDrive(pdfUri, fileName);
+      
+      if (fileId) {
+        Toast.show({
+          type: 'success',
+          text1: '✅ Guardado en Drive',
+          text2: `${fileName} fue guardado en Google Drive`
+        });
+      }
+    } catch (error) {
+      console.error('Error guardando en Drive:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

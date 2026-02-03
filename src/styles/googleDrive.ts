@@ -1,0 +1,297 @@
+import { StyleSheet } from 'react-native';
+
+export const stylesgoogleDrive = StyleSheet.create({
+    // Contenedor principal
+    container: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+    },
+
+    // Header
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: 'white',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    headerTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    logoutButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#FEF2F2',
+    },
+
+    // Estados de carga/vacío
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#6B7280',
+        marginTop: 12,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 32,
+        gap: 16,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#374151',
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    refreshButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: '#3B82F6',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        marginTop: 20,
+    },
+    refreshButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+
+    // Lista de archivos
+    listContainer: {
+        padding: 16,
+    },
+    fileItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    fileIconContainer: {
+        marginRight: 16,
+    },
+    fileInfo: {
+        flex: 1,
+    },
+    fileName: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginBottom: 4,
+    },
+    fileMeta: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
+        fontSize: 12,
+        color: '#6B7280',
+    },
+
+    // Modal de autenticación
+    authModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    authModalContent: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 24,
+        width: '90%',
+        maxWidth: 400,
+        alignItems: 'center',
+        gap: 20,
+    },
+    authTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1F2937',
+        textAlign: 'center',
+    },
+    authDescription: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    authFeatures: {
+        width: '100%',
+        gap: 12,
+    },
+    featureItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    featureText: {
+        fontSize: 14,
+        color: '#374151',
+        flex: 1,
+    },
+    googleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderRadius: 8,
+        width: '100%',
+    },
+    googleIcon: {
+        width: 20,
+        height: 20,
+    },
+    googleButtonText: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#374151',
+    },
+    skipButton: {
+        paddingVertical: 12,
+    },
+    skipButtonText: {
+        fontSize: 14,
+        color: '#6B7280',
+    },
+
+    // Modal de archivo
+    fileModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fileModalContent: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 24,
+        width: '90%',
+        maxWidth: 400,
+    },
+    modalCloseButton: {
+        alignSelf: 'flex-end',
+        padding: 8,
+        marginBottom: 16,
+    },
+    modalFileHeader: {
+        alignItems: 'center',
+        marginBottom: 24,
+        gap: 12,
+    },
+    modalFileName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        textAlign: 'center',
+    },
+    modalFileMeta: {
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 8,
+    },
+    modalFileMetaText: {
+        fontSize: 12,
+        color: '#6B7280',
+    },
+    modalActions: {
+        gap: 12,
+    },
+    modalActionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        padding: 16,
+        borderRadius: 8,
+        backgroundColor: '#F3F4F6',
+    },
+    modalActionText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#374151',
+    },
+
+    // Loading overlay
+    loadingOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingContent: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 32,
+        alignItems: 'center',
+        gap: 16,
+    },
+
+    // Google Drive Integration status
+    driveStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F9FF',
+        padding: 12,
+        borderRadius: 8,
+        margin: 16,
+        gap: 12,
+    },
+    driveStatusText: {
+        flex: 1,
+        fontSize: 14,
+        color: '#0369A1',
+    },
+    driveStatusButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        backgroundColor: '#0EA5E9',
+        borderRadius: 6,
+    },
+    driveStatusButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 12,
+    },
+});

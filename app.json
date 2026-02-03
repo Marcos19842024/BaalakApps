@@ -9,39 +9,37 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    
     "extra": {
       "eas": {
         "projectId": "c438269a-0bee-4ebc-ac19-9a592c308fe6"
       }
     },
-    
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/c438269a-0bee-4ebc-ac19-9a592c308fe6",
       "checkAutomatically": "ON_LOAD"
     },
-    
     "runtimeVersion": {
       "policy": "appVersion"
     },
-
-    "plugins": ["expo-updates"],
-    
+    "plugins": [
+      "expo-updates",
+      "expo-web-browser"
+    ],
     "android": {
-    "package": "com.marcos19842024sorganization.baalakapps",
-    "versionCode": 3,
-    "adaptiveIcon": {
-      "foregroundImage": "./assets/adaptive-icon.png",
-      "backgroundColor": "#FFFFFF"
+      "package": "com.marcos19842024sorganization.baalakapps",
+      "versionCode": 3,
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
     },
-    "icon": "./assets/icon.png"
-  },
-    
     "ios": {
-      "icon": "./assets/icon-ios.png",
-      "supportsTablet": true
+      "icon": "./assets/icon.png",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.marcos19842024sorganization.baalakapps"
     }
   }
 }

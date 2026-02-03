@@ -5,3 +5,4 @@ export { RemindersScreen } from './RemindersScreen';
 export { UpdatesScreen } from './UpdatesScreen';
 export { MessageBubble } from './MessageBubble';
 export { ReportsScreen } from './ReportScreen';
+export { DriveFilesScreen } from './DriveFilesScreen';

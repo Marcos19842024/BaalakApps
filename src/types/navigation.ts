@@ -1,10 +1,11 @@
 import { SucursalType } from "./sucursal";
 
 export type RootStackParamList = {
-  Checklist: undefined;
+  Checklist: { sucursalKey: string };
   TemplateChecklist: { sucursalKey: string };
   Reminders: { sucursalKey: string };
-  Reports: undefined;
+  Reports: { sucursalKey: string };
+  DriveFiles: { sucursalKey: string };
 };
 
 // Tipos básicos para navigation

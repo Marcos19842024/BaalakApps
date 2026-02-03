@@ -24,6 +24,7 @@ import { initializeReportData, reportTypes } from 'src/utils/reportData';
 import { Calendar, DateData } from 'react-native-calendars';
 import { RouteParams } from 'src/types/navigation';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
+import { uploadFileToDrive } from 'src/services/googleDriveServices';
 
 export const ReportsScreen = () => {
     const route = useRoute();
@@ -360,6 +361,8 @@ export const ReportsScreen = () => {
                     ]
                 );
             }
+
+            saveToGoogleDrive(renameResult.uri, fileName)
             
         } catch (error) {
             setIsLoading(false);
@@ -444,6 +447,26 @@ export const ReportsScreen = () => {
                 text1: 'Error',
                 text2: 'No se pudo compartir el archivo',
             });
+        }
+    };
+
+    // Función para guardar en Google Drive:
+    const saveToGoogleDrive = async (pdfUri: string, fileName: string) => {
+        try {
+            setIsLoading(true);
+            const fileId = await uploadFileToDrive(pdfUri, fileName);
+            
+            if (fileId) {
+                Toast.show({
+                    type: 'success',
+                    text1: '✅ Guardado en Drive',
+                    text2: `${fileName} fue guardado en Google Drive`
+                });
+            }
+        } catch (error) {
+            console.error('Error guardando en Drive:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
 

@@ -7,7 +7,8 @@ import {
   TemplateChecklistScreen,
   RemindersScreen,
   ReportsScreen,
-  UpdatesScreen
+  UpdatesScreen,
+  DriveFilesScreen
 } from './src/screens';
 
 const Stack = createStackNavigator();
@@ -37,32 +38,51 @@ export default function App() {
         <Stack.Screen 
           name="MainMenu" 
           component={MainMenuScreen}
-          options={{ title: 'Inicio' }}
+          options={{
+            title: 'Inicio'
+          }}
         />
         <Stack.Screen 
           name="Checklist" 
           component={ChecklistScreen}
-          options={{ title: 'Checklist' }}
+          options={{
+            title: 'Checklist'
+          }}
         />
         <Stack.Screen 
           name="TemplateChecklist" 
           component={TemplateChecklistScreen}
-          options={{ title: 'Plantillas' }}
+          options={{
+            title: 'Plantillas'
+          }}
         />
         <Stack.Screen 
           name="Reminders" 
           component={RemindersScreen}
-          options={{ title: 'Recordatorios' }}
+          options={{
+            title: 'Recordatorios'
+          }}
         />
         <Stack.Screen 
           name="Reports" 
           component={ReportsScreen}
-          options={{ title: 'Generador de Reportes' }}
+          options={{
+            title: 'Generador de Reportes'
+          }}
+        />
+        <Stack.Screen 
+          name="DriveFiles" 
+          component={DriveFilesScreen}
+          options={{
+            title: 'Administrador de Documentos'
+          }}
         />
         <Stack.Screen 
           name="Updates" 
           component={UpdatesScreen}
-          options={{ title: 'Actualizaciones' }}
+          options={{
+            title: 'Actualizaciones'
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -67,6 +67,14 @@ export const MainMenuScreen = () => {
       route: 'Reports',
     },
     {
+      id: 'driveFiles',
+      tilte: 'Administrador de Documentos',
+      description: 'Gestiona tus archivos',
+      icon: 'folder',
+      color: '#05aaca',
+      route: 'DriveFiles',
+    },
+    {
       id: 'updates',
       title: 'Actualizaciones',
       description: 'Actualiza la aplicación',
@@ -186,6 +194,8 @@ export const MainMenuScreen = () => {
   };
 
   const handleMenuItemPress = (route: string) => {
+    const sucursalName = SUCURSALES[sucursalKey];
+
     if (route === 'Updates' && hasUpdate) {
       Updates.fetchUpdateAsync().then(() => {
         Toast.show({
@@ -204,7 +214,6 @@ export const MainMenuScreen = () => {
       return;
     }
     else if (route === 'TemplateChecklist') {
-      const sucursalName = SUCURSALES[sucursalKey];
       Toast.show({
         type: 'info',
         text1: 'Navegando a Configuración de Checklist',
@@ -213,7 +222,6 @@ export const MainMenuScreen = () => {
       navigation.navigate('TemplateChecklist', { sucursalKey: sucursalKey });
     }
     else if (route === 'Checklist') {
-      const sucursalName = SUCURSALES[sucursalKey];
       Toast.show({
         type: 'info',
         text1: 'Navegando a Checklist',
@@ -222,7 +230,6 @@ export const MainMenuScreen = () => {
       navigation.navigate('Checklist', { sucursalKey: sucursalKey });
     }
     else if (route === 'Reminders') {
-      const sucursalName = SUCURSALES[sucursalKey];
       Toast.show({
         type: 'info',
         text1: 'Navegando a Recordatorios',
@@ -231,7 +238,6 @@ export const MainMenuScreen = () => {
       navigation.navigate('Reminders', { sucursalKey: sucursalKey });
     }
     else if (route === 'Reports') {
-      const sucursalName = SUCURSALES[sucursalKey];
       Toast.show({
         type: 'info',
         text1: 'Navegando a Generador de Reportes',
@@ -240,7 +246,12 @@ export const MainMenuScreen = () => {
       navigation.navigate('Reports', { sucursalKey: sucursalKey });
     }
     else {
-      navigation.navigate(route as never);
+      Toast.show({
+        type: 'info',
+        text1: 'Navegando a Generador de Reportes',
+        text2: `Sucursal actual: ${sucursalName}`,
+      });
+      navigation.navigate('DriveFiles', { sucursalKey: sucursalKey });
     }
   };
   
