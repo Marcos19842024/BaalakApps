@@ -8,7 +8,7 @@ const DRIVE_FOLDER_NAME = 'ChecklistApp';
 const GOOGLE_DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 // Configuración de Google (usa tu Client ID real)
-const GOOGLE_CLIENT_ID = 'baalakapps.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '248603616640-96jau410u2gjqd715e26m009b0s688k1.apps.googleusercontent.com';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
 
@@ -72,10 +72,16 @@ export const authenticateGoogleDrive = async (): Promise<boolean> => {
         
     } catch (error: any) {
         console.error('❌ Error autenticando:', error);
+    
+        // Cerrar sesión en caso de error
+        accessToken = null;
+        refreshToken = null;
+        driveFolderId = null;
+        
         Toast.show({
             type: 'error',
-            text1: 'Error',
-            text2: 'No se pudo conectar con Google Drive'
+            text1: 'Error de autenticación',
+            text2: 'Por favor, intenta de nuevo'
         });
         return false;
     }
@@ -195,10 +201,21 @@ const ensureAppFolder = async () => {
 
 // Obtener token válido
 const getValidToken = async (): Promise<string | null> => {
-    if (!accessToken && refreshToken) {
-        await refreshAccessToken();
+    try {
+        if (!accessToken && refreshToken) {
+            const refreshed = await refreshAccessToken();
+            if (!refreshed) {
+                // Token no se pudo refrescar
+                accessToken = null;
+                refreshToken = null;
+                return null;
+            }
+        }
+        return accessToken;
+    } catch (error) {
+        console.error('❌ Error obteniendo token válido:', error);
+        return null;
     }
-    return accessToken;
 };
 
 // =========== SUBIR ARCHIVO SIMPLIFICADO ===========
@@ -293,13 +310,13 @@ export const uploadFileToDrive = async (
 
 // =========== LISTAR ARCHIVOS ===========
 
-export const listDriveFiles = async () => {
+export const listDriveFiles = async (): Promise<any[]> => {
     try {
         const token = await getValidToken();
         if (!token || !driveFolderId) return [];
 
         const response = await fetch(
-            `${GOOGLE_DRIVE_API}/files?q='${driveFolderId}' in parents and trashed=false&fields=files(id,name,createdTime)&orderBy=createdTime desc`,
+            `${GOOGLE_DRIVE_API}/files?q='${driveFolderId}' in parents and trashed=false&fields=files(id,name,mimeType,size,webViewLink,createdTime)&orderBy=createdTime desc`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -307,11 +324,22 @@ export const listDriveFiles = async () => {
             }
         );
 
+        // Manejar respuesta no exitosa
+        if (!response.ok) {
+            if (response.status === 401) {
+                // Token expirado
+                await refreshAccessToken();
+                return listDriveFiles(); // Intentar de nuevo
+            }
+            console.error(`Error ${response.status} al listar archivos`);
+            return [];
+        }
+
         const data = await response.json();
         return data.files || [];
         
     } catch (error) {
-        console.error('❌ Error listando:', error);
+        console.error('❌ Error listando archivos:', error);
         return [];
     }
 };

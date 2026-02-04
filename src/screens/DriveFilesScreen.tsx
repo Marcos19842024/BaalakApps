@@ -1,5 +1,5 @@
 // src/screens/DriveFilesScreen.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -39,27 +39,55 @@ export const DriveFilesScreen = () => {
     // Cargar archivos al enfocar la pantalla
     useFocusEffect(
         useCallback(() => {
+            console.log('🔍 useFocusEffect ejecutado');
+            
             if (isAuthenticated()) {
+                console.log('✅ Usuario autenticado, cargando archivos...');
                 loadFiles();
             } else {
+                console.log('🔒 Usuario NO autenticado, mostrando modal');
                 setShowAuthModal(true);
+                // IMPORTANTE: Limpiar loading si no hay autenticación
+                setIsLoading(false);
             }
         }, [])
     );
 
+    useEffect(() => {
+        // Si el modal de autenticación está visible y estamos loading, detenerlo
+        if (showAuthModal && isLoading) {
+            console.log('🔄 Deteniendo loading porque se muestra modal de auth');
+            setIsLoading(false);
+        }
+    }, [showAuthModal, isLoading]);
+
     const loadFiles = async () => {
+        // Verificar autenticación antes de cargar
+        if (!isAuthenticated()) {
+            console.log('⚠️  No autenticado, no se pueden cargar archivos');
+            setIsLoading(false);
+            setRefreshing(false);
+            setShowAuthModal(true);
+            return;
+        }
+        
         try {
+            console.log('🔄 Iniciando carga de archivos...');
             setIsLoading(true);
+            
             const driveFiles = await listDriveFiles();
+            console.log(`✅ Archivos obtenidos: ${driveFiles.length}`);
+            
             setFiles(driveFiles);
         } catch (error) {
-            console.error('Error cargando archivos:', error);
+            console.error('❌ Error cargando archivos:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
                 text2: 'No se pudieron cargar los archivos'
             });
         } finally {
+            console.log('🏁 Finalizando carga de archivos');
             setIsLoading(false);
             setRefreshing(false);
         }
@@ -71,11 +99,25 @@ export const DriveFilesScreen = () => {
     };
 
     const handleAuth = async () => {
+        console.log('🔐 Intentando autenticar...');
+        setIsLoading(true); // Mostrar loading durante la autenticación
+        
         const success = await authenticateGoogleDrive();
+        
         if (success) {
+            console.log('✅ Autenticación exitosa');
             setShowAuthModal(false);
-            loadFiles();
+            await loadFiles(); // Cargar archivos después de autenticar
+        } else {
+            console.log('❌ Autenticación fallida');
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'No se pudo conectar con Google Drive'
+            });
         }
+        
+        setIsLoading(false);
     };
 
     const handleFilePress = (file: DriveFile) => {
@@ -229,12 +271,12 @@ export const DriveFilesScreen = () => {
             </View>
 
             {/* Contenido */}
-            {isLoading && files.length === 0 ? (
+            {!showAuthModal && isLoading && files.length === 0 ? ( // SOLO mostrar loading si NO está mostrando el modal
                 <View style={stylesgoogleDrive.loadingContainer}>
                     <ActivityIndicator size="large" color="#4285F4" />
                     <Text style={stylesgoogleDrive.loadingText}>Cargando archivos...</Text>
                 </View>
-            ) : files.length === 0 ? (
+            ) : !showAuthModal && files.length === 0 ? ( // SOLO mostrar "no hay archivos" si NO está mostrando el modal
                 <View style={stylesgoogleDrive.emptyContainer}>
                     <MaterialCommunityIcons name="folder-open-outline" size={80} color="#9CA3AF" />
                     <Text style={stylesgoogleDrive.emptyTitle}>No hay archivos</Text>
@@ -249,7 +291,7 @@ export const DriveFilesScreen = () => {
                         <Text style={stylesgoogleDrive.refreshButtonText}>Actualizar</Text>
                     </TouchableOpacity>
                 </View>
-            ) : (
+            ) : !showAuthModal ? ( // SOLO mostrar lista si NO está mostrando el modal
                 <FlatList
                     data={files}
                     renderItem={renderFileItem}
@@ -262,9 +304,9 @@ export const DriveFilesScreen = () => {
                             tintColor="#4285F4"
                         />
                     }
-                contentContainerStyle={stylesgoogleDrive.listContainer}
+                    contentContainerStyle={stylesgoogleDrive.listContainer}
                 />
-            )}
+            ) : null} {/* No mostrar nada si el modal está visible */}
 
             {/* Modal de autenticación */}
             <Modal
@@ -319,7 +361,11 @@ export const DriveFilesScreen = () => {
 
                         <TouchableOpacity
                             style={stylesgoogleDrive.skipButton}
-                            onPress={() => setShowAuthModal(false)}
+                            onPress={() => {
+                                console.log('⏭️  Saltando autenticación');
+                                setShowAuthModal(false);
+                                setIsLoading(false); // Asegurar que loading se detenga
+                            }}
                         >
                             <Text style={stylesgoogleDrive.skipButtonText}>
                                 Ahora no, tal vez después
@@ -411,7 +457,7 @@ export const DriveFilesScreen = () => {
 
             {/* Loading Overlay */}
             <Modal
-                visible={isLoading && !refreshing}
+                visible={isLoading && !refreshing && !showAuthModal} // NO mostrar si el modal de auth está visible
                 transparent={true}
                 animationType="fade"
             >

@@ -68,7 +68,7 @@ export const MainMenuScreen = () => {
     },
     {
       id: 'driveFiles',
-      tilte: 'Administrador de Documentos',
+      title: 'Administrador de Documentos',
       description: 'Gestiona tus archivos',
       icon: 'folder',
       color: '#05aaca',
