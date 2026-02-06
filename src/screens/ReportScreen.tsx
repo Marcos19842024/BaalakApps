@@ -24,7 +24,7 @@ import { initializeReportData, reportTypes } from 'src/utils/reportData';
 import { Calendar, DateData } from 'react-native-calendars';
 import { RouteParams } from 'src/types/navigation';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
-import { uploadFileToDrive } from 'src/services/googleDriveServices';
+import { uploadFileToSupabase } from 'src/services/supabaseStorageService';
 
 export const ReportsScreen = () => {
     const route = useRoute();
@@ -326,6 +326,7 @@ export const ReportsScreen = () => {
             
             // Renombrar el archivo
             const renameResult = await renamePDFFile(tempPdfUri, fileName);
+            const newName = extractFileNameFromUri(renameResult.uri);
             
             setIsLoading(false);
             
@@ -339,12 +340,8 @@ export const ReportsScreen = () => {
                             style: 'cancel' 
                         },
                         { 
-                            text: 'Abrir PDF',
-                            onPress: () => sharePDF(renameResult.uri, extractFileNameFromUri(renameResult.uri))
-                        },
-                        { 
                             text: 'Compartir por WhatsApp',
-                            onPress: () => shareViaWhatsApp(renameResult.uri, extractFileNameFromUri(renameResult.uri))
+                            onPress: () => shareViaWhatsApp(renameResult.uri, newName)
                         }
                     ]
                 );
@@ -356,13 +353,22 @@ export const ReportsScreen = () => {
                     [
                         { 
                             text: 'OK',
-                            onPress: () => sharePDF(tempPdfUri, extractFileNameFromUri(tempPdfUri))
+                            onPress: () => shareViaWhatsApp(tempPdfUri, newName)
                         }
                     ]
                 );
             }
 
-            saveToGoogleDrive(renameResult.uri, fileName)
+            // Subir a Supabase
+            const downloadURL = await uploadFileToSupabase(renameResult.uri, newName);
+            
+            if (downloadURL) {
+                Toast.show({
+                    type: 'success',
+                    text1: '✅ ¡Éxito!',
+                    text2: `${newName} subido al servidor`
+                });
+            }
             
         } catch (error) {
             setIsLoading(false);
@@ -371,36 +377,6 @@ export const ReportsScreen = () => {
                 type: 'error',
                 text1: 'Error',
                 text2: 'No se pudo generar el PDF. Por favor, intente nuevamente.',
-            });
-        }
-    };
-
-    // Compartir PDF
-    const sharePDF = async (pdfUri: string, fileName: string) => {
-        try {
-            if (!await Sharing.isAvailableAsync()) {
-                Alert.alert('Error', 'La función de compartir no está disponible en este dispositivo');
-                return;
-            }
-
-            await Sharing.shareAsync(pdfUri, {
-                mimeType: 'application/pdf',
-                dialogTitle: 'Guardar Reporte PDF',
-                UTI: 'public.pdf',
-            });
-
-            Toast.show({
-                type: 'success',
-                text1: '✅ PDF listo',
-                text2: `Usa el menú para guardar o compartir ${fileName}`,
-            });
-        
-        } catch (error) {
-            console.error('Error compartiendo PDF:', error);
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'No se pudo abrir el PDF',
             });
         }
     };
@@ -447,26 +423,6 @@ export const ReportsScreen = () => {
                 text1: 'Error',
                 text2: 'No se pudo compartir el archivo',
             });
-        }
-    };
-
-    // Función para guardar en Google Drive:
-    const saveToGoogleDrive = async (pdfUri: string, fileName: string) => {
-        try {
-            setIsLoading(true);
-            const fileId = await uploadFileToDrive(pdfUri, fileName);
-            
-            if (fileId) {
-                Toast.show({
-                    type: 'success',
-                    text1: '✅ Guardado en Drive',
-                    text2: `${fileName} fue guardado en Google Drive`
-                });
-            }
-        } catch (error) {
-            console.error('Error guardando en Drive:', error);
-        } finally {
-            setIsLoading(false);
         }
     };
 

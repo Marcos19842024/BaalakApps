@@ -1,4 +1,3 @@
-// src/screens/DriveFilesScreen.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
@@ -9,85 +8,56 @@ import {
     Modal,
     ActivityIndicator,
     RefreshControl,
-    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import * as Sharing from 'expo-sharing';
-import { stylesgoogleDrive } from 'src/styles/googleDrive';
-import { DriveFile } from 'src/types/googleDrive';
+import * as DocumentPicker from 'expo-document-picker';
+import { stylessupabase } from 'src/styles/supabase';
 import {
-    authenticateGoogleDrive,
-    deleteFileFromDrive,
-    downloadFileFromDrive,
-    isAuthenticated,
-    listDriveFiles,
-    logoutFromDrive
-} from 'src/services/googleDriveServices';
+    uploadFileToSupabase,
+    listSupabaseFiles,
+    downloadFileFromSupabase,
+    deleteFileFromSupabase,
+    shareSupabaseFile,
+} from 'src/services/supabaseStorageService';
+import { SupabaseFile } from 'src/types/supabase';
 
 export const DriveFilesScreen = () => {
-    const [files, setFiles] = useState<DriveFile[]>([]);
+    const [files, setFiles] = useState<SupabaseFile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
+    const [selectedFile, setSelectedFile] = useState<SupabaseFile | null>(null);
     const [showFileModal, setShowFileModal] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(!isAuthenticated());
+    const [uploading, setUploading] = useState(false);
 
-    // Cargar archivos al enfocar la pantalla
+    // Cargar archivos al inicio
+    useEffect(() => {
+        loadFiles();
+    }, []);
+
+    // Cargar archivos al enfocar
     useFocusEffect(
         useCallback(() => {
-            console.log('🔍 useFocusEffect ejecutado');
-            
-            if (isAuthenticated()) {
-                console.log('✅ Usuario autenticado, cargando archivos...');
-                loadFiles();
-            } else {
-                console.log('🔒 Usuario NO autenticado, mostrando modal');
-                setShowAuthModal(true);
-                // IMPORTANTE: Limpiar loading si no hay autenticación
-                setIsLoading(false);
-            }
+            loadFiles();
         }, [])
     );
 
-    useEffect(() => {
-        // Si el modal de autenticación está visible y estamos loading, detenerlo
-        if (showAuthModal && isLoading) {
-            console.log('🔄 Deteniendo loading porque se muestra modal de auth');
-            setIsLoading(false);
-        }
-    }, [showAuthModal, isLoading]);
-
     const loadFiles = async () => {
-        // Verificar autenticación antes de cargar
-        if (!isAuthenticated()) {
-            console.log('⚠️  No autenticado, no se pueden cargar archivos');
-            setIsLoading(false);
-            setRefreshing(false);
-            setShowAuthModal(true);
-            return;
-        }
-        
         try {
-            console.log('🔄 Iniciando carga de archivos...');
             setIsLoading(true);
-            
-            const driveFiles = await listDriveFiles();
-            console.log(`✅ Archivos obtenidos: ${driveFiles.length}`);
-            
-            setFiles(driveFiles);
+            const supabaseFiles = await listSupabaseFiles();
+            setFiles(supabaseFiles);
         } catch (error) {
-            console.error('❌ Error cargando archivos:', error);
+            console.error('Error cargando archivos:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
                 text2: 'No se pudieron cargar los archivos'
             });
         } finally {
-            console.log('🏁 Finalizando carga de archivos');
             setIsLoading(false);
             setRefreshing(false);
         }
@@ -98,38 +68,61 @@ export const DriveFilesScreen = () => {
         loadFiles();
     };
 
-    const handleAuth = async () => {
-        console.log('🔐 Intentando autenticar...');
-        setIsLoading(true); // Mostrar loading durante la autenticación
+    // Seleccionar y subir archivo
+    const handleSelectAndUpload = async () => {
+        try {
+            setUploading(true);
         
-        const success = await authenticateGoogleDrive();
+            // Seleccionar archivo del dispositivo
+            const result = await DocumentPicker.getDocumentAsync({
+                type: [
+                    'application/pdf',
+                    'image/*',
+                    'application/vnd.ms-excel',
+                    'application/msword',
+                    'text/plain'
+                ],
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                const file = result.assets[0];
+                
+                // Subir a Supabase
+                const downloadURL = await uploadFileToSupabase(file.uri, file.name);
+                
+                if (downloadURL) {
+                    await loadFiles(); // Recargar lista
+                
+                    Toast.show({
+                        type: 'success',
+                        text1: '✅ ¡Éxito!',
+                        text2: `${file.name} subido al servidor`
+                    });
+                }
+            }
         
-        if (success) {
-            console.log('✅ Autenticación exitosa');
-            setShowAuthModal(false);
-            await loadFiles(); // Cargar archivos después de autenticar
-        } else {
-            console.log('❌ Autenticación fallida');
+        } catch (error) {
+            console.error('Error subiendo archivo:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
-                text2: 'No se pudo conectar con Google Drive'
+                text2: 'No se pudo subir el archivo'
             });
+        } finally {
+            setUploading(false);
         }
-        
-        setIsLoading(false);
     };
 
-    const handleFilePress = (file: DriveFile) => {
+    const handleFilePress = (file: SupabaseFile) => {
         setSelectedFile(file);
         setShowFileModal(true);
     };
 
     const handleViewOnline = () => {
-        if (selectedFile?.webViewLink) {
-            // Usar Linking para abrir en navegador
+        if (selectedFile?.downloadURL) {
             import('react-native').then(({ Linking }) => {
-                Linking.openURL(selectedFile.webViewLink!);
+                Linking.openURL(selectedFile.downloadURL);
             });
         }
         setShowFileModal(false);
@@ -137,21 +130,42 @@ export const DriveFilesScreen = () => {
 
     const handleDownload = async () => {
         if (!selectedFile) return;
-    
+
         try {
             setIsLoading(true);
-            const localUri = await downloadFileFromDrive(selectedFile.id, selectedFile.name);
+            const localUri = await downloadFileFromSupabase(
+                selectedFile.downloadURL, 
+                selectedFile.name
+            );
             
             if (localUri) {
-                // Compartir/abrir el archivo
-                await Sharing.shareAsync(localUri, {
-                    mimeType: 'application/pdf',
-                    dialogTitle: `Abrir ${selectedFile.name}`,
-                    UTI: 'public.pdf'
+                Toast.show({
+                    type: 'success',
+                    text1: '✅ Descargado',
+                    text2: 'Archivo guardado en el dispositivo'
                 });
             }
         } catch (error) {
             console.error('Error descargando:', error);
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'No se pudo descargar el archivo'
+            });
+        } finally {
+            setIsLoading(false);
+            setShowFileModal(false);
+        }
+    };
+
+    const handleShare = async () => {
+        if (!selectedFile) return;
+
+        try {
+            setIsLoading(true);
+            await shareSupabaseFile(selectedFile.downloadURL, selectedFile.name);
+        } catch (error) {
+            console.error('Error compartiendo:', error);
         } finally {
             setIsLoading(false);
             setShowFileModal(false);
@@ -160,17 +174,17 @@ export const DriveFilesScreen = () => {
 
     const handleDelete = () => {
         if (!selectedFile) return;
-    
+
         Alert.alert(
             'Eliminar Archivo',
-            `¿Estás seguro de eliminar "${selectedFile.name}"? Esta acción no se puede deshacer.`,
+            `¿Estás seguro de eliminar "${selectedFile.name}" del servidor?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Eliminar',
                     style: 'destructive',
                     onPress: async () => {
-                        const success = await deleteFileFromDrive(selectedFile.id);
+                        const success = await deleteFileFromSupabase(selectedFile.fileName);
                         if (success) {
                             loadFiles(); // Recargar lista
                         }
@@ -182,6 +196,7 @@ export const DriveFilesScreen = () => {
     };
 
     const formatFileSize = (bytes: number): string => {
+        if (!bytes) return '0 B';
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / 1048576).toFixed(1) + ' MB';
@@ -201,44 +216,47 @@ export const DriveFilesScreen = () => {
     const getFileIcon = (mimeType: string) => {
         if (mimeType.includes('pdf')) return 'file-pdf-box';
         if (mimeType.includes('image')) return 'image';
-        if (mimeType.includes('spreadsheet')) return 'file-excel';
-        if (mimeType.includes('document')) return 'file-word';
-        return 'file-document';
+        if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) 
+        return 'file-excel';
+        if (mimeType.includes('document') || mimeType.includes('word')) 
+        return 'file-word';
+        if (mimeType.includes('text')) return 'file-document-outline';
+        return 'database';
     };
 
-    const renderFileItem = ({ item }: { item: DriveFile }) => (
+    const renderFileItem = ({ item }: { item: SupabaseFile }) => (
         <TouchableOpacity
-            style={stylesgoogleDrive.fileItem}
+            style={stylessupabase.fileItem}
             onPress={() => handleFilePress(item)}
             activeOpacity={0.7}
         >
-            <View style={stylesgoogleDrive.fileIconContainer}>
+            <View style={stylessupabase.fileIconContainer}>
                 <MaterialCommunityIcons
                     name={getFileIcon(item.mimeType)}
                     size={32}
-                    color="#EF4444"
+                    color="#3ECF8E" // Verde Supabase
                 />
             </View>
-        
-            <View style={stylesgoogleDrive.fileInfo}>
-                <Text style={stylesgoogleDrive.fileName} numberOfLines={2}>
+    
+            <View style={stylessupabase.fileInfo}>
+                <Text style={stylessupabase.fileName} numberOfLines={2}>
                     {item.name}
                 </Text>
                 
-                <View style={stylesgoogleDrive.fileMeta}>
+                <View style={stylessupabase.fileMeta}>
                     {item.createdTime && (
-                        <View style={stylesgoogleDrive.metaItem}>
+                        <View style={stylessupabase.metaItem}>
                             <Icon name="calendar-today" size={12} color="#6B7280" />
-                            <Text style={stylesgoogleDrive.metaText}>
+                            <Text style={stylessupabase.metaText}>
                                 {formatDate(item.createdTime)}
                             </Text>
                         </View>
                     )}
                 
                     {item.size && (
-                        <View style={stylesgoogleDrive.metaItem}>
+                        <View style={stylessupabase.metaItem}>
                             <Icon name="storage" size={12} color="#6B7280" />
-                            <Text style={stylesgoogleDrive.metaText}>
+                            <Text style={stylessupabase.metaText}>
                                 {formatFileSize(parseInt(item.size))}
                             </Text>
                         </View>
@@ -246,52 +264,83 @@ export const DriveFilesScreen = () => {
                 </View>
             </View>
             
-            <Icon name="chevron-right" size={24} color="#9CA3AF" />
+            <MaterialCommunityIcons name="server" size={24} color="#3ECF8E" />
         </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={stylesgoogleDrive.container}>
+        <SafeAreaView style={stylessupabase.container}>
             {/* Header */}
-            <View style={stylesgoogleDrive.header}>
-                <View style={stylesgoogleDrive.headerTitleContainer}>
-                    <MaterialCommunityIcons name="google-drive" size={32} color="#4285F4" />
-                    <Text style={stylesgoogleDrive.headerTitle}>Google Drive</Text>
+            <View style={stylessupabase.header}>
+                <View style={stylessupabase.headerTitleContainer}>
+                    <MaterialCommunityIcons name="database" size={32} color="#3ECF8E" />
+                    <View>
+                        <Text style={stylessupabase.headerTitle}>Servidor Compartido</Text>
+                        <Text style={stylessupabase.userEmail}>
+                            Archivos disponibles para todo el equipo
+                        </Text>
+                    </View>
                 </View>
                 
                 <TouchableOpacity
-                    style={stylesgoogleDrive.logoutButton}
-                    onPress={() => {
-                        logoutFromDrive();
-                        setShowAuthModal(true);
-                    }}
+                    style={[stylessupabase.uploadButton, uploading && { opacity: 0.7 }]}
+                    onPress={handleSelectAndUpload}
+                    disabled={uploading}
                 >
-                    <Icon name="logout" size={24} color="#EF4444" />
+                    {uploading ? (
+                        <ActivityIndicator size="small" color="white" />
+                    ) : (
+                        <Icon name="cloud-upload" size={24} color="white" />
+                    )}
                 </TouchableOpacity>
             </View>
 
             {/* Contenido */}
-            {!showAuthModal && isLoading && files.length === 0 ? ( // SOLO mostrar loading si NO está mostrando el modal
-                <View style={stylesgoogleDrive.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4285F4" />
-                    <Text style={stylesgoogleDrive.loadingText}>Cargando archivos...</Text>
-                </View>
-            ) : !showAuthModal && files.length === 0 ? ( // SOLO mostrar "no hay archivos" si NO está mostrando el modal
-                <View style={stylesgoogleDrive.emptyContainer}>
-                    <MaterialCommunityIcons name="folder-open-outline" size={80} color="#9CA3AF" />
-                    <Text style={stylesgoogleDrive.emptyTitle}>No hay archivos</Text>
-                    <Text style={stylesgoogleDrive.emptyText}>
-                        Los reportes que guardes aparecerán aquí
+            {isLoading && files.length === 0 ? (
+                <View style={stylessupabase.loadingContainer}>
+                    <ActivityIndicator size="large" color="#3ECF8E" />
+                    <Text style={stylessupabase.loadingText}>
+                        Conectando con el servidor...
                     </Text>
+                </View>
+            ) : files.length === 0 ? (
+                <View style={stylessupabase.emptyContainer}>
+                    <MaterialCommunityIcons 
+                        name="database-arrow-up-outline" 
+                        size={80} 
+                        color="#9CA3AF" 
+                    />
+                    <Text style={stylessupabase.emptyTitle}>Servidor vacío</Text>
+                    <Text style={stylessupabase.emptyText}>
+                        Sube reportes para compartirlos con tu equipo
+                    </Text>
+                
                     <TouchableOpacity
-                        style={stylesgoogleDrive.refreshButton}
+                        style={[stylessupabase.uploadButtonLarge, uploading && { opacity: 0.7 }]}
+                        onPress={handleSelectAndUpload}
+                        disabled={uploading}
+                    >
+                        {uploading ? (
+                            <ActivityIndicator size="small" color="white" />
+                        ) : (
+                            <>
+                                <MaterialCommunityIcons name="upload" size={20} color="white" />
+                                <Text style={stylessupabase.uploadButtonText}>
+                                    Subir Reporte
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                
+                    <TouchableOpacity
+                        style={stylessupabase.refreshButton}
                         onPress={loadFiles}
                     >
                         <Icon name="refresh" size={20} color="white" />
-                        <Text style={stylesgoogleDrive.refreshButtonText}>Actualizar</Text>
+                        <Text style={stylessupabase.refreshButtonText}>Actualizar</Text>
                     </TouchableOpacity>
                 </View>
-            ) : !showAuthModal ? ( // SOLO mostrar lista si NO está mostrando el modal
+            ) : (
                 <FlatList
                     data={files}
                     renderItem={renderFileItem}
@@ -300,80 +349,20 @@ export const DriveFilesScreen = () => {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={handleRefresh}
-                            colors={['#4285F4']}
-                            tintColor="#4285F4"
+                            colors={['#3ECF8E']}
+                            tintColor="#3ECF8E"
                         />
                     }
-                    contentContainerStyle={stylesgoogleDrive.listContainer}
-                />
-            ) : null} {/* No mostrar nada si el modal está visible */}
-
-            {/* Modal de autenticación */}
-            <Modal
-                visible={showAuthModal}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => !isAuthenticated() && setShowAuthModal(true)}
-            >
-                <View style={stylesgoogleDrive.authModalOverlay}>
-                    <View style={stylesgoogleDrive.authModalContent}>
-                        <MaterialCommunityIcons 
-                            name="google-drive" 
-                            size={60} 
-                            color="#4285F4" 
-                        />
-                        
-                        <Text style={stylesgoogleDrive.authTitle}>Conectar con Google Drive</Text>
-                        
-                        <Text style={stylesgoogleDrive.authDescription}>
-                            Conecta tu cuenta de Google Drive para guardar y acceder a tus reportes desde cualquier dispositivo
-                        </Text>
-
-                        <View style={stylesgoogleDrive.authFeatures}>
-                            <View style={stylesgoogleDrive.featureItem}>
-                                <Icon name="cloud-upload" size={20} color="#10B981" />
-                                <Text style={stylesgoogleDrive.featureText}>Guarda automáticamente tus reportes</Text>
-                            </View>
-                        
-                            <View style={stylesgoogleDrive.featureItem}>
-                                <Icon name="smartphone" size={20} color="#3B82F6" />
-                                <Text style={stylesgoogleDrive.featureText}>Accede desde cualquier dispositivo</Text>
-                            </View>
-                        
-                            <View style={stylesgoogleDrive.featureItem}>
-                                <Icon name="security" size={20} color="#8B5CF6" />
-                                <Text style={stylesgoogleDrive.featureText}>Tus datos están seguros y encriptados</Text>
-                            </View>
+                    contentContainerStyle={stylessupabase.listContainer}
+                    ListHeaderComponent={
+                        <View style={stylessupabase.statsContainer}>
+                            <Text style={stylessupabase.statsText}>
+                                {files.length} archivos en el servidor
+                            </Text>
                         </View>
-
-                        <TouchableOpacity
-                            style={stylesgoogleDrive.googleButton}
-                            onPress={handleAuth}
-                        >
-                            <Image
-                                source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }}
-                                style={stylesgoogleDrive.googleIcon}
-                            />
-                            <Text style={stylesgoogleDrive.googleButtonText}>
-                                Conectar con Google
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={stylesgoogleDrive.skipButton}
-                            onPress={() => {
-                                console.log('⏭️  Saltando autenticación');
-                                setShowAuthModal(false);
-                                setIsLoading(false); // Asegurar que loading se detenga
-                            }}
-                        >
-                            <Text style={stylesgoogleDrive.skipButtonText}>
-                                Ahora no, tal vez después
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+                    }
+                />
+            )}
 
             {/* Modal de opciones de archivo */}
             <Modal
@@ -382,10 +371,10 @@ export const DriveFilesScreen = () => {
                 animationType="fade"
                 onRequestClose={() => setShowFileModal(false)}
             >
-                <View style={stylesgoogleDrive.fileModalOverlay}>
-                    <View style={stylesgoogleDrive.fileModalContent}>
+                <View style={stylessupabase.fileModalOverlay}>
+                    <View style={stylessupabase.fileModalContent}>
                         <TouchableOpacity
-                            style={stylesgoogleDrive.modalCloseButton}
+                            style={stylessupabase.modalCloseButton}
                             onPress={() => setShowFileModal(false)}
                         >
                             <Icon name="close" size={24} color="#6B7280" />
@@ -393,26 +382,26 @@ export const DriveFilesScreen = () => {
                         
                         {selectedFile && (
                             <>
-                                <View style={stylesgoogleDrive.modalFileHeader}>
+                                <View style={stylessupabase.modalFileHeader}>
                                     <MaterialCommunityIcons
                                         name={getFileIcon(selectedFile.mimeType)}
                                         size={48}
-                                        color="#4285F4"
+                                        color="#3ECF8E"
                                     />
-                                    <Text style={stylesgoogleDrive.modalFileName}>
+                                    <Text style={stylessupabase.modalFileName}>
                                         {selectedFile.name}
                                     </Text>
                                 
-                                    <View style={stylesgoogleDrive.modalFileMeta}>
+                                    <View style={stylessupabase.modalFileMeta}>
                                         {selectedFile.createdTime && (
-                                            <Text style={stylesgoogleDrive.modalFileMetaText}>
+                                            <Text style={stylessupabase.modalFileMetaText}>
                                                 <Icon name="calendar-today" size={12} />{' '}
-                                                Creado: {formatDate(selectedFile.createdTime)}
+                                                Subido: {formatDate(selectedFile.createdTime)}
                                             </Text>
                                         )}
                                         
                                         {selectedFile.size && (
-                                            <Text style={stylesgoogleDrive.modalFileMetaText}>
+                                            <Text style={stylessupabase.modalFileMetaText}>
                                                 <Icon name="storage" size={12} />{' '}
                                                 Tamaño: {formatFileSize(parseInt(selectedFile.size))}
                                             </Text>
@@ -420,31 +409,37 @@ export const DriveFilesScreen = () => {
                                     </View>
                                 </View>
 
-                                <View style={stylesgoogleDrive.modalActions}>
-                                    {selectedFile.webViewLink && (
-                                        <TouchableOpacity
-                                            style={stylesgoogleDrive.modalActionButton}
-                                            onPress={handleViewOnline}
-                                        >
-                                            <Icon name="visibility" size={24} color="#3B82F6" />
-                                            <Text style={stylesgoogleDrive.modalActionText}>Ver en línea</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                
+                                <View style={stylessupabase.modalActions}>
                                     <TouchableOpacity
-                                        style={stylesgoogleDrive.modalActionButton}
-                                        onPress={handleDownload}
+                                        style={stylessupabase.modalActionButton}
+                                        onPress={handleViewOnline}
                                     >
-                                        <Icon name="file-download" size={24} color="#10B981" />
-                                        <Text style={stylesgoogleDrive.modalActionText}>Descargar</Text>
+                                        <Icon name="visibility" size={24} color="#3B82F6" />
+                                        <Text style={stylessupabase.modalActionText}>Ver en línea</Text>
                                     </TouchableOpacity>
                                 
                                     <TouchableOpacity
-                                        style={stylesgoogleDrive.modalActionButton}
+                                        style={stylessupabase.modalActionButton}
+                                        onPress={handleDownload}
+                                    >
+                                        <Icon name="file-download" size={24} color="#10B981" />
+                                        <Text style={stylessupabase.modalActionText}>Descargar</Text>
+                                    </TouchableOpacity>
+                                
+                                    <TouchableOpacity
+                                        style={stylessupabase.modalActionButton}
+                                        onPress={handleShare}
+                                    >
+                                        <Icon name="share" size={24} color="#8B5CF6" />
+                                        <Text style={stylessupabase.modalActionText}>Compartir</Text>
+                                    </TouchableOpacity>
+                                
+                                    <TouchableOpacity
+                                        style={stylessupabase.modalActionButton}
                                         onPress={handleDelete}
                                     >
                                         <Icon name="delete" size={24} color="#EF4444" />
-                                        <Text style={[stylesgoogleDrive.modalActionText, { color: '#EF4444' }]}>
+                                        <Text style={[stylessupabase.modalActionText, { color: '#EF4444' }]}>
                                             Eliminar
                                         </Text>
                                     </TouchableOpacity>
@@ -457,14 +452,14 @@ export const DriveFilesScreen = () => {
 
             {/* Loading Overlay */}
             <Modal
-                visible={isLoading && !refreshing && !showAuthModal} // NO mostrar si el modal de auth está visible
+                visible={isLoading && !refreshing}
                 transparent={true}
                 animationType="fade"
             >
-                <View style={stylesgoogleDrive.loadingOverlay}>
-                    <View style={stylesgoogleDrive.loadingContent}>
-                        <ActivityIndicator size="large" color="#4285F4" />
-                        <Text style={stylesgoogleDrive.loadingText}>Procesando...</Text>
+                <View style={stylessupabase.loadingOverlay}>
+                    <View style={stylessupabase.loadingContent}>
+                        <ActivityIndicator size="large" color="#3ECF8E" />
+                        <Text style={stylessupabase.loadingText}>Procesando...</Text>
                     </View>
                 </View>
             </Modal>

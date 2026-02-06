@@ -35,7 +35,7 @@ import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
-import { uploadFileToDrive } from 'src/services/googleDriveServices';
+import { uploadFileToSupabase } from 'src/services/supabaseStorageService';
 
 export const ChecklistScreen = () => {
   const route = useRoute();
@@ -429,6 +429,7 @@ export const ChecklistScreen = () => {
       
       // Renombrar el archivo
       const renameResult = await renamePDFFile(tempPdfUri, fileName);
+      const newName = extractFileNameFromUri(renameResult.uri);
       
       setIsLoading(false);
 
@@ -442,12 +443,8 @@ export const ChecklistScreen = () => {
               style: 'cancel' 
             },
             { 
-              text: 'Descargar PDF',
-              onPress: () => savePDFToDownloads(renameResult.uri, extractFileNameFromUri(renameResult.uri))
-            },
-            { 
               text: 'Compartir por WhatsApp',
-              onPress: () => shareViaWhatsApp(renameResult.uri, extractFileNameFromUri(renameResult.uri), updatedData)
+              onPress: () => shareViaWhatsApp(renameResult.uri, newName, updatedData)
             }
           ]
         );
@@ -459,13 +456,22 @@ export const ChecklistScreen = () => {
           [
             { 
               text: 'OK',
-              onPress: () => savePDFToDownloads(tempPdfUri, extractFileNameFromUri(tempPdfUri))
+              onPress: () => shareViaWhatsApp(tempPdfUri, newName, updatedData)
             }
           ]
         );
       }
 
-      saveToGoogleDrive(renameResult.uri, fileName)
+      // Subir a Supabase
+      const downloadURL = await uploadFileToSupabase(renameResult.uri, newName);
+      
+      if (downloadURL) {
+        Toast.show({
+          type: 'success',
+          text1: '✅ ¡Éxito!',
+          text2: `${newName} subido al servidor`
+        });
+      }
 
     } catch (error) {
       setIsLoading(false);
@@ -475,26 +481,6 @@ export const ChecklistScreen = () => {
         text1: 'Error',
         text2: 'No se pudo guardar el checklist',
       });
-    }
-  };
-
-  // Función para guardar en Google Drive:
-  const saveToGoogleDrive = async (pdfUri: string, fileName: string) => {
-    try {
-      setIsLoading(true);
-      const fileId = await uploadFileToDrive(pdfUri, fileName);
-      
-      if (fileId) {
-        Toast.show({
-          type: 'success',
-          text1: '✅ Guardado en Drive',
-          text2: `${fileName} fue guardado en Google Drive`
-        });
-      }
-    } catch (error) {
-      console.error('Error guardando en Drive:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -566,31 +552,6 @@ export const ChecklistScreen = () => {
         type: 'error',
         text1: 'Error',
         text2: 'No se pudo compartir el archivo',
-      });
-    }
-  };
-
-  // Guardar PDF en descargas - MODIFICADA PARA ACEPTAR NOMBRE DE ARCHIVO
-  const savePDFToDownloads = async (pdfUri: string, fileName: string) => {
-    try {
-      await Sharing.shareAsync(pdfUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Guardar Checklist PDF',
-        UTI: 'public.pdf',
-      });
-
-      Toast.show({
-        type: 'success',
-        text1: '✅ PDF listo',
-        text2: `Usa el menú para guardar o compartir ${fileName}`,
-      });
-      
-    } catch (error) {
-      console.error('Error compartiendo PDF:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo abrir el PDF',
       });
     }
   };

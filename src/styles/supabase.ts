@@ -1,13 +1,11 @@
 import { StyleSheet } from 'react-native';
 
-export const stylesgoogleDrive = StyleSheet.create({
-    // Contenedor principal
+export const stylessupabase = StyleSheet.create({
+
     container: {
         flex: 1,
         backgroundColor: '#F9FAFB',
     },
-
-    // Header
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -21,7 +19,7 @@ export const stylesgoogleDrive = StyleSheet.create({
     headerTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
     },
     headerTitle: {
         fontSize: 20,
@@ -33,8 +31,6 @@ export const stylesgoogleDrive = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: '#FEF2F2',
     },
-
-    // Estados de carga/vacío
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -79,8 +75,6 @@ export const stylesgoogleDrive = StyleSheet.create({
         fontWeight: '600',
         fontSize: 14,
     },
-
-    // Lista de archivos
     listContainer: {
         padding: 16,
     },
@@ -124,8 +118,6 @@ export const stylesgoogleDrive = StyleSheet.create({
         fontSize: 12,
         color: '#6B7280',
     },
-
-    // Modal de autenticación
     authModalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -196,8 +188,6 @@ export const stylesgoogleDrive = StyleSheet.create({
         fontSize: 14,
         color: '#6B7280',
     },
-
-    // Modal de archivo
     fileModalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -252,8 +242,6 @@ export const stylesgoogleDrive = StyleSheet.create({
         fontWeight: '500',
         color: '#374151',
     },
-
-    // Loading overlay
     loadingOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -267,8 +255,6 @@ export const stylesgoogleDrive = StyleSheet.create({
         alignItems: 'center',
         gap: 16,
     },
-
-    // Google Drive Integration status
     driveStatus: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -293,5 +279,42 @@ export const stylesgoogleDrive = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
         fontSize: 12,
+    },
+    uploadButton: {
+        backgroundColor: '#3ECF8E',
+        padding: 10,
+        borderRadius: 8,
+        marginLeft: 10,
+    },
+    uploadButtonLarge: {
+        backgroundColor: '#3ECF8E',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    uploadButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        marginLeft: 10,
+        fontSize: 16,
+    },
+    userEmail: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginTop: 2,
+    },
+    statsContainer: {
+        backgroundColor: '#F3F4F6',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    statsText: {
+        color: '#4B5563',
+        fontSize: 14,
+        fontWeight: '500',
     },
 });
