@@ -196,65 +196,66 @@ export const MainMenuScreen = () => {
   const handleMenuItemPress = (route: string) => {
     const sucursalName = SUCURSALES[sucursalKey];
 
-    if (route === 'Updates' && hasUpdate) {
-      Updates.fetchUpdateAsync().then(() => {
+    switch (route) {
+      case'Checklist':
         Toast.show({
-          type: 'success',
-          text1: 'Actualización descargada',
-          text2: 'Reiniciando la aplicación para aplicar la actualización.',
+          type: 'info',
+          text1: 'Navegando a Checklist',
+          text2: `Sucursal actual: ${sucursalName}`,
         });
-        Updates.reloadAsync();
-      }).catch((error) => {
+        navigation.navigate('Checklist', { sucursalKey: sucursalKey });
+        break;
+
+      case'TemplateChecklist':
         Toast.show({
-          type: 'error',
-          text1: 'Error al descargar la actualización',
-          text2: error.message,
+          type: 'info',
+          text1: 'Navegando a Configuración de Checklist',
+          text2: `Sucursal actual: ${sucursalName}`,
         });
-      });
-      return;
-    }
-    else if (route === 'TemplateChecklist') {
-      Toast.show({
-        type: 'info',
-        text1: 'Navegando a Configuración de Checklist',
-        text2: `Sucursal actual: ${sucursalName}`,
-      });
-      navigation.navigate('TemplateChecklist', { sucursalKey: sucursalKey });
-    }
-    else if (route === 'Checklist') {
-      Toast.show({
-        type: 'info',
-        text1: 'Navegando a Checklist',
-        text2: `Sucursal actual: ${sucursalName}`,
-      });
-      navigation.navigate('Checklist', { sucursalKey: sucursalKey });
-    }
-    else if (route === 'Reminders') {
-      Toast.show({
-        type: 'info',
-        text1: 'Navegando a Recordatorios',
-        text2: `Sucursal actual: ${sucursalName}`,
-      });
-      navigation.navigate('Reminders', { sucursalKey: sucursalKey });
-    }
-    else if (route === 'Reports') {
-      Toast.show({
-        type: 'info',
-        text1: 'Navegando a Generador de Reportes',
-        text2: `Sucursal actual: ${sucursalName}`,
-      });
-      navigation.navigate('Reports', { sucursalKey: sucursalKey });
-    }
-    else {
-      Toast.show({
-        type: 'info',
-        text1: 'Navegando a Generador de Reportes',
-        text2: `Sucursal actual: ${sucursalName}`,
-      });
-      navigation.navigate('DriveFiles', { sucursalKey: sucursalKey });
-    }
+        navigation.navigate('TemplateChecklist', { sucursalKey: sucursalKey });
+        break;
+
+      case'Reminders':
+        Toast.show({
+          type: 'info',
+          text1: 'Navegando a Recordatorios',
+          text2: `Sucursal actual: ${sucursalName}`,
+        });
+        navigation.navigate('Reminders', { sucursalKey: sucursalKey });
+        break;
+
+      case'Reports':
+        Toast.show({
+          type: 'info',
+          text1: 'Navegando a Generador de Reportes',
+          text2: `Sucursal actual: ${sucursalName}`,
+        });
+        navigation.navigate('Reports', { sucursalKey: sucursalKey });
+        break;
+
+      case'DriveFiles':
+        Toast.show({
+          type: 'info',
+          text1: 'Navegando a Administrador de Documentos',
+          text2: `Sucursal actual: ${sucursalName}`,
+        });
+        navigation.navigate('DriveFiles', { sucursalKey: sucursalKey });
+        break;
+
+      case 'Updates':
+        Toast.show({
+          type: 'info',
+          text1: 'Navegando a Actualizaciones',
+          text2: `Sucursal actual: ${sucursalName}`,
+        });
+        navigation.navigate('Updates', { sucursalKey: sucursalKey });
+        break;
+
+      default:
+        break;
+    };
   };
-  
+
   // Actualizar checklist cuando cambia la sucursal manualmente
   const handleSucursalChange = (newSucursalKey: SucursalType) => {
     const newSucursalName = SUCURSALES[newSucursalKey];

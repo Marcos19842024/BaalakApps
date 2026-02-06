@@ -418,6 +418,10 @@ class remindersData {
             // CORREGIDO: Usar nombre limpio de la clínica
             const nombreClinicaLimpio = this.extraerNombreClinica(nombreClinica);
             cliente.mensajes.push(this.createNewMsg(`${nombreClinicaLimpio} le informa que ${mensaje}`));
+            
+            let mensajeCita = `\n🐾 Quiere agendar su cita?`;
+        
+            cliente.mensajes.push(this.createNewMsg(mensajeCita));
         });
     }
 
