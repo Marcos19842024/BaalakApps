@@ -49,23 +49,23 @@ export const UpdatesScreen = () => {
         try {
             // En desarrollo, mostrar información simulada
             if (__DEV__) {
-            setTimeout(() => {
-                setHasUpdate(true);
-                setUpdateInfo({
-                version: '1.1.0',
-                date: new Date().toLocaleDateString('es-ES'),
-                changes: [
-                    'Nueva función de recordatorios por WhatsApp',
-                    'Mejoras en la interfaz de usuario',
-                    'Corrección de errores menores',
-                    'Optimización del rendimiento'
-                ],
-                mandatory: false,
-                size: '15 MB'
-                });
-                setChecking(false);
-            }, 1500);
-            return;
+                setTimeout(() => {
+                    setHasUpdate(true);
+                    setUpdateInfo({
+                    version: '1.1.0',
+                    date: new Date().toLocaleDateString('es-ES'),
+                    changes: [
+                        'Nueva función de recordatorios por WhatsApp',
+                        'Mejoras en la interfaz de usuario',
+                        'Corrección de errores menores',
+                        'Optimización del rendimiento'
+                    ],
+                    mandatory: false,
+                    size: '15 MB'
+                    });
+                    setChecking(false);
+                }, 1500);
+                return;
             }
             
             // En producción, verificar actualizaciones reales

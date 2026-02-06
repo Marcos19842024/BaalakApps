@@ -1,6 +1,6 @@
 {
   "name": "baalakapps",
-  "version": "1.0.0",
+  "version": "3.2.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -48,7 +48,7 @@
     "react-native-share": "^12.2.2",
     "react-native-toast-message": "^2.3.3",
     "react-native-vector-icons": "^10.3.0",
-    "react-native-webview": "^13.16.0",
+    "react-native-webview": "13.15.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
