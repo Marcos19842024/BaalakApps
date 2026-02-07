@@ -41,14 +41,17 @@ export const ReportsScreen = () => {
     // Efecto para recargar cuando la pantalla recibe foco
     useFocusEffect(
         useCallback(() => {
+            console.log('ReportsScreen recibió foco');
+            
             // Si recibimos una sucursal por parámetro, seleccionarla
             if (params?.sucursalKey) {
-                setSucursalKey(params.sucursalKey);
-                return
+                console.log('Parámetro sucursal recibido:', params.sucursalKey);
+                handleSucursalChange(params.sucursalKey);
+            } else {
+                console.log('Sin parámetros, recargando sucursal actual:', sucursalKey);
+                handleSucursalChange(sucursalKey);
             }
-            console.log('ReportsScreen recibió foco, recargando...');
-            handleSucursalChange(sucursalKey);
-        }, [sucursalKey])
+        }, [sucursalKey, params?.sucursalKey]) // Añadir dependencia
     );
 
     // Función para formatear fecha a DD/MM/AAAA
@@ -134,8 +137,22 @@ export const ReportsScreen = () => {
     // Actualizar sucursal cuando cambia
     const handleSucursalChange = (newSucursalKey: SucursalType) => {
         const newSucursalName = SUCURSALES[newSucursalKey];
+        
+        // Actualizar estados de sucursal
         setSucursalKey(newSucursalKey);
         setSucursalName(newSucursalName);
+        
+        // También actualizar el formData con la nueva sucursal
+        setFormData(prev => ({
+            ...prev,
+            sucursal: newSucursalName,
+            sucursalKey: newSucursalKey,
+            fecha: new Date().toLocaleDateString('es-MX'),
+            hora: new Date().toLocaleTimeString('es-MX', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            })
+        }));
         
         Toast.show({
             type: 'success',
@@ -391,7 +408,7 @@ export const ReportsScreen = () => {
 
             // Para Android, podemos usar un intent directo
             if (Platform.OS === 'android') {
-                const message = `*REPORTE DE PROBLEMA DEL CLIENTE*\n\n` +
+                const message = `*REPORTE DE QUEJA*\n\n` +
                 `*Sucursal:* ${sucursalName}\n` +
                 `*Cliente:* ${formData.nombreCliente}\n` +
                 `*Mascota:* ${formData.nombreMascota}\n` +
@@ -492,7 +509,7 @@ export const ReportsScreen = () => {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <MaterialCommunityIcons name="clipboard-text" size={28} color="#1F2937" />
                     <Text style={stylesreport.formTitle}>
-                        Reporte de Problema del Cliente
+                        Reporte de Queja - {sucursalName}
                     </Text>
                 </View>
             </View>

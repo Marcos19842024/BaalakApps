@@ -18,7 +18,7 @@ export const getCurrentDate = (): string => {
 export const reportTypes: ReportType[] = [
     { 
         id: 'rpc', 
-        title: 'Reporte de Problema', 
+        title: 'Reporte de Queja', 
         icon: '📋', 
         description: 'Quejas de clientes' 
     },

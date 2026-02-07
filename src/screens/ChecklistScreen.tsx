@@ -406,6 +406,12 @@ export const ChecklistScreen = () => {
     try {
       setIsLoading(true);
       
+      // Verificar que las fotos estén en formData
+      console.log('Fotos en formData:', formData.photos?.length || 0);
+      if (formData.photos && formData.photos.length > 0) {
+        console.log('Primera foto:', formData.photos[0].photoUri);
+      }
+      
       // Actualizar datos
       const updatedData = {
         ...formData,

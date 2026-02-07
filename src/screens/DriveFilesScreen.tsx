@@ -234,7 +234,7 @@ export const DriveFilesScreen = () => {
                 <MaterialCommunityIcons
                     name={getFileIcon(item.mimeType)}
                     size={32}
-                    color="#3ECF8E" // Verde Supabase
+                    color="#ff0000"
                 />
             </View>
     
@@ -349,8 +349,8 @@ export const DriveFilesScreen = () => {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={handleRefresh}
-                            colors={['#3ECF8E']}
-                            tintColor="#3ECF8E"
+                            colors={['#cf3e3e']}
+                            tintColor="#cf3e3e"
                         />
                     }
                     contentContainerStyle={stylessupabase.listContainer}

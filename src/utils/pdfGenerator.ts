@@ -1,7 +1,41 @@
 import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system/legacy';
 import { ChecklistData } from '../types/checklist';
 import { calculateAreaStats } from './checklistData';
 import { ReportFormData } from 'src/types/report';
+
+// Función auxiliar para leer imágenes como base64
+const readPhotoAsBase64 = async (photoUri: string): Promise<string> => {
+  try {
+    console.log('Leyendo foto como base64:', photoUri);
+    
+    // Si es una URI local del dispositivo
+    if (photoUri.startsWith('file://') || photoUri.startsWith('content://')) {
+      try {
+        // Leer el archivo como base64
+        const base64 = await FileSystem.readAsStringAsync(photoUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        // Determinar el tipo MIME basado en la extensión
+        const mimeType = photoUri.toLowerCase().endsWith('.png') 
+          ? 'image/png' 
+          : 'image/jpeg';
+        
+        return `data:${mimeType};base64,${base64}`;
+      } catch (fsError) {
+        console.warn('Error leyendo archivo local:', fsError);
+        return '';
+      }
+    }
+    
+    // Si es una URI de assets o de la web
+    return photoUri; // Dejar como está para otros casos
+    
+  } catch (error) {
+    console.error('Error en readPhotoAsBase64:', error);
+    return '';
+  }
+};
 
 // 1. PDF para Checklist
 export const generateChecklistPDF = async (
@@ -9,6 +43,9 @@ export const generateChecklistPDF = async (
   sucursal: string
 ): Promise<string> => {
   try {
+    console.log('Generando PDF con fotos...');
+    console.log('Total de fotos:', data.photos?.length || 0);
+    
     // Agrupar items por área
     const itemsByArea = data.items.reduce((acc, item) => {
       if (!acc[item.area]) acc[item.area] = [];
@@ -19,6 +56,28 @@ export const generateChecklistPDF = async (
     // Estadísticas generales
     const stats = calculateAreaStats(data.items);
     const totalFotos = data.photos?.length || 0;
+
+    // Procesar todas las fotos como base64
+    const photosWithBase64 = [];
+    if (data.photos && data.photos.length > 0) {
+      console.log('Procesando fotos como base64...');
+      for (const photo of data.photos) {
+        try {
+          const base64 = await readPhotoAsBase64(photo.photoUri);
+          photosWithBase64.push({
+            ...photo,
+            base64
+          });
+          console.log(`Foto ${photo.id} procesada:`, base64 ? '✅' : '❌');
+        } catch (error) {
+          console.error(`Error procesando foto ${photo.id}:`, error);
+          photosWithBase64.push({
+            ...photo,
+            base64: ''
+          });
+        }
+      }
+    }
 
     // Generar HTML para el PDF
     const html = `
@@ -141,6 +200,75 @@ export const generateChecklistPDF = async (
             .bueno { background-color: #d4edda; color: #155724; }
             .regular { background-color: #fff3cd; color: #856404; }
             .malo { background-color: #f8d7da; color: #721c24; }
+            .photos-section {
+              margin-top: 20px;
+              padding: 15px;
+              background-color: #f0f9ff;
+              border: 1px solid #0ea5e9;
+              border-radius: 5px;
+              page-break-inside: avoid;
+            }
+            .photos-title {
+              font-size: 14px;
+              font-weight: bold;
+              color: #0369a1;
+              margin-bottom: 15px;
+              display: flex;
+              align-items: center;
+            }
+            .photos-title:before {
+              content: "📸";
+              margin-right: 8px;
+            }
+            .photos-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+              margin-top: 10px;
+            }
+            .photo-card {
+              page-break-inside: avoid;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+              background-color: white;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .photo-image {
+              width: 100%;
+              height: 150px;
+              object-fit: cover;
+              border-radius: 4px;
+              display: block;
+              margin-bottom: 8px;
+              border: 1px solid #e2e8f0;
+            }
+            .photo-info {
+              font-size: 10px;
+              color: #475569;
+            }
+            .photo-description {
+              font-weight: bold;
+              margin-bottom: 3px;
+              color: #1e293b;
+            }
+            .photo-timestamp {
+              font-size: 9px;
+              color: #64748b;
+              font-style: italic;
+            }
+            .no-photo-placeholder {
+              width: 100%;
+              height: 150px;
+              background-color: #f1f5f9;
+              border-radius: 4px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #64748b;
+              font-size: 11px;
+              border: 1px dashed #cbd5e1;
+            }
             .comments-section {
               margin-top: 20px;
               padding: 15px;
@@ -152,19 +280,6 @@ export const generateChecklistPDF = async (
               font-size: 12px;
               font-weight: bold;
               color: #92400e;
-              margin-bottom: 10px;
-            }
-            .photos-section {
-              margin-top: 20px;
-              padding: 15px;
-              background-color: #f0f9ff;
-              border: 1px solid #0ea5e9;
-              border-radius: 5px;
-            }
-            .photos-title {
-              font-size: 12px;
-              font-weight: bold;
-              color: #0369a1;
               margin-bottom: 10px;
             }
             .signature-section {
@@ -201,13 +316,21 @@ export const generateChecklistPDF = async (
             .status-excelente { background-color: #d4edda; color: #155724; }
             .status-aceptable { background-color: #fff3cd; color: #856404; }
             .status-mejora { background-color: #f8d7da; color: #721c24; }
+            @media print {
+              .area-section {
+                page-break-inside: avoid;
+              }
+              .photo-card {
+                page-break-inside: avoid;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="header">
             <h1 class="title">CHECKLIST DE SUPERVISIÓN</h1>
             <div style="font-size: 12px; color: #666; margin-top: 5px;">
-              Sistema de Control de Calidad
+              Sistema de Control de Calidad - ${sucursal}
             </div>
           </div>
 
@@ -233,7 +356,7 @@ export const generateChecklistPDF = async (
               </div>
               <div class="info-row">
                 <span class="info-label">Hora de fin:</span>
-                <span>${data.horaFin} hrs.</span>
+                <span>${data.horaFin || 'En progreso'} hrs.</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Total áreas:</span>
@@ -270,14 +393,14 @@ export const generateChecklistPDF = async (
               <div class="stat-title">Fotos Tomadas</div>
               <div class="stat-value">${totalFotos}</div>
               <div style="font-size: 10px; color: #666; margin-top: 2px;">
-                ${data.photos?.filter(photo => photo.area).length || 0} por área
+                en ${data.photos ? new Set(data.photos.map(p => p.area)).size : 0} áreas
               </div>
             </div>
           </div>
 
           ${Object.entries(itemsByArea).map(([area, items]) => {
             const areaStats = calculateAreaStats(items);
-            const areaPhotos = data.photos?.filter(photo => photo.area === area) || [];
+            const areaPhotos = photosWithBase64.filter(photo => photo.area === area);
             
             return `
               <div class="area-section">
@@ -327,16 +450,45 @@ export const generateChecklistPDF = async (
                 
                 ${areaPhotos.length > 0 ? `
                   <div class="photos-section">
-                    <div class="photos-title">📸 Fotos de ${area} (${areaPhotos.length})</div>
-                    <div style="font-size: 11px; color: #475569;">
-                      ${areaPhotos.map((photo, index) => `
-                        <div style="margin-bottom: 8px; padding: 5px; background-color: #f8fafc; border-radius: 3px;">
-                          <strong>Foto ${index + 1}:</strong> ${photo.description || 'Sin descripción'} 
-                          <span style="color: #64748b; font-style: italic; font-size: 10px;">
-                            (${photo.timestamp})
-                          </span>
-                        </div>
-                      `).join('')}
+                    <div class="photos-title">Fotos de ${area} (${areaPhotos.length})</div>
+                    <div class="photos-grid">
+                      ${areaPhotos.map((photo, index) => {
+                        if (photo.base64 && photo.base64.startsWith('data:image')) {
+                          return `
+                            <div class="photo-card">
+                              <img src="${photo.base64}" 
+                                   alt="Foto ${index + 1} - ${area}" 
+                                   class="photo-image"
+                                   onerror="this.parentElement.innerHTML='<div class=\\'no-photo-placeholder\\'>⚠️ Error cargando imagen</div>'"
+                              />
+                              <div class="photo-info">
+                                <div class="photo-description">
+                                  ${photo.description || 'Sin descripción'}
+                                </div>
+                                <div class="photo-timestamp">
+                                  📅 ${photo.timestamp}
+                                </div>
+                              </div>
+                            </div>
+                          `;
+                        } else {
+                          return `
+                            <div class="photo-card">
+                              <div class="no-photo-placeholder">
+                                <div style="text-align: center;">
+                                  <div>📷 Foto ${index + 1}</div>
+                                  <div style="font-size: 9px; margin-top: 5px;">
+                                    ${photo.description || 'Sin descripción'}
+                                  </div>
+                                  <div style="font-size: 8px; margin-top: 3px; color: #94a3b8;">
+                                    ${photo.timestamp}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          `;
+                        }
+                      }).join('')}
                     </div>
                   </div>
                 ` : ''}
@@ -373,7 +525,7 @@ export const generateChecklistPDF = async (
   }
 };
 
-// 2. PDF para Reporte de Problemas (nuevo)
+// 2. PDF para Reporte de Problemas
 export const generateReportPDF = async (
   data: ReportFormData,
   sucursal: string,
@@ -385,7 +537,7 @@ export const generateReportPDF = async (
       <html>
         <head>
           <meta charset="UTF-8">
-          <title>Reporte de Problema del Cliente - ${sucursal}</title>
+          <title>Reporte de Queja - ${sucursal}</title>
           <style>
             @page {
               margin: 1.5cm;
@@ -544,8 +696,7 @@ export const generateReportPDF = async (
         </head>
         <body>
           <div class="header">
-            <div class="logo">CLÍNICA VETERINARIA BAALAK</div>
-            <h1 class="title">REPORTE DE PROBLEMA DEL CLIENTE (RPC)</h1>
+            <h1 class="title">REPORTE DE QUEJA - ${sucursal}</h1>
             <div class="subtitle">Formato Oficial de Gestión de Quejas</div>
           </div>
 
@@ -662,7 +813,7 @@ export const generateReportPDF = async (
           </div>
 
           <div class="footer">
-            <strong>Reporte de Problema del Cliente - ${sucursal}</strong><br/>
+            <strong>Reporte de Queja - ${sucursal}</strong><br/>
             Documento generado automáticamente el ${new Date().toLocaleDateString()} | 
             Válido únicamente para uso interno
           </div>

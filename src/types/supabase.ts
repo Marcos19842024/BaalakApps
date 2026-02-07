@@ -6,4 +6,4 @@ export interface SupabaseFile {
     createdTime: string;
     size: string;
     mimeType: string;
-    }
+}
