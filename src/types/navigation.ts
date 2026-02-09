@@ -6,7 +6,6 @@ export type RootStackParamList = {
   Reminders: { sucursalKey: string };
   Reports: { sucursalKey: string };
   DriveFiles: { sucursalKey: string };
-  Updates: { sucursalKey: string };
 };
 
 // Tipos básicos para navigation

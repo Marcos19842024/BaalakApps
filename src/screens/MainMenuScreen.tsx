@@ -74,15 +74,6 @@ export const MainMenuScreen = () => {
       color: '#05aaca',
       route: 'DriveFiles',
     },
-    {
-      id: 'updates',
-      title: 'Actualizaciones',
-      description: 'Actualiza la aplicación',
-      icon: 'system-update',
-      color: hasUpdate ? '#FF5722' : '#607D8B',
-      route: 'Updates',
-      badge: hasUpdate,
-    },
   ];
 
   useEffect(() => {
@@ -217,10 +208,6 @@ export const MainMenuScreen = () => {
         navigation.navigate('DriveFiles', { sucursalKey: sucursalKey });
         break;
 
-      case 'Updates':
-        navigation.navigate('Updates', { sucursalKey: sucursalKey });
-        break;
-
       default:
         break;
     };
@@ -314,11 +301,6 @@ export const MainMenuScreen = () => {
             >
               <View style={[stylesmainMenu.iconContainer, { backgroundColor: item.color }]}>
                 <Icon name={item.icon} size={32} color="#fff" />
-                {item.badge && (
-                  <View style={stylesmainMenu.badge}>
-                    <Text style={stylesmainMenu.badgeText}>!</Text>
-                  </View>
-                )}
               </View>
               <Text style={stylesmainMenu.menuTitle}>{item.title}</Text>
               <Text style={stylesmainMenu.menuDescription} numberOfLines={2}>
