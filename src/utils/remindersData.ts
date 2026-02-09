@@ -180,6 +180,10 @@ class remindersData {
         return [];
     }
 
+    //****************************************************
+    //*******************   Vacunas   ********************
+    //****************************************************
+
     // Procesar template de vacunas
     private procesarVacunas(datos: any[][], nombreClinica: string): Cliente[] {
         const encabezadosExcel = datos[0];
@@ -204,34 +208,6 @@ class remindersData {
 
         const clientes = this.prepareClientsVacunas(filasDatos);
         this.ListPetsVacunas(clientes, nombreClinica);
-        
-        return clientes;
-    }
-
-    // Procesar template de citas
-    private procesarCitas(datos: any[][], nombreClinica: string): Cliente[] {
-        const encabezadosExcel = datos[0];
-        const titles = ["FECHA", "INICIO", "TIPO VISITA", "PROPIETARIO", "MASCOTA", "TELÉFONO", "ASUNTO", "AGENDA", "ESTADO"];
-        
-        // Verificar que los encabezados coincidan (case insensitive)
-        const headersMatch = titles.every((title, index) => {
-            const excelHeader = encabezadosExcel[index]?.toString().trim().toUpperCase() || '';
-            return excelHeader === title.toUpperCase();
-        });
-        
-        if (!headersMatch) {
-            Alert.alert("Error",`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`)
-            throw new Error(`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`);
-        }
-
-        const filasDatos = datos.slice(1);
-        
-        if (filasDatos.length === 0) {
-            throw new Error('El Excel no contiene datos');
-        }
-
-        const clientes = this.prepareClientsCitas(filasDatos);
-        this.ListCitas(clientes, nombreClinica);
         
         return clientes;
     }
@@ -313,70 +289,6 @@ class remindersData {
         }, []);
     }
 
-    // PrepareClients para citas
-    private prepareClientsCitas(rows: any[][]): Cliente[] {
-        return rows.reduce((acc: Cliente[], cell: any[], index) => {
-            try {
-                const fecha = this.formatDateLong(cell[0]?.toString() || '');
-                const hora_inicio = cell[1]?.toString() || '';
-                const tipo_visita = this.formatString(cell[2]?.toString() || '');
-                const propietario = this.formatString(cell[3]?.toString() || '');
-                const nombreMascota = this.formatString(cell[4]?.toString() || '');
-                const telefono = this.formatNumbers(cell[5]?.toString() || '');
-                const asunto = this.formatString(cell[6]?.toString() || '');
-                const agenda = this.formatString(cell[7]?.toString() || '');
-                const estado = this.formatString(cell[8]?.toString() || '');
-
-                // Validar datos mínimos
-                if (!propietario || propietario.trim() === '' || !telefono || telefono.trim() === '') {
-                    console.log(`Fila ${index + 1} ignorada: datos insuficientes`);
-                    return acc;
-                }
-
-                // Buscar o crear el cliente
-                let cliente = acc.find(c => c.nombre === propietario && c.telefono === telefono);
-            
-                if (!cliente) {
-                    cliente = {
-                        nombre: propietario,
-                        telefono,
-                        mascotas: [],
-                        mensajes: [],
-                        status: false,
-                        // Datos específicos de citas
-                        fechaCita: fecha,
-                        horaCita: hora_inicio,
-                        tipoVisita: tipo_visita,
-                        asunto: asunto,
-                        agenda: agenda,
-                        estado: estado
-                    };
-                    acc.push(cliente);
-                } else {
-                    // Si ya existe, podemos actualizar o acumular datos
-                    // Para simplificar, tomamos los datos de la primera fila
-                }
-
-                // Solo agregar mascota si tiene nombre
-                if (nombreMascota && nombreMascota.trim() !== '') {
-                    let mascota = cliente.mascotas.find(m => m.nombre === nombreMascota);
-                    if (!mascota) {
-                        mascota = {
-                            nombre: nombreMascota,
-                            recordatorios: []
-                        };
-                        cliente.mascotas.push(mascota);
-                    }
-                }
-
-            } catch (error) {
-                console.error(`Error procesando fila ${index + 1}:`, error);
-            }
-
-            return acc;
-        }, []);
-    }
-
     // ListPets para vacunas
     private ListPetsVacunas(clientes: Cliente[], nombreClinica: string) {
         clientes.forEach(cliente => {
@@ -425,78 +337,6 @@ class remindersData {
         });
     }
 
-    // ListCitas para citas
-    private ListCitas(clientes: Cliente[], nombreClinica: string) {
-        clientes.forEach(cliente => {
-            // Mensaje de saludo
-            cliente.mensajes.push(this.createNewMsg(`Hola ${cliente.nombre}.`));
-        
-            // CORREGIDO: Usar nombre limpio de la clínica
-            const nombreClinicaLimpio = this.extraerNombreClinica(nombreClinica);
-        
-            // Mensaje de cita CORREGIDO
-            let mensajeCita = `${nombreClinicaLimpio} le recuerda su cita`;
-        
-            if (cliente.mascotas.length > 0) {
-                mensajeCita += ` para ${cliente.mascotas.map(m => `"${m.nombre}"`).join(', ')}`;
-            }
-        
-            mensajeCita += `.\n\n`;
-        
-            // Agregar detalles de la cita
-            if (cliente.fechaCita) {
-                mensajeCita += `📅 Fecha: ${cliente.fechaCita}\n`;
-            }
-        
-            if (cliente.horaCita) {
-                mensajeCita += `⏰ Hora: ${cliente.horaCita}\n`;
-            }
-        
-            if (cliente.tipoVisita) {
-                mensajeCita += `👨‍⚕️ Tipo: ${cliente.tipoVisita}\n`;
-            }
-        
-            if (cliente.asunto) {
-                mensajeCita += `📝 Asunto: ${cliente.asunto}\n`;
-            }
-        
-            if (cliente.agenda) {
-                mensajeCita += `👤 Agenda: ${cliente.agenda}\n`;
-            }
-        
-            if (cliente.estado) {
-                mensajeCita += `\nEstado: ${cliente.estado}\n`;
-            }
-        
-            mensajeCita += `\nPor favor confirme su asistencia con anticipación.\n\n¡Gracias! 🐾`;
-        
-            cliente.mensajes.push(this.createNewMsg(mensajeCita));
-        });
-    }
-    
-    // Helper: Extraer solo el nombre de la clínica sin "Clínica Veterinaria"
-    private extraerNombreClinica(nombreCompleto: string): string {
-        if (!nombreCompleto) return '';
-        
-        let nombre = nombreCompleto.trim();
-        
-        // Quitar "Clínica Veterinaria" si está al inicio
-        const prefijos = [
-            'Clínica Veterinaria ',
-            'La clínica veterinaria ',
-            'la clínica veterinaria '
-        ];
-        
-        for (const prefijo of prefijos) {
-            if (nombre.toLowerCase().startsWith(prefijo.toLowerCase())) {
-                nombre = nombre.substring(prefijo.length);
-                break;
-            }
-        }
-        
-        return nombre;
-    }
-
     // ListReminders (igual que la versión web)
     private ListReminders(mascota: Mascota): string {
         let recordatorio = " tiene pendiente la aplicación de ";
@@ -543,6 +383,326 @@ class remindersData {
         return tipo;
     }
 
+    //****************************************************
+    //*******************    Citas    ********************
+    //****************************************************
+
+    // Procesar template de citas
+    private procesarCitas(datos: any[][], nombreClinica: string): Cliente[] {
+        const encabezadosExcel = datos[0];
+        const titles = ["FECHA", "INICIO", "TIPO VISITA", "PROPIETARIO", "MASCOTA", "TELÉFONO", "ASUNTO", "AGENDA", "ESTADO"];
+        
+        // Verificar que los encabezados coincidan (case insensitive)
+        const headersMatch = titles.every((title, index) => {
+            const excelHeader = encabezadosExcel[index]?.toString().trim().toUpperCase() || '';
+            return excelHeader === title.toUpperCase();
+        });
+        
+        if (!headersMatch) {
+            Alert.alert("Error",`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`)
+            throw new Error(`Formato incorrecto para citas. Se requieren:\n${titles.join(' | ')}`);
+        }
+
+        const filasDatos = datos.slice(1);
+        
+        if (filasDatos.length === 0) {
+            throw new Error('El Excel no contiene datos');
+        }
+
+        const clientes = this.prepareClientsCitas(filasDatos);
+        this.ListCitas(clientes, nombreClinica);
+        
+        return clientes;
+    }
+
+    // PrepareClients para citas - VERSIÓN OPTIMIZADA PARA MISMA FECHA
+    private prepareClientsCitas(rows: any[][]): Cliente[] {
+        // Primero procesamos todas las filas y agrupamos por cliente
+        const citasPorCliente: { [claveCliente: string]: any[] } = {};
+        
+        rows.forEach((cell, index) => {
+            try {
+                const fecha = this.formatDateLong(cell[0]?.toString() || '');
+                const hora_inicio = cell[1]?.toString() || '';
+                const tipo_visita = this.formatString(cell[2]?.toString() || '');
+                const propietario = this.formatString(cell[3]?.toString() || '');
+                const nombreMascota = this.formatString(cell[4]?.toString() || '');
+                const telefono = this.formatNumbers(cell[5]?.toString() || '');
+                const asunto = this.formatString(cell[6]?.toString() || '');
+                const agenda = this.formatString(cell[7]?.toString() || '');
+                const estado = this.formatString(cell[8]?.toString() || '');
+
+                // Validar datos mínimos
+                if (!propietario || propietario.trim() === '' || !telefono || telefono.trim() === '') {
+                    console.log(`Fila ${index + 1} ignorada: datos insuficientes`);
+                    return;
+                }
+
+                const claveCliente = `${propietario}_${telefono}`;
+                
+                if (!citasPorCliente[claveCliente]) {
+                    citasPorCliente[claveCliente] = [];
+                }
+                
+                // Guardar la cita completa
+                citasPorCliente[claveCliente].push({
+                    fecha,
+                    hora_inicio,
+                    tipo_visita,
+                    nombreMascota,
+                    asunto,
+                    agenda,
+                    estado,
+                    propietario,
+                    telefono
+                });
+
+            } catch (error) {
+                console.error(`Error procesando fila ${index + 1}:`, error);
+            }
+        });
+
+        // Ahora creamos los clientes con todas sus citas
+        const clientes: Cliente[] = [];
+        
+        Object.keys(citasPorCliente).forEach(claveCliente => {
+            const citas = citasPorCliente[claveCliente];
+            if (citas.length === 0) return;
+            
+            const primeraCita = citas[0];
+            const cliente: Cliente = {
+                nombre: primeraCita.propietario,
+                telefono: primeraCita.telefono,
+                mascotas: [],
+                mensajes: [],
+                status: false,
+                // Guardamos la primera cita en los campos existentes (para compatibilidad)
+                fechaCita: primeraCita.fecha,
+                horaCita: primeraCita.hora_inicio,
+                tipoVisita: primeraCita.tipo_visita,
+                asunto: primeraCita.asunto,
+                agenda: primeraCita.agenda,
+                estado: primeraCita.estado,
+                // Campo temporal para procesamiento
+                todasLasCitas: citas
+            };
+            
+            // Agregar mascotas únicas
+            const mascotasUnicas = new Set<string>();
+            citas.forEach(cita => {
+                if (cita.nombreMascota && cita.nombreMascota.trim() !== '') {
+                    mascotasUnicas.add(cita.nombreMascota);
+                }
+            });
+            
+            mascotasUnicas.forEach(nombreMascota => {
+                cliente.mascotas.push({
+                    nombre: nombreMascota,
+                    recordatorios: []
+                });
+            });
+            
+            clientes.push(cliente);
+        });
+        
+        return clientes;
+    }
+
+    // ListCitas para citas - VERSIÓN OPTIMIZADA (FECHA UNA VEZ)
+    private ListCitas(clientes: Cliente[], nombreClinica: string) {
+        clientes.forEach(cliente => {
+            // Verificar si tenemos las citas temporales
+            const todasLasCitas = (cliente as any).todasLasCitas;
+            if (!todasLasCitas || todasLasCitas.length === 0) {
+                return;
+            }
+
+            // Verificar si todas las citas son del mismo día
+            const primeraFecha = todasLasCitas[0].fecha;
+            const mismoDia = todasLasCitas.every((cita: any) => cita.fecha === primeraFecha);
+            
+            // Agrupar citas por mascota
+            const citasPorMascota: { [mascotaNombre: string]: any[] } = {};
+            
+            todasLasCitas.forEach((cita: any) => {
+                if (cita.nombreMascota) {
+                    if (!citasPorMascota[cita.nombreMascota]) {
+                        citasPorMascota[cita.nombreMascota] = [];
+                    }
+                    citasPorMascota[cita.nombreMascota].push(cita);
+                }
+            });
+
+            const mascotasConCitas = Object.keys(citasPorMascota);
+            
+            if (mascotasConCitas.length === 0) {
+                return;
+            }
+
+            // Mensaje de saludo
+            cliente.mensajes.push(this.createNewMsg(`Hola ${cliente.nombre}.`));
+
+            // Nombre de la clínica
+            const nombreClinicaLimpio = this.extraerNombreClinica(nombreClinica);
+            
+            let mensajeCita;
+            
+            if (mascotasConCitas.length === 1) {
+                const mascotaNombre = mascotasConCitas[0];
+                const citasMascota = citasPorMascota[mascotaNombre];
+                mensajeCita = `la cita de su mascota '${mascotaNombre}'`;
+                mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
+            } else {
+                mensajeCita = "las citas de sus mascotas: ";
+        
+                for (let i = 0; i < mascotasConCitas.length; i++) {
+                    const mascotaNombre = mascotasConCitas[i];
+                    const citasMascota = citasPorMascota[mascotaNombre];
+                    
+                    if (i === 0) {
+                        mensajeCita += `'${mascotaNombre}'`;
+                        mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
+                    } else {
+                        if (i === (mascotasConCitas.length - 1)) {
+                            mensajeCita += ` y '${mascotaNombre}'`;
+                            mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
+                        } else {
+                            mensajeCita += `, '${mascotaNombre}'`;
+                            mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
+                        }
+                    }
+                }
+            }
+            
+            // Construir mensaje completo
+            let mensajeCompleto = `${nombreClinicaLimpio} le recuerda ${mensajeCita}`;
+            
+            // Agregar la fecha al final si todas son del mismo día
+            if (mismoDia && primeraFecha) {
+                mensajeCompleto += ` el día ${primeraFecha}`;
+            }
+            
+            mensajeCompleto += `.\n\n`;
+            
+            // Si hay múltiples horas, listarlas
+            if (todasLasCitas.length > 1) {
+                const horasUnicas = new Set<string>();
+                todasLasCitas.forEach((cita: any) => {
+                    if (cita.hora_inicio) {
+                        horasUnicas.add(cita.hora_inicio);
+                    }
+                });
+                
+                if (horasUnicas.size > 0) {
+                    const horasArray = Array.from(horasUnicas);
+                    if (horasArray.length === 1) {
+                        mensajeCompleto += `⏰ Hora: ${horasArray[0]}\n`;
+                    } else {
+                        mensajeCompleto += `⏰ Horas: ${horasArray.join(', ')}\n`;
+                    }
+                }
+            } else if (todasLasCitas[0].hora_inicio) {
+                mensajeCompleto += `⏰ Hora: ${todasLasCitas[0].hora_inicio}\n`;
+            }
+            
+            mensajeCompleto += `\nPor favor confirme su asistencia y el serviciocon anticipación.\n\n¡Gracias! 🐾`;
+            
+            cliente.mensajes.push(this.createNewMsg(mensajeCompleto));
+            
+            // Eliminar el campo temporal
+            delete (cliente as any).todasLasCitas;
+        });
+    }
+
+    // Listar todas las citas para una mascota
+    private listarCitasParaMascota(citas: any[], incluirFecha: boolean = true): string {
+        if (citas.length === 0) return '';
+        
+        if (citas.length === 1) {
+            return this.describirCita(citas[0], incluirFecha);
+        } else {
+            let descripcion = ` tiene ${citas.length} citas: `;
+            
+            for (let i = 0; i < citas.length; i++) {
+                if (i === 0) {
+                    descripcion += this.describirCita(citas[i], incluirFecha);
+                } else {
+                    if (i === (citas.length - 1)) {
+                        descripcion += ` y ${this.describirCita(citas[i], incluirFecha, true)}`;
+                    } else {
+                        descripcion += `, ${this.describirCita(citas[i], incluirFecha, true)}`;
+                    }
+                }
+            }
+            
+            return descripcion;
+        }
+    }
+
+    // Describir una cita individual
+    private describirCita(cita: any, incluirFecha: boolean = true, esSegundaOMas: boolean = false): string {
+        let descripcion = '';
+        
+        // Ajustar la gramática según si es la primera cita o no
+        if (esSegundaOMas) {
+            // Para citas después de la primera
+            if (cita.tipo_visita.toLowerCase().startsWith('para ')) {
+                descripcion += cita.tipo_visita;
+            } else {
+                descripcion += `para ${cita.tipo_visita}`;
+            }
+        } else {
+            // Para la primera cita
+            descripcion += ` para ${cita.tipo_visita}`;
+        }
+        
+        if (cita.asunto) {
+            descripcion += ` (${cita.asunto})`;
+        }
+        
+        if (incluirFecha && cita.fecha) {
+            descripcion += ` el ${cita.fecha}`;
+        }
+        
+        if (cita.hora_inicio) {
+            // Solo agregar "a las" si no es una cita después de la primera
+            if (!esSegundaOMas || descripcion.includes(' el ')) {
+                descripcion += ` a las ${cita.hora_inicio}`;
+            } else {
+                descripcion += ` ${cita.hora_inicio}`;
+            }
+        }
+        
+        return descripcion;
+    }
+
+    //****************************************************
+    //******************    Helper    ********************
+    //****************************************************
+
+    // Extraer solo el nombre de la clínica sin "Clínica Veterinaria"
+    private extraerNombreClinica(nombreCompleto: string): string {
+        if (!nombreCompleto) return '';
+        
+        let nombre = nombreCompleto.trim();
+        
+        // Quitar "Clínica Veterinaria" si está al inicio
+        const prefijos = [
+            'Clínica Veterinaria ',
+            'La clínica veterinaria ',
+            'la clínica veterinaria '
+        ];
+        
+        for (const prefijo of prefijos) {
+            if (nombre.toLowerCase().startsWith(prefijo.toLowerCase())) {
+                nombre = nombre.substring(prefijo.length);
+                break;
+            }
+        }
+        
+        return nombre;
+    }
+
     // Crear nuevo mensaje
     private createNewMsg(contenido: string): Mensaje {
         return {
@@ -556,7 +716,7 @@ class remindersData {
         };
     }
 
-    // Helper: Formatear texto a formato Oración
+    // Formatear texto a formato Oración
     private formatString(cadena: string): string {
         if (!cadena || cadena.trim() === '') {
             return '';
@@ -571,7 +731,7 @@ class remindersData {
         return palabras.join(" ");
     }
 
-    // Helper: Extraer solo números
+    // Extraer solo números
     private formatNumbers(cadena: string): string {
         if (!cadena) return '';
         const numbers = "0123456789";
@@ -588,7 +748,7 @@ class remindersData {
         return numeros;
     }
 
-    // Helper: Formatear fecha larga
+    // Formatear fecha larga
     private formatDateLong(date: string): string {
         if (!date) return '';
         

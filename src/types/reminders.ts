@@ -26,6 +26,7 @@ export interface Cliente {
     asunto?: string;
     agenda?: string;
     estado?: string;
+    todasLasCitas?: any[];
 }
 
 export interface Mensaje {
