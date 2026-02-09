@@ -198,56 +198,26 @@ export const MainMenuScreen = () => {
 
     switch (route) {
       case'Checklist':
-        Toast.show({
-          type: 'info',
-          text1: 'Navegando a Checklist',
-          text2: `Sucursal actual: ${sucursalName}`,
-        });
         navigation.navigate('Checklist', { sucursalKey: sucursalKey });
         break;
 
       case'TemplateChecklist':
-        Toast.show({
-          type: 'info',
-          text1: 'Navegando a Configuración de Checklist',
-          text2: `Sucursal actual: ${sucursalName}`,
-        });
         navigation.navigate('TemplateChecklist', { sucursalKey: sucursalKey });
         break;
 
       case'Reminders':
-        Toast.show({
-          type: 'info',
-          text1: 'Navegando a Recordatorios',
-          text2: `Sucursal actual: ${sucursalName}`,
-        });
         navigation.navigate('Reminders', { sucursalKey: sucursalKey });
         break;
 
       case'Reports':
-        Toast.show({
-          type: 'info',
-          text1: 'Navegando a Generador de Reportes',
-          text2: `Sucursal actual: ${sucursalName}`,
-        });
         navigation.navigate('Reports', { sucursalKey: sucursalKey });
         break;
 
       case'DriveFiles':
-        Toast.show({
-          type: 'info',
-          text1: 'Navegando a Administrador de Documentos',
-          text2: `Sucursal actual: ${sucursalName}`,
-        });
         navigation.navigate('DriveFiles', { sucursalKey: sucursalKey });
         break;
 
       case 'Updates':
-        Toast.show({
-          type: 'info',
-          text1: 'Navegando a Actualizaciones',
-          text2: `Sucursal actual: ${sucursalName}`,
-        });
         navigation.navigate('Updates', { sucursalKey: sucursalKey });
         break;
 

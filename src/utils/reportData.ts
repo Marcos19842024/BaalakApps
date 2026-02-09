@@ -20,30 +20,28 @@ export const reportTypes: ReportType[] = [
         id: 'rpc', 
         title: 'Reporte de Queja', 
         icon: '📋', 
-        description: 'Quejas de clientes' 
+        description: 'Quejas de clientes',
+        color: '#EF4444' // Rojo para quejas
     },
     { 
         id: 'incidente', 
         title: 'Reporte de Incidente', 
         icon: '⚠️', 
-        description: 'Incidentes especiales' 
-    },
-    { 
-        id: 'seguimiento', 
-        title: 'Seguimiento', 
-        icon: '📊', 
-        description: 'Monitoreo y seguimiento' 
+        description: 'Incidentes especiales',
+        color: '#F59E0B' // Ámbar para incidentes
     },
     { 
         id: 'general', 
         title: 'Reporte General', 
         icon: '📄', 
-        description: 'Actividades generales' 
+        description: 'Actividades generales',
+        color: '#10B981' // Verde para general
     }
 ];
 
-export const initializeReportData = (): ReportFormData => {
-    return {
+// Función para inicializar datos específicos por tipo de reporte
+export const initializeReportData = (type?: string): ReportFormData => {
+    const baseData = {
         fecha: getCurrentDate(),
         hora: getCurrentTime(),
         fechaProblema: '',
@@ -62,4 +60,24 @@ export const initializeReportData = (): ReportFormData => {
         costoArea: '',
         observaciones: '',
     };
+
+    // Personalizar según el tipo de reporte
+    switch (type) {
+        case 'incidente':
+            return {
+                ...baseData,
+                retroalimentacion: 'Descripción del incidente...',
+                comoResolver: 'Acciones tomadas ante el incidente...',
+                observaciones: 'Recomendaciones para prevención...',
+            };
+        case 'general':
+            return {
+                ...baseData,
+                retroalimentacion: 'Descripción de la actividad...',
+                comoResolver: 'Resultados obtenidos...',
+                observaciones: 'Observaciones generales...',
+            };
+        default:
+            return baseData;
+    }
 };

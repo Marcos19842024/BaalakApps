@@ -177,12 +177,12 @@ export const ReportsScreen = () => {
                 { 
                     text: 'Sí, crear nuevo',
                     onPress: () => {
-                        const newData = initializeReportData();
+                        const newData = initializeReportData(activeReport);
                         setFormData(newData);
                         Toast.show({
                             type: 'success',
                             text1: 'Nuevo reporte',
-                            text2: `Creado para ${sucursalName}`,
+                            text2: `${reportTypes.find(r => r.id === activeReport)?.title || 'Reporte'} creado para ${sucursalName}`,
                         });
                     }
                 }
@@ -190,40 +190,134 @@ export const ReportsScreen = () => {
         );
     };
 
-    const validateForm = (): boolean => {
+    const validateRQForm = (): boolean => {
         if (!formData.fechaProblema) {
-            Alert.alert('La fecha del problema es obligatoria');
+            Alert.alert('Error', 'La fecha del problema es obligatoria');
             return false;
         }
         if (!formData.nombreCliente.trim()) {
-            Alert.alert('El nombre del cliente es obligatorio');
+            Alert.alert('Error', 'El nombre del cliente es obligatorio');
             return false;
         }
         if (!formData.nombreMascota.trim()) {
-            Alert.alert('El nombre de la mascota es obligatorio');
+            Alert.alert('Error', 'El nombre de la mascota es obligatorio');
             return false;
         }
         if (!formData.responsable.trim()) {
-            Alert.alert('El responsable del reporte es obligatorio');
+            Alert.alert('Error', 'El responsable del reporte es obligatorio');
             return false;
         }
         if (!formData.area) {
-            Alert.alert('El área es obligatoria');
+            Alert.alert('Error', 'El área es obligatoria');
             return false;
         }
         if (!formData.personal.trim()) {
-            Alert.alert('El personal involucrado es obligatorio');
+            Alert.alert('Error', 'El personal involucrado es obligatorio');
             return false;
         }
         if (!formData.quejaResuelta.trim()) {
-            Alert.alert('El estado de la queja es obligatorio');
+            Alert.alert('Error', 'El estado de la queja es obligatorio');
             return false;
         }
         if (!formData.retroalimentacion.trim()) {
-            Alert.alert('La retroalimentación del cliente es obligatoria');
+            Alert.alert('Error', 'La retroalimentación del cliente es obligatoria');
             return false;
         }
         return true;
+    };
+
+    const validateIncidenteForm = (): boolean => {
+        if (!formData.fechaProblema) {
+            Alert.alert('Error', 'La fecha del incidente es obligatoria');
+            return false;
+        }
+        if (!formData.nombreCliente.trim()) {
+            Alert.alert('Error', 'El nombre del afectado es obligatorio');
+            return false;
+        }
+        if (!formData.raza.trim()) {
+            Alert.alert('Error', 'El tipo de incidente es obligatorio');
+            return false;
+        }
+        if (!formData.area) {
+            Alert.alert('Error', 'El área del incidente es obligatoria');
+            return false;
+        }
+        if (!formData.personal.trim()) {
+            Alert.alert('Error', 'El personal involucrado es obligatorio');
+            return false;
+        }
+        if (!formData.responsable.trim()) {
+            Alert.alert('Error', 'El responsable del reporte es obligatorio');
+            return false;
+        }
+        if (!formData.quejaResuelta.trim()) {
+            Alert.alert('Error', 'La gravedad del incidente es obligatoria');
+            return false;
+        }
+        if (!formData.retroalimentacion.trim()) {
+            Alert.alert('Error', 'La descripción del incidente es obligatoria');
+            return false;
+        }
+        if (!formData.comoResolver.trim()) {
+            Alert.alert('Error', 'Las acciones inmediatas tomadas son obligatorias');
+            return false;
+        }
+        return true;
+    };
+
+    const validateGeneralForm = (): boolean => {
+        if (!formData.fechaProblema) {
+            Alert.alert('Error', 'La fecha de actividad es obligatoria');
+            return false;
+        }
+        if (!formData.nombreCliente.trim()) {
+            Alert.alert('Error', 'El cliente/responsable es obligatorio');
+            return false;
+        }
+        if (!formData.raza.trim()) {
+            Alert.alert('Error', 'El tipo de actividad es obligatorio');
+            return false;
+        }
+        if (!formData.area) {
+            Alert.alert('Error', 'El área es obligatoria');
+            return false;
+        }
+        if (!formData.personal.trim()) {
+            Alert.alert('Error', 'El personal participante es obligatorio');
+            return false;
+        }
+        if (!formData.responsable.trim()) {
+            Alert.alert('Error', 'El responsable es obligatorio');
+            return false;
+        }
+        if (!formData.quejaResuelta.trim()) {
+            Alert.alert('Error', 'El estado de la actividad es obligatorio');
+            return false;
+        }
+        if (!formData.retroalimentacion.trim()) {
+            Alert.alert('Error', 'La descripción de la actividad es obligatoria');
+            return false;
+        }
+        if (!formData.comoResolver.trim()) {
+            Alert.alert('Error', 'Los resultados obtenidos son obligatorios');
+            return false;
+        }
+        return true;
+    };
+
+    // Función de validación general
+    const validateForm = (): boolean => {
+        switch (activeReport) {
+            case 'rq':
+                return validateRQForm();
+            case 'incidente':
+                return validateIncidenteForm();
+            case 'general':
+                return validateGeneralForm();
+            default:
+                return validateRQForm();
+        }
     };
     
     // Función para renombrar el archivo PDF
@@ -307,12 +401,20 @@ export const ReportsScreen = () => {
     };
 
     const generateFileName = (): string => {
-        const reportType = reportTypes.find(r => r.id === activeReport)?.title || 'Reporte';
+        const reportType = reportTypes.find(r => r.id === activeReport);
+        const typeName = reportType?.title.replace(/\s+/g, '_') || 'Reporte';
+        
         const clientName = formData.nombreCliente 
-        ? `_${formData.nombreCliente.replace(/\s+/g, '_')}`
-        : '';
+            ? `_${formData.nombreCliente.replace(/\s+/g, '_')}`
+            : '';
+        
+        const petName = formData.nombreMascota
+            ? `_${formData.nombreMascota.replace(/\s+/g, '_')}`
+            : '';
+        
         const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        return `${reportType.replace(/\s+/g, '_')}${clientName}_${date}.pdf`;
+        
+        return `${typeName}${clientName}${petName}_${date}_${sucursalKey}.pdf`;
     };
 
     // Función para extraer nombre del archivo de la URI
@@ -338,8 +440,8 @@ export const ReportsScreen = () => {
                 text2: `Archivo: ${fileName}`,
             });
             
-            // Generar PDF
-            const tempPdfUri = await generateReportPDF(formData, sucursalName);
+            // Generar PDF con el tipo específico
+            const tempPdfUri = await generateReportPDF(formData, sucursalName, activeReport);
             
             // Renombrar el archivo
             const renameResult = await renamePDFFile(tempPdfUri, fileName);
@@ -503,7 +605,7 @@ export const ReportsScreen = () => {
         </View>
     );
 
-    const renderRPCForm = () => (
+    const renderRQForm = () => (
         <View style={stylesreport.formContainer}>
             <View style={stylesreport.formHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -628,12 +730,266 @@ export const ReportsScreen = () => {
         </View>
     );
 
+    const renderIncidenteForm = () => (
+        <View style={stylesreport.formContainer}>
+            <View style={stylesreport.formHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <MaterialCommunityIcons name="alert-circle" size={28} color="#D97706" />
+                    <Text style={[stylesreport.formTitle, { color: '#D97706' }]}>
+                        Reporte de Incidente - {sucursalName}
+                    </Text>
+                </View>
+            </View>
+
+            <ScrollView 
+                showsVerticalScrollIndicator={false}
+                ref={areasScrollViewRef}
+                style={stylesreport.areasScrollView}
+            >
+                <View style={stylesreport.gridContainer}>
+                    <View style={stylesreport.gridColumn}>
+                        {renderDateInput(
+                            'Fecha del incidente',
+                            'fechaProblema',
+                            'Seleccionar fecha',
+                            true
+                        )}
+                        {renderInput(
+                            'Nombre del Cliente/Afectado',
+                            'nombreCliente',
+                            'Ej: JUAN PEREZ',
+                            true
+                        )}
+                        {renderInput(
+                            'Teléfono',
+                            'telefono',
+                            'Teléfono'
+                        )}
+                        {renderInput(
+                            'Mascota involucrada',
+                            'nombreMascota',
+                            'Ej: MAX'
+                        )}
+                        {renderInput(
+                            'Tipo de incidente',
+                            'raza',
+                            'Ej: Fuga, Mordida, Caída',
+                            true
+                        )}
+                    </View>
+                
+                    <View style={stylesreport.gridColumn}>
+                        {renderDateInput(
+                            'Fecha de seguimiento',
+                            'planAccion',
+                            'Seleccionar fecha'
+                        )}
+                        {renderInput(
+                            'Área del incidente',
+                            'area',
+                            'Ej: Albercas, Recepción, Hospedaje',
+                            true
+                        )}
+                        {renderInput(
+                            'Personal involucrado',
+                            'personal',
+                            'Ej: ALICIA GOMEZ',
+                            true
+                        )}
+                        {renderInput(
+                            'Responsable del reporte',
+                            'responsable',
+                            'Ej: Mayte colli',
+                            true
+                        )}
+                        {renderInput(
+                            'Gravedad',
+                            'quejaResuelta',
+                            'Ej: Leve / Moderado / Grave',
+                            true
+                        )}
+                    </View>
+                </View>
+
+                {renderInput(
+                    'Costo estimado ($)',
+                    'costoArea',
+                    '0.00',
+                    false,
+                    false,
+                    'numeric'
+                )}
+
+                {renderInput(
+                    'Descripción detallada del incidente',
+                    'retroalimentacion',
+                    'Describa exactamente qué sucedió, hora, lugar, circunstancias...',
+                    true,
+                    true
+                )}
+                
+                {renderInput(
+                    'Acciones inmediatas tomadas',
+                    'comoResolver',
+                    'Describa las acciones tomadas inmediatamente después del incidente...',
+                    true,
+                    true
+                )}
+                
+                {renderInput(
+                    'Primeros auxilios aplicados',
+                    'pasosResolver',
+                    'Describa los primeros auxilios o atención médica proporcionada...',
+                    false,
+                    true
+                )}
+
+                {renderInput(
+                    'Recomendaciones de prevención',
+                    'observaciones',
+                    'Medidas para prevenir incidentes similares en el futuro...',
+                    false,
+                    true
+                )}
+            </ScrollView>
+        </View>
+    );
+
+    const renderGeneralForm = () => (
+        <View style={stylesreport.formContainer}>
+            <View style={stylesreport.formHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <MaterialCommunityIcons name="file-document" size={28} color="#059669" />
+                    <Text style={[stylesreport.formTitle, { color: '#059669' }]}>
+                        Reporte General - {sucursalName}
+                    </Text>
+                </View>
+            </View>
+
+            <ScrollView 
+                showsVerticalScrollIndicator={false}
+                ref={areasScrollViewRef}
+                style={stylesreport.areasScrollView}
+            >
+                <View style={stylesreport.gridContainer}>
+                    <View style={stylesreport.gridColumn}>
+                        {renderDateInput(
+                            'Fecha de actividad',
+                            'fechaProblema',
+                            'Seleccionar fecha',
+                            true
+                        )}
+                        {renderInput(
+                            'Cliente/Responsable',
+                            'nombreCliente',
+                            'Ej: PEDRO SANCHEZ',
+                            true
+                        )}
+                        {renderInput(
+                            'Teléfono',
+                            'telefono',
+                            'Teléfono'
+                        )}
+                        {renderInput(
+                            'Mascota(s)',
+                            'nombreMascota',
+                            'Ej: TOBY, MIA'
+                        )}
+                        {renderInput(
+                            'Tipo de actividad',
+                            'raza',
+                            'Ej: Capacitación, Mantenimiento, Visita',
+                            true
+                        )}
+                    </View>
+                
+                    <View style={stylesreport.gridColumn}>
+                        {renderDateInput(
+                            'Fecha de término',
+                            'planAccion',
+                            'Seleccionar fecha'
+                        )}
+                        {renderInput(
+                            'Área',
+                            'area',
+                            'Ej: Administración, Operaciones, Ventas',
+                            true
+                        )}
+                        {renderInput(
+                            'Personal participante',
+                            'personal',
+                            'Ej: ALICIA GOMEZ, CARLOS LOPEZ',
+                            true
+                        )}
+                        {renderInput(
+                            'Responsable',
+                            'responsable',
+                            'Ej: Gerente de sucursal',
+                            true
+                        )}
+                        {renderInput(
+                            'Estado',
+                            'quejaResuelta',
+                            'Ej: Completado / En proceso / Pendiente',
+                            true
+                        )}
+                    </View>
+                </View>
+
+                {renderInput(
+                    'Costo/Inversión ($)',
+                    'costoArea',
+                    '0.00',
+                    false,
+                    false,
+                    'numeric'
+                )}
+
+                {renderInput(
+                    'Descripción de la actividad',
+                    'retroalimentacion',
+                    'Describa detalladamente la actividad realizada...',
+                    true,
+                    true
+                )}
+                
+                {renderInput(
+                    'Resultados obtenidos',
+                    'comoResolver',
+                    'Describa los logros, aprendizajes, productos entregados...',
+                    true,
+                    true
+                )}
+                
+                {renderInput(
+                    'Metodología/proceso',
+                    'pasosResolver',
+                    'Describa cómo se realizó la actividad, pasos seguidos...',
+                    false,
+                    true
+                )}
+
+                {renderInput(
+                    'Conclusiones y observaciones',
+                    'observaciones',
+                    'Conclusiones finales, áreas de oportunidad, mejoras...',
+                    false,
+                    true
+                )}
+            </ScrollView>
+        </View>
+    );
+
     const renderForm = () => {
         switch (activeReport) {
             case 'rpc':
-            return renderRPCForm();
+                return renderRQForm();
+            case 'incidente':
+                return renderIncidenteForm();
+            case 'general':
+                return renderGeneralForm();
             default:
-            return renderRPCForm();
+                return renderRQForm();
         }
     };
 
@@ -685,29 +1041,39 @@ export const ReportsScreen = () => {
                         showsHorizontalScrollIndicator={false}
                         style={stylesreport.areaScroll}
                     >
-                        {reportTypes.map((report) => (
-                            <TouchableOpacity
-                                key={report.id}
-                                style={[
-                                    stylesreport.areaButton,
-                                    activeReport === report.id && stylesreport.areaButtonActive,
-                                    { minWidth: 100 }
-                                ]}
-                                onPress={() => setActiveReport(report.id)}
-                                disabled={isLoading}
-                            >
-                                <Text style={stylesreport.areaIcon}>{report.icon}</Text>
-                                <Text
+                        {reportTypes.map((report) => {
+                            const reportType = reportTypes.find(r => r.id === report.id);
+                            const isActive = activeReport === report.id;
+                            
+                            return (
+                                <TouchableOpacity
+                                    key={report.id}
                                     style={[
-                                        stylesreport.areaButtonText,
-                                        activeReport === report.id && stylesreport.areaButtonTextActive,
-                                        { fontSize: 12 }
+                                        stylesreport.areaButton,
+                                        isActive && stylesreport.areaButtonActive,
+                                        { 
+                                            minWidth: 100,
+                                            backgroundColor: isActive ? (reportType?.color || '#05aaca') : '#f3f4f6',
+                                            borderColor: isActive ? (reportType?.color || '#05aaca') : '#d1d5db',
+                                            borderWidth: 1,
+                                        }
                                     ]}
+                                    onPress={() => setActiveReport(report.id)}
+                                    disabled={isLoading}
                                 >
-                                    {report.title}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
+                                    <Text style={stylesreport.areaIcon}>{report.icon}</Text>
+                                    <Text
+                                        style={[
+                                            stylesreport.areaButtonText,
+                                            isActive && stylesreport.areaButtonTextActive,
+                                            { fontSize: 12 }
+                                        ]}
+                                    >
+                                        {report.title}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </ScrollView>
                 </View>
             </View>

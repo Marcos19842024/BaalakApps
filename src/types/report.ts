@@ -23,4 +23,5 @@ export interface ReportType {
   title: string;
   icon: string;
   description: string;
+  color?: string; // Color específico para cada tipo
 }

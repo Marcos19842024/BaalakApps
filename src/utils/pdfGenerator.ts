@@ -37,7 +37,6 @@ const readPhotoAsBase64 = async (photoUri: string): Promise<string> => {
   }
 };
 
-// 1. PDF para Checklist
 export const generateChecklistPDF = async (
   data: ChecklistData, 
   sucursal: string
@@ -525,311 +524,470 @@ export const generateChecklistPDF = async (
   }
 };
 
-// 2. PDF para Reporte de Problemas
+// Configuración de tamaños de fuente
+const FONT_SIZES = {
+  title: 18,
+  subtitle: 14,
+  normal: 11,
+  small: 10,
+  verySmall: 9,
+  label: 10,
+  value: 11,
+};
+
+// Estilos comunes para todos los reportes
+const COMMON_STYLES = `
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    line-height: 1.4;
+  }
+  .container {
+    padding: 20px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #05aaca;
+    padding-bottom: 15px;
+  }
+  .header h1 {
+    font-size: ${FONT_SIZES.title}px;
+    color: #05aaca;
+    margin: 0 0 8px 0;
+  }
+  .header h2 {
+    font-size: ${FONT_SIZES.subtitle}px;
+    color: #666;
+    margin: 0;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+  }
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 6px;
+  }
+  .info-label {
+    font-size: ${FONT_SIZES.label}px;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 2px;
+  }
+  .info-value {
+    font-size: ${FONT_SIZES.value}px;
+    color: #111827;
+    background: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    min-height: 22px;
+  }
+  .section {
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: ${FONT_SIZES.subtitle}px;
+    font-weight: 600;
+    color: #374151;
+    background: #f3f4f6;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    border-left: 4px solid #05aaca;
+  }
+  .field-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .field-half {
+    flex: 1;
+  }
+  .field-full {
+    width: 100%;
+  }
+  .field-label {
+    font-size: ${FONT_SIZES.label}px;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 2px;
+  }
+  .field-value {
+    font-size: ${FONT_SIZES.value}px;
+    color: #111827;
+    background: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    min-height: 24px;
+    line-height: 1.3;
+  }
+  .text-area {
+    min-height: 60px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .footer {
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+    font-size: ${FONT_SIZES.small}px;
+    color: #6b7280;
+    text-align: center;
+  }
+`;
+
+// Función auxiliar para crear campos de tamaño reducido
+const createCompactField = (label: string, value: string, width: string = '48%') => `
+  <div style="width: ${width}; margin-bottom: 8px;">
+    <div class="field-label">${label}</div>
+    <div class="field-value" style="font-size: ${FONT_SIZES.value}px; min-height: 22px;">${value || '-'}</div>
+  </div>
+`;
+
+// Plantilla para Reporte de Queja
+const generateRPCHTML = (formData: ReportFormData, sucursalName: string) => {
+  const reportType = "REPORTE DE QUEJA DE CLIENTE";
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>${COMMON_STYLES}</style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${reportType}</h1>
+          <h2>${sucursalName}</h2>
+          <div style="margin-top: 10px; font-size: ${FONT_SIZES.small}px; color: #6b7280;">
+            Generado el: ${formData.fecha} a las ${formData.hora} hrs.
+          </div>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Fecha del problema:</div>
+            <div class="info-value">${formData.fechaProblema || '-'}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Área:</div>
+            <div class="info-value">${formData.area || '-'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Información del Cliente</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${createCompactField('Nombre del Cliente', formData.nombreCliente, '48%')}
+            ${createCompactField('Teléfono', formData.telefono, '48%')}
+            ${createCompactField('Nombre de la Mascota', formData.nombreMascota, '48%')}
+            ${createCompactField('Raza', formData.raza, '48%')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Detalles del Personal</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${createCompactField('Personal Involucrado', formData.personal, '48%')}
+            ${createCompactField('Responsable del Plan', formData.responsable, '48%')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Descripción de la Queja</div>
+          <div>
+            <div class="field-label">Retroalimentación del Cliente:</div>
+            <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Plan de Acción</div>
+          <div style="margin-bottom: 10px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+              ${createCompactField('Fecha Plan de Acción', formData.planAccion, '48%')}
+              ${createCompactField('Costo al Área', formData.costoArea ? `$${formData.costoArea}` : '-', '48%')}
+            </div>
+            <div style="margin-bottom: 10px;">
+              <div class="field-label">Cómo se va a resolver el problema:</div>
+              <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <div class="field-label">Pasos seguidos para resolver:</div>
+              <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
+            </div>
+            <div>
+              <div class="field-label">Estado:</div>
+              <div class="field-value" style="font-weight: 600; color: ${formData.quejaResuelta === 'SI' ? '#10B981' : formData.quejaResuelta === 'NO' ? '#EF4444' : '#F59E0B'}">
+                ${formData.quejaResuelta || '-'}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        ${formData.observaciones ? `
+          <div class="section">
+            <div class="section-title">Observaciones Adicionales</div>
+            <div class="field-value text-area">${formData.observaciones}</div>
+          </div>
+        ` : ''}
+        
+        <div class="footer">
+          <div>Documento generado por el sistema de reportes - ${new Date().getFullYear()}</div>
+          <div style="margin-top: 5px; font-size: ${FONT_SIZES.verySmall}px;">
+            ID del reporte: ${Date.now()}
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+// Plantilla para Reporte de Incidente
+const generateIncidenteHTML = (formData: ReportFormData, sucursalName: string) => {
+  const reportType = "REPORTE DE INCIDENTE";
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        ${COMMON_STYLES}
+        .severity-high { color: #EF4444; font-weight: 600; }
+        .severity-medium { color: #F59E0B; font-weight: 600; }
+        .severity-low { color: #10B981; font-weight: 600; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="color: #D97706;">${reportType}</h1>
+          <h2>${sucursalName}</h2>
+          <div style="margin-top: 10px; font-size: ${FONT_SIZES.small}px; color: #6b7280;">
+            Generado el: ${formData.fecha} a las ${formData.hora} hrs.
+          </div>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Fecha del incidente:</div>
+            <div class="info-value">${formData.fechaProblema || '-'}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Tipo de incidente:</div>
+            <div class="info-value">${formData.raza || '-'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #D97706;">Información del Afectado</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${createCompactField('Nombre del Afectado', formData.nombreCliente, '48%')}
+            ${createCompactField('Teléfono', formData.telefono, '48%')}
+            ${createCompactField('Mascota involucrada', formData.nombreMascota, '48%')}
+            ${createCompactField('Gravedad', formData.quejaResuelta, '48%')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #D97706;">Ubicación y Personal</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${createCompactField('Área del incidente', formData.area, '48%')}
+            ${createCompactField('Personal involucrado', formData.personal, '48%')}
+            ${createCompactField('Responsable del reporte', formData.responsable, '48%')}
+            ${createCompactField('Fecha de seguimiento', formData.planAccion, '48%')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #D97706;">Descripción del Incidente</div>
+          <div>
+            <div class="field-label">Descripción detallada:</div>
+            <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #D97706;">Acciones Tomadas</div>
+          <div style="margin-bottom: 10px;">
+            <div style="margin-bottom: 10px;">
+              <div class="field-label">Acciones inmediatas tomadas:</div>
+              <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <div class="field-label">Primeros auxilios aplicados:</div>
+              <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+              ${createCompactField('Costo estimado', formData.costoArea ? `$${formData.costoArea}` : '-', '48%')}
+            </div>
+          </div>
+        </div>
+        
+        ${formData.observaciones ? `
+          <div class="section">
+            <div class="section-title" style="border-left-color: #D97706;">Recomendaciones de Prevención</div>
+            <div class="field-value text-area">${formData.observaciones}</div>
+          </div>
+        ` : ''}
+        
+        <div class="footer">
+          <div>Documento generado por el sistema de reportes - ${new Date().getFullYear()}</div>
+          <div style="margin-top: 5px; font-size: ${FONT_SIZES.verySmall}px;">
+            ID del incidente: INC-${Date.now().toString().slice(-8)}
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+// Plantilla para Reporte General
+const generateGeneralHTML = (formData: ReportFormData, sucursalName: string) => {
+  const reportType = "REPORTE GENERAL";
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>${COMMON_STYLES}</style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="color: #059669;">${reportType}</h1>
+          <h2>${sucursalName}</h2>
+          <div style="margin-top: 10px; font-size: ${FONT_SIZES.small}px; color: #6b7280;">
+            Generado el: ${formData.fecha} a las ${formData.hora} hrs.
+          </div>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Fecha de actividad:</div>
+            <div class="info-value">${formData.fechaProblema || '-'}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Tipo de actividad:</div>
+            <div class="info-value">${formData.raza || '-'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #059669;">Información de la Actividad</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${createCompactField('Cliente/Responsable', formData.nombreCliente, '48%')}
+            ${createCompactField('Teléfono', formData.telefono, '48%')}
+            ${createCompactField('Mascota(s)', formData.nombreMascota, '48%')}
+            ${createCompactField('Estado', formData.quejaResuelta, '48%')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #059669;">Equipo y Fechas</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${createCompactField('Área', formData.area, '48%')}
+            ${createCompactField('Personal participante', formData.personal, '48%')}
+            ${createCompactField('Responsable', formData.responsable, '48%')}
+            ${createCompactField('Fecha de término', formData.planAccion, '48%')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #059669;">Descripción de la Actividad</div>
+          <div>
+            <div class="field-label">Detalles de la actividad realizada:</div>
+            <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title" style="border-left-color: #059669;">Resultados y Proceso</div>
+          <div style="margin-bottom: 10px;">
+            <div style="margin-bottom: 10px;">
+              <div class="field-label">Resultados obtenidos:</div>
+              <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <div class="field-label">Metodología/proceso seguido:</div>
+              <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+              ${createCompactField('Costo/Inversión', formData.costoArea ? `$${formData.costoArea}` : '-', '48%')}
+            </div>
+          </div>
+        </div>
+        
+        ${formData.observaciones ? `
+          <div class="section">
+            <div class="section-title" style="border-left-color: #059669;">Conclusiones y Observaciones</div>
+            <div class="field-value text-area">${formData.observaciones}</div>
+          </div>
+        ` : ''}
+        
+        <div class="footer">
+          <div>Documento generado por el sistema de reportes - ${new Date().getFullYear()}</div>
+          <div style="margin-top: 5px; font-size: ${FONT_SIZES.verySmall}px;">
+            ID de reporte: GEN-${Date.now().toString().slice(-8)}
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+// Función principal para generar PDF según el tipo
 export const generateReportPDF = async (
-  data: ReportFormData,
-  sucursal: string,
+  formData: ReportFormData, 
+  sucursalName: string,
+  reportType: string = 'rpc'
 ): Promise<string> => {
   try {
-    // Generar HTML para el PDF del reporte
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Reporte de Queja - ${sucursal}</title>
-          <style>
-            @page {
-              margin: 1.5cm;
-            }
-            body {
-              font-family: Arial, sans-serif;
-              font-size: 12px;
-              line-height: 1.4;
-              color: #333;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 25px;
-              border-bottom: 3px solid #3b82f6;
-              padding-bottom: 15px;
-            }
-            .title {
-              color: #1e40af;
-              font-size: 28px;
-              font-weight: bold;
-              margin: 0;
-            }
-            .subtitle {
-              color: #3b82f6;
-              font-size: 16px;
-              margin-top: 5px;
-            }
-            .logo {
-              font-size: 20px;
-              font-weight: bold;
-              color: #3b82f6;
-              margin-bottom: 10px;
-            }
-            .section {
-              margin-bottom: 25px;
-              page-break-inside: avoid;
-            }
-            .section-title {
-              background-color: #3b82f6;
-              color: white;
-              padding: 10px 15px;
-              margin-bottom: 15px;
-              border-radius: 5px;
-              font-size: 16px;
-              font-weight: bold;
-            }
-            .grid-container {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 20px;
-              margin-bottom: 20px;
-            }
-            .field {
-              margin-bottom: 15px;
-            }
-            .field-label {
-              font-weight: bold;
-              color: #555;
-              margin-bottom: 5px;
-              display: block;
-              font-size: 11px;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            .field-value {
-              padding: 10px;
-              background-color: #f8fafc;
-              border: 1px solid #e2e8f0;
-              border-radius: 5px;
-              font-size: 12px;
-              min-height: 40px;
-              word-wrap: break-word;
-            }
-            .field-value-text {
-              line-height: 1.5;
-              white-space: pre-wrap;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 5px 10px;
-              border-radius: 15px;
-              font-size: 11px;
-              font-weight: bold;
-              text-transform: uppercase;
-            }
-            .status-resuelta {
-              background-color: #d1fae5;
-              color: #065f46;
-            }
-            .status-no-resuelta {
-              background-color: #fee2e2;
-              color: #991b1b;
-            }
-            .status-en-proceso {
-              background-color: #fef3c7;
-              color: #92400e;
-            }
-            .signature-area {
-              margin-top: 40px;
-              padding-top: 20px;
-              border-top: 2px solid #3b82f6;
-            }
-            .signature-line {
-              width: 300px;
-              border-top: 1px solid #333;
-              margin: 40px auto 10px;
-            }
-            .signature-text {
-              text-align: center;
-              font-size: 12px;
-              color: #555;
-            }
-            .footer {
-              margin-top: 40px;
-              text-align: center;
-              font-size: 10px;
-              color: #666;
-              padding-top: 15px;
-              border-top: 1px solid #e5e7eb;
-            }
-            .cost-box {
-              padding: 15px;
-              background-color: #f0f9ff;
-              border: 2px solid #0ea5e9;
-              border-radius: 8px;
-              text-align: center;
-            }
-            .cost-amount {
-              font-size: 24px;
-              font-weight: bold;
-              color: #0369a1;
-              margin: 10px 0;
-            }
-            .info-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 15px;
-            }
-            .info-table th {
-              background-color: #f1f5f9;
-              padding: 10px;
-              text-align: left;
-              border: 1px solid #cbd5e1;
-              font-size: 11px;
-              width: 30%;
-            }
-            .info-table td {
-              padding: 10px;
-              border: 1px solid #cbd5e1;
-              font-size: 12px;
-            }
-            .full-width {
-              grid-column: 1 / -1;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 class="title">REPORTE DE QUEJA - ${sucursal}</h1>
-            <div class="subtitle">Formato Oficial de Gestión de Quejas</div>
-          </div>
-
-          <!-- Información General -->
-          <div class="section">
-            <div class="section-title">📋 Información General</div>
-            <div class="grid-container">
-              <div class="field">
-                <span class="field-label">Fecha del Problema</span>
-                <div class="field-value">${data.fechaProblema || 'No especificada'}</div>
-              </div>
-              <div class="field">
-                <span class="field-label">Nombre del Cliente</span>
-                <div class="field-value">${data.nombreCliente || 'No especificado'}</div>
-              </div>
-              <div class="field">
-                <span class="field-label">Teléfono</span>
-                <div class="field-value">${data.telefono || 'No especificado'}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Información de la Mascota -->
-          <div class="section">
-            <div class="section-title">🐾 Información de la Mascota</div>
-            <div class="grid-container">
-              <div class="field">
-                <span class="field-label">Nombre de la Mascota</span>
-                <div class="field-value">${data.nombreMascota || 'No especificado'}</div>
-              </div>
-              <div class="field">
-                <span class="field-label">Raza</span>
-                <div class="field-value">${data.raza || 'No especificada'}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Detalles del Incidente -->
-          <div class="section">
-            <div class="section-title">📝 Detalles del Incidente</div>
-            
-            <table class="info-table">
-              <tr>
-                <th>Área Involucrada</th>
-                <td>${data.area || 'No especificada'}</td>
-              </tr>
-              <tr>
-                <th>Personal Involucrado</th>
-                <td>${data.personal || 'No especificado'}</td>
-              </tr>
-              <tr>
-                <th>Responsable del Plan</th>
-                <td>${data.responsable || 'No especificado'}</td>
-              </tr>
-            </table>
-
-            <div class="field full-width">
-              <span class="field-label">Retroalimentación del Cliente</span>
-              <div class="field-value field-value-text">${data.retroalimentacion || 'No hay retroalimentación registrada'}</div>
-            </div>
-          </div>
-
-          <!-- Plan de Acción y Resolución -->
-          <div class="section">
-            <div class="section-title">🔄 Plan de Acción y Resolución</div>
-            
-            <div class="grid-container">
-              <div class="field">
-                <span class="field-label">Fecha Plan de Acción</span>
-                <div class="field-value">${data.planAccion || 'No especificada'}</div>
-              </div>
-            </div>
-
-            <div class="field full-width">
-              <span class="field-label">Cómo se va a Resolver el Problema</span>
-              <div class="field-value field-value-text">${data.comoResolver || 'No especificado'}</div>
-            </div>
-
-            <div class="field full-width">
-              <span class="field-label">Pasos Seguidos para Resolver</span>
-              <div class="field-value field-value-text">${data.pasosResolver || 'No especificado'}</div>
-            </div>
-
-            <div class="field full-width">
-              <span class="field-label">Observaciones Adicionales</span>
-              <div class="field-value field-value-text">${data.observaciones || 'No hay observaciones adicionales'}</div>
-            </div>
-          </div>
-
-          <!-- Estado y Costos -->
-          <div class="section">
-            <div class="section-title">💰 Estado y Costos</div>
-            
-            <div class="grid-container">
-              <div class="field">
-                <span class="field-label">Estado de la Queja</span>
-                <div class="field-value">
-                  ${data.quejaResuelta === 'SI' ? 
-                    '<span class="status-badge status-resuelta">RESUELTA</span>' : 
-                   data.quejaResuelta === 'NO' ? 
-                    '<span class="status-badge status-no-resuelta">NO RESUELTA</span>' : 
-                    '<span class="status-badge status-en-proceso">EN PROCESO</span>'}
-                </div>
-              </div>
-              
-              <div class="field">
-                <span class="field-label">Costo al Área</span>
-                <div class="cost-box">
-                  <div class="cost-amount">$${data.costoArea || '0.00'}</div>
-                  <div style="font-size: 11px; color: #475569;">Costo generado por el incidente</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="footer">
-            <strong>Reporte de Queja - ${sucursal}</strong><br/>
-            Documento generado automáticamente el ${new Date().toLocaleDateString()} | 
-            Válido únicamente para uso interno
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Generar PDF
-    const { uri } = await Print.printToFileAsync({ 
+    let html = '';
+    
+    switch (reportType) {
+      case 'rpc':
+        html = generateRPCHTML(formData, sucursalName);
+        break;
+      case 'incidente':
+        html = generateIncidenteHTML(formData, sucursalName);
+        break;
+      case 'general':
+        html = generateGeneralHTML(formData, sucursalName);
+        break;
+      default:
+        html = generateRPCHTML(formData, sucursalName);
+    }
+    
+    const { uri } = await Print.printToFileAsync({
       html,
-      base64: false 
+      base64: false,
     });
-
+    
     return uri;
   } catch (error) {
-    console.error('Error generando PDF del reporte:', error);
+    console.error('Error generando PDF:', error);
     throw error;
   }
 };
