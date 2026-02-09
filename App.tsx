@@ -7,7 +7,6 @@ import {
   TemplateChecklistScreen,
   RemindersScreen,
   ReportsScreen,
-  UpdatesScreen,
   DriveFilesScreen
 } from './src/screens';
 
@@ -75,13 +74,6 @@ export default function App() {
           component={DriveFilesScreen}
           options={{
             title: 'Administrador de Documentos'
-          }}
-        />
-        <Stack.Screen 
-          name="Updates" 
-          component={UpdatesScreen}
-          options={{
-            title: 'Actualizaciones'
           }}
         />
       </Stack.Navigator>
