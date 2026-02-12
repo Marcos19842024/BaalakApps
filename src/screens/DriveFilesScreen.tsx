@@ -8,6 +8,7 @@ import {
     Modal,
     ActivityIndicator,
     RefreshControl,
+    TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,7 +20,6 @@ import { stylessupabase } from 'src/styles/supabase';
 import {
     uploadFileToSupabase,
     listSupabaseFiles,
-    downloadFileFromSupabase,
     deleteFileFromSupabase,
     shareSupabaseFile,
 } from 'src/services/supabaseStorageService';
@@ -32,6 +32,11 @@ export const DriveFilesScreen = () => {
     const [selectedFile, setSelectedFile] = useState<SupabaseFile | null>(null);
     const [showFileModal, setShowFileModal] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [password, setPassword] = useState('');
+    const [fileToDelete, setFileToDelete] = useState<SupabaseFile | null>(null);
+    const [authLoading, setAuthLoading] = useState(false);
+    const DELETE_PASSWORD = '240608';
 
     // Cargar archivos al inicio
     useEffect(() => {
@@ -128,36 +133,6 @@ export const DriveFilesScreen = () => {
         setShowFileModal(false);
     };
 
-    const handleDownload = async () => {
-        if (!selectedFile) return;
-
-        try {
-            setIsLoading(true);
-            const localUri = await downloadFileFromSupabase(
-                selectedFile.downloadURL, 
-                selectedFile.name
-            );
-            
-            if (localUri) {
-                Toast.show({
-                    type: 'success',
-                    text1: '✅ Descargado',
-                    text2: 'Archivo guardado en el dispositivo'
-                });
-            }
-        } catch (error) {
-            console.error('Error descargando:', error);
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'No se pudo descargar el archivo'
-            });
-        } finally {
-            setIsLoading(false);
-            setShowFileModal(false);
-        }
-    };
-
     const handleShare = async () => {
         if (!selectedFile) return;
 
@@ -174,25 +149,88 @@ export const DriveFilesScreen = () => {
 
     const handleDelete = () => {
         if (!selectedFile) return;
+        
+        // Guardar el archivo a eliminar y abrir modal de contraseña
+        setFileToDelete(selectedFile);
+        setShowFileModal(false);
+        setShowPasswordModal(true);
+        setPassword(''); // Limpiar contraseña anterior
+    };
 
-        Alert.alert(
-            'Eliminar Archivo',
-            `¿Estás seguro de eliminar "${selectedFile.name}" del servidor?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Eliminar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const success = await deleteFileFromSupabase(selectedFile.fileName);
-                        if (success) {
-                            loadFiles(); // Recargar lista
+    // NUEVO: Verificar contraseña y proceder con la eliminación
+    const handlePasswordSubmit = () => {
+        setAuthLoading(true);
+        
+        // Simular un pequeño delay para mejor UX
+        setTimeout(() => {
+            if (password === DELETE_PASSWORD) {
+                // Contraseña correcta
+                setAuthLoading(false);
+                setShowPasswordModal(false);
+                
+                // Mostrar alerta de confirmación
+                Alert.alert(
+                    'Eliminar Archivo',
+                    `¿Estás seguro de eliminar "${fileToDelete?.name}" del servidor?`,
+                    [
+                        { 
+                            text: 'Cancelar', 
+                            style: 'cancel',
+                            onPress: () => {
+                                setFileToDelete(null);
+                                setPassword('');
+                            }
+                        },
+                        {
+                            text: 'Eliminar',
+                            style: 'destructive',
+                            onPress: async () => {
+                                if (fileToDelete) {
+                                    try {
+                                        const success = await deleteFileFromSupabase(fileToDelete.fileName);
+                                        if (success) {
+                                            await loadFiles();
+                                            Toast.show({
+                                                type: 'success',
+                                                text1: '✅ Archivo eliminado',
+                                                text2: `${fileToDelete.name} se eliminó correctamente`
+                                            });
+                                        }
+                                    } catch (error) {
+                                        console.error('Error eliminando archivo:', error);
+                                        Toast.show({
+                                            type: 'error',
+                                            text1: 'Error',
+                                            text2: 'No se pudo eliminar el archivo'
+                                        });
+                                    } finally {
+                                        setFileToDelete(null);
+                                        setPassword('');
+                                    }
+                                }
+                            }
                         }
-                        setShowFileModal(false);
-                    }
-                }
-            ]
-        );
+                    ]
+                );
+            } else {
+                // Contraseña incorrecta
+                setAuthLoading(false);
+                Toast.show({
+                    type: 'error',
+                    text1: '❌ Acceso denegado',
+                    text2: 'Contraseña incorrecta'
+                });
+                setPassword('');
+            }
+        }, 800); // Delay de 800ms para mostrar el loading
+    };
+
+    // Cancelar eliminación
+    const handleCancelDelete = () => {
+        setShowPasswordModal(false);
+        setPassword('');
+        setFileToDelete(null);
+        setAuthLoading(false);
     };
 
     const formatFileSize = (bytes: number): string => {
@@ -234,7 +272,7 @@ export const DriveFilesScreen = () => {
                 <MaterialCommunityIcons
                     name={getFileIcon(item.mimeType)}
                     size={32}
-                    color="#ff0000"
+                    color="#05aaca"
                 />
             </View>
     
@@ -263,8 +301,6 @@ export const DriveFilesScreen = () => {
                     )}
                 </View>
             </View>
-            
-            <MaterialCommunityIcons name="server" size={24} color="#3ECF8E" />
         </TouchableOpacity>
     );
 
@@ -281,18 +317,6 @@ export const DriveFilesScreen = () => {
                         </Text>
                     </View>
                 </View>
-                
-                <TouchableOpacity
-                    style={[stylessupabase.uploadButton, uploading && { opacity: 0.7 }]}
-                    onPress={handleSelectAndUpload}
-                    disabled={uploading}
-                >
-                    {uploading ? (
-                        <ActivityIndicator size="small" color="white" />
-                    ) : (
-                        <Icon name="cloud-upload" size={24} color="white" />
-                    )}
-                </TouchableOpacity>
             </View>
 
             {/* Contenido */}
@@ -386,7 +410,7 @@ export const DriveFilesScreen = () => {
                                     <MaterialCommunityIcons
                                         name={getFileIcon(selectedFile.mimeType)}
                                         size={48}
-                                        color="#3ECF8E"
+                                        color="#05aaca"
                                     />
                                     <Text style={stylessupabase.modalFileName}>
                                         {selectedFile.name}
@@ -420,14 +444,6 @@ export const DriveFilesScreen = () => {
                                 
                                     <TouchableOpacity
                                         style={stylessupabase.modalActionButton}
-                                        onPress={handleDownload}
-                                    >
-                                        <Icon name="file-download" size={24} color="#10B981" />
-                                        <Text style={stylessupabase.modalActionText}>Descargar</Text>
-                                    </TouchableOpacity>
-                                
-                                    <TouchableOpacity
-                                        style={stylessupabase.modalActionButton}
                                         onPress={handleShare}
                                     >
                                         <Icon name="share" size={24} color="#8B5CF6" />
@@ -446,6 +462,75 @@ export const DriveFilesScreen = () => {
                                 </View>
                             </>
                         )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal de contraseña */}
+            <Modal
+                visible={showPasswordModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={handleCancelDelete}
+            >
+                <View style={stylessupabase.modalOverlay}>
+                    <View style={stylessupabase.passwordModalContent}>
+                        <View style={stylessupabase.passwordModalHeader}>
+                            <MaterialCommunityIcons 
+                                name="shield-lock" 
+                                size={48} 
+                                color="#EF4444" 
+                            />
+                            <Text style={stylessupabase.passwordModalTitle}>
+                                Eliminar Archivo
+                            </Text>
+                            <Text style={stylessupabase.passwordModalSubtitle}>
+                                Ingresa la contraseña de administrador
+                            </Text>
+                        </View>
+                        
+                        <TextInput
+                            style={stylessupabase.passwordInput}
+                            placeholder="Contraseña"
+                            placeholderTextColor="#9CA3AF"
+                            secureTextEntry
+                            value={password}
+                            onChangeText={setPassword}
+                            autoFocus
+                            editable={!authLoading}
+                        />
+                        
+                        <View style={stylessupabase.passwordModalButtons}>
+                            <TouchableOpacity
+                                style={stylessupabase.passwordCancelButton}
+                                onPress={handleCancelDelete}
+                                disabled={authLoading}
+                            >
+                                <Text style={stylessupabase.passwordCancelButtonText}>
+                                    Cancelar
+                                </Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity
+                                style={[
+                                    stylessupabase.passwordConfirmButton,
+                                    (!password || authLoading) && { opacity: 0.5 }
+                                ]}
+                                onPress={handlePasswordSubmit}
+                                disabled={!password || authLoading}
+                            >
+                                {authLoading ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <>
+                                        <Icon name="delete" size={18} color="white" />
+                                        <Text style={stylessupabase.passwordConfirmButtonText}>
+                                            Eliminar
+                                        </Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
