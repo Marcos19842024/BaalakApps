@@ -1,4 +1,4 @@
-import { ReportFormData, ReportType } from "src/types/report";
+import { ReportFormData, ReportType, PacienteInfo } from "src/types/report";
 
 export const getCurrentTime = (): string => {
     const now = new Date();
@@ -21,21 +21,21 @@ export const reportTypes: ReportType[] = [
         title: 'Reporte de Queja', 
         icon: '📋', 
         description: 'Quejas de clientes',
-        color: '#EF4444' // Rojo para quejas
+        color: '#EF4444'
     },
     { 
         id: 'incidente', 
-        title: 'Reporte de Incidente', 
+        title: 'Reporte de Incidente',
         icon: '⚠️', 
         description: 'Incidentes especiales',
-        color: '#F59E0B' // Ámbar para incidentes
+        color: '#F59E0B'
     },
     { 
         id: 'general', 
         title: 'Reporte General', 
-        icon: '📄', 
-        description: 'Actividades generales',
-        color: '#10B981' // Verde para general
+        icon: '📊', 
+        description: 'Reporte diario de actividad',
+        color: '#10B981'
     }
 ];
 
@@ -61,21 +61,28 @@ export const initializeReportData = (type?: string): ReportFormData => {
         observaciones: '',
     };
 
-    // Personalizar según el tipo de reporte
     switch (type) {
         case 'incidente':
             return {
                 ...baseData,
-                retroalimentacion: 'Descripción del incidente...',
-                comoResolver: 'Acciones tomadas ante el incidente...',
-                observaciones: 'Recomendaciones para prevención...',
+                retroalimentacion: 'Descripción detallada del incidente...',
+                comoResolver: 'Acciones inmediatas tomadas...',
+                observaciones: 'Medidas preventivas...',
+                lugarIncidente: '',
+                testigos: '',
+                afectados: '',
+                accionesCorrectivas: '',
+                notificaciones: '',
             };
         case 'general':
             return {
                 ...baseData,
-                retroalimentacion: 'Descripción de la actividad...',
-                comoResolver: 'Resultados obtenidos...',
+                retroalimentacion: 'Resumen de actividades del día...',
+                comoResolver: 'Logros y resultados...',
                 observaciones: 'Observaciones generales...',
+                pacientesTransitorios: [],
+                pacientesHospitalizados: [],
+                pacientesPension: [],
             };
         default:
             return baseData;

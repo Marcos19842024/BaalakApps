@@ -3,24 +3,21 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { ChecklistData } from '../types/checklist';
 import { calculateAreaStats } from './checklistData';
-import { ReportFormData } from 'src/types/report';
+import { ReportFormData, PacienteInfo } from 'src/types/report';
 
 // Función para comprimir imagen antes de convertir a base64
 const compressAndConvertToBase64 = async (photoUri: string): Promise<string> => {
   try {
     console.log('Comprimiendo y convirtiendo foto:', photoUri);
     
-    // Si es una URI local del dispositivo
     if (photoUri.startsWith('file://') || photoUri.startsWith('content://')) {
       try {
-        // Comprimir la imagen primero
         const compressedImage = await manipulateAsync(
           photoUri,
-          [{ resize: { width: 800 } }], // Redimensionar a 800px de ancho
-          { compress: 0.6, format: SaveFormat.JPEG } // Comprimir al 60%
+          [{ resize: { width: 800 } }],
+          { compress: 0.6, format: SaveFormat.JPEG }
         );
         
-        // Leer la imagen comprimida
         const base64 = await FileSystem.readAsStringAsync(compressedImage.uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
@@ -32,7 +29,6 @@ const compressAndConvertToBase64 = async (photoUri: string): Promise<string> => 
       }
     }
     
-    // Si es una URI de assets o de la web
     return photoUri;
     
   } catch (error) {
@@ -55,7 +51,6 @@ const processPhotosInBatches = async (
   for (let i = 0; i < photos.length; i += batchSize) {
     const batch = photos.slice(i, i + batchSize);
     
-    // Procesar lote en paralelo
     const batchResults = await Promise.all(
       batch.map(async (photo) => {
         try {
@@ -76,12 +71,10 @@ const processPhotosInBatches = async (
     
     results.push(...batchResults);
     
-    // Reportar progreso
     if (onProgress) {
       onProgress(Math.min(i + batchSize, total), total);
     }
     
-    // Pequeña pausa para liberar memoria
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   
@@ -90,14 +83,12 @@ const processPhotosInBatches = async (
 
 // Función para generar HTML base sin fotos
 const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
-  // Agrupar items por área
   const itemsByArea = data.items.reduce((acc, item) => {
     if (!acc[item.area]) acc[item.area] = [];
     acc[item.area].push(item);
     return acc;
   }, {} as Record<string, typeof data.items>);
 
-  // Estadísticas generales
   const stats = calculateAreaStats(data.items);
   const totalFotos = data.photos?.length || 0;
 
@@ -509,7 +500,6 @@ const injectPhotosIntoHTML = (html: string, photosWithBase64: any[]): string => 
   
   let modifiedHtml = html;
   
-  // Agrupar fotos por área
   const photosByArea: Record<string, any[]> = {};
   photosWithBase64.forEach(photo => {
     if (!photosByArea[photo.area]) {
@@ -518,7 +508,6 @@ const injectPhotosIntoHTML = (html: string, photosWithBase64: any[]): string => 
     photosByArea[photo.area].push(photo);
   });
   
-  // Reemplazar placeholders con fotos reales
   Object.entries(photosByArea).forEach(([area, photos]) => {
     photos.forEach((photo, idx) => {
       const placeholder = `<!-- PHOTO_${area}_${idx} -->`;
@@ -559,11 +548,9 @@ export const generateChecklistPDF = async (
     console.log('Generando PDF optimizado con fotos...');
     console.log('Total de fotos:', data.photos?.length || 0);
     
-    // 1. Primero generar HTML sin fotos (rápido)
     if (onProgress) onProgress(10);
     let html = generateBaseHTML(data, sucursal);
     
-    // 2. Si hay fotos, procesarlas en lotes
     if (data.photos && data.photos.length > 0) {
       console.log('Procesando fotos en lotes...');
       
@@ -576,13 +563,11 @@ export const generateChecklistPDF = async (
         }
       );
       
-      // 3. Inyectar fotos en el HTML
       html = injectPhotosIntoHTML(html, photosWithBase64);
       
       if (onProgress) onProgress(95);
     }
     
-    // 4. Generar PDF final
     console.log('Generando PDF final...');
     const { uri } = await Print.printToFileAsync({ 
       html,
@@ -615,12 +600,12 @@ const COMMON_STYLES = `
   body {
     font-family: Arial, sans-serif;
     margin: 0;
-    padding: 0;
+    padding: 20px;
     color: #333;
     line-height: 1.4;
   }
   .container {
-    padding: 20px;
+    max-width: 100%;
   }
   .header {
     text-align: center;
@@ -641,7 +626,7 @@ const COMMON_STYLES = `
   .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 15px;
     margin-bottom: 20px;
     background: #f8fafc;
     padding: 15px;
@@ -651,25 +636,25 @@ const COMMON_STYLES = `
   .info-item {
     display: flex;
     flex-direction: column;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .info-label {
     font-size: ${FONT_SIZES.label}px;
     font-weight: 600;
     color: #4b5563;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
   .info-value {
     font-size: ${FONT_SIZES.value}px;
     color: #111827;
     background: white;
-    padding: 4px 8px;
+    padding: 6px 10px;
     border-radius: 4px;
     border: 1px solid #d1d5db;
-    min-height: 22px;
   }
   .section {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    page-break-inside: avoid;
   }
   .section-title {
     font-size: ${FONT_SIZES.subtitle}px;
@@ -678,13 +663,13 @@ const COMMON_STYLES = `
     background: #f3f4f6;
     padding: 8px 12px;
     border-radius: 4px;
-    margin-bottom: 12px;
-    border-left: 4px solid #05aaca;
+    margin-bottom: 15px;
+    border-left: 4px solid;
   }
   .field-row {
     display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 15px;
+    margin-bottom: 12px;
   }
   .field-half {
     flex: 1;
@@ -696,7 +681,7 @@ const COMMON_STYLES = `
     font-size: ${FONT_SIZES.label}px;
     font-weight: 600;
     color: #4b5563;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
   .field-value {
     font-size: ${FONT_SIZES.value}px;
@@ -713,6 +698,100 @@ const COMMON_STYLES = `
     white-space: pre-wrap;
     word-break: break-word;
   }
+  .severity-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .severity-alta { background: #FEE2E2; color: #991B1B; }
+  .severity-media { background: #FEF3C7; color: #92400E; }
+  .severity-baja { background: #D1FAE5; color: #065F46; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+  }
+  th {
+    background: #f8fafc;
+    padding: 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    font-size: 10px;
+  }
+  .treatment-badge {
+    background: #FEE2E2;
+    color: #991B1B;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .summary-card {
+    background: #059669;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .summary-number {
+    font-size: 36px;
+    font-weight: bold;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+  }
+  .stat-box {
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+  }
+  .stat-number {
+    font-size: 20px;
+    font-weight: bold;
+    color: #059669;
+  }
+  .incident-details {
+    background: #F9FAFB;
+    border-left: 4px solid #D97706;
+    padding: 15px;
+    margin: 15px 0;
+  }
+  .personal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 15px 0;
+  }
+  .personal-card {
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+  .personal-role {
+    font-size: 11px;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .personal-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+  }
   .footer {
     margin-top: 30px;
     padding-top: 15px;
@@ -723,15 +802,15 @@ const COMMON_STYLES = `
   }
 `;
 
-// Función auxiliar para crear campos de tamaño reducido
-const createCompactField = (label: string, value: string, width: string = '48%') => `
-  <div style="width: ${width}; margin-bottom: 8px;">
+// Función auxiliar para crear campos
+const createField = (label: string, value: string, fullWidth: boolean = false) => `
+  <div style="${fullWidth ? 'width: 100%;' : 'flex: 1;'} margin-bottom: 10px;">
     <div class="field-label">${label}</div>
-    <div class="field-value" style="font-size: ${FONT_SIZES.value}px; min-height: 22px;">${value || '-'}</div>
+    <div class="field-value">${value || '-'}</div>
   </div>
 `;
 
-// Plantilla para Reporte de Queja
+// Plantilla para Reporte de Queja (RPC) - CORREGIDA
 const generateRPCHTML = (formData: ReportFormData, sucursalName: string) => {
   const reportType = "REPORTE DE QUEJA DE CLIENTE";
   
@@ -746,85 +825,75 @@ const generateRPCHTML = (formData: ReportFormData, sucursalName: string) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>${reportType}</h1>
+          <h1 style="color: #EF4444;">${reportType}</h1>
           <h2>${sucursalName}</h2>
           <div style="margin-top: 10px; font-size: ${FONT_SIZES.small}px; color: #6b7280;">
             Generado el: ${formData.fecha} a las ${formData.hora} hrs.
           </div>
         </div>
         
-        <div class="info-grid">
-          <div class="info-item">
-            <div class="info-label">Fecha del problema:</div>
-            <div class="info-value">${formData.fechaProblema || '-'}</div>
+        <div class="section">
+          <div class="section-title" style="border-left-color: #EF4444;">Información del Problema</div>
+          <div class="field-row">
+            ${createField('Fecha del problema', formData.fechaProblema)}
+            ${createField('Fecha plan de acción', formData.planAccion)}
           </div>
-          <div class="info-item">
-            <div class="info-label">Área:</div>
-            <div class="info-value">${formData.area || '-'}</div>
+          <div class="field-row">
+            ${createField('Área', formData.area)}
+            ${createField('Estado', formData.quejaResuelta)}
+          </div>
+          <div class="field-row">
+            ${createField('Personal involucrado', formData.personal)}
+            ${createField('Responsable del plan', formData.responsable)}
           </div>
         </div>
-        
+
         <div class="section">
-          <div class="section-title">Información del Cliente</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${createCompactField('Nombre del Cliente', formData.nombreCliente, '48%')}
-            ${createCompactField('Teléfono', formData.telefono, '48%')}
-            ${createCompactField('Nombre de la Mascota', formData.nombreMascota, '48%')}
-            ${createCompactField('Raza', formData.raza, '48%')}
+          <div class="section-title" style="border-left-color: #EF4444;">Información del Cliente</div>
+          <div class="field-row">
+            ${createField('Nombre del Cliente', formData.nombreCliente)}
+            ${createField('Teléfono', formData.telefono)}
+          </div>
+          <div class="field-row">
+            ${createField('Nombre de la Mascota', formData.nombreMascota)}
+            ${createField('Raza', formData.raza)}
           </div>
         </div>
-        
+
         <div class="section">
-          <div class="section-title">Detalles del Personal</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${createCompactField('Personal Involucrado', formData.personal, '48%')}
-            ${createCompactField('Responsable del Plan', formData.responsable, '48%')}
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">Descripción de la Queja</div>
-          <div>
-            <div class="field-label">Retroalimentación del Cliente:</div>
+          <div class="section-title" style="border-left-color: #EF4444;">Descripción de la Queja</div>
+          <div class="field-full">
+            <div class="field-label">Retroalimentación del cliente:</div>
             <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
           </div>
         </div>
-        
+
         <div class="section">
-          <div class="section-title">Plan de Acción</div>
-          <div style="margin-bottom: 10px;">
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-              ${createCompactField('Fecha Plan de Acción', formData.planAccion, '48%')}
-              ${createCompactField('Costo al Área', formData.costoArea ? `$${formData.costoArea}` : '-', '48%')}
-            </div>
-            <div style="margin-bottom: 10px;">
-              <div class="field-label">Cómo se va a resolver el problema:</div>
-              <div class="field-value text-area">${formData.comoResolver || '-'}</div>
-            </div>
-            <div style="margin-bottom: 10px;">
-              <div class="field-label">Pasos seguidos para resolver:</div>
-              <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
-            </div>
-            <div>
-              <div class="field-label">Estado:</div>
-              <div class="field-value" style="font-weight: 600; color: ${formData.quejaResuelta === 'SI' ? '#10B981' : formData.quejaResuelta === 'NO' ? '#EF4444' : '#F59E0B'}">
-                ${formData.quejaResuelta || '-'}
-              </div>
-            </div>
+          <div class="section-title" style="border-left-color: #EF4444;">Plan de Acción</div>
+          <div class="field-full">
+            <div class="field-label">¿Cómo se va a resolver?</div>
+            <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+          </div>
+          <div style="margin-top: 10px;">
+            <div class="field-label">Pasos a seguir:</div>
+            <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
+          </div>
+          <div style="margin-top: 10px;">
+            ${createField('Costo al área', formData.costoArea ? `$${formData.costoArea}` : '-', true)}
           </div>
         </div>
-        
+
         ${formData.observaciones ? `
           <div class="section">
-            <div class="section-title">Observaciones Adicionales</div>
+            <div class="section-title" style="border-left-color: #EF4444;">Observaciones Adicionales</div>
             <div class="field-value text-area">${formData.observaciones}</div>
           </div>
         ` : ''}
-        
+
         <div class="footer">
           <div>Documento generado por el sistema de reportes - ${new Date().getFullYear()}</div>
           <div style="margin-top: 5px; font-size: ${FONT_SIZES.verySmall}px;">
-            ID del reporte: ${Date.now()}
+            ID del reporte: RPC-${Date.now().toString().slice(-8)}
           </div>
         </div>
       </div>
@@ -833,7 +902,7 @@ const generateRPCHTML = (formData: ReportFormData, sucursalName: string) => {
   `;
 };
 
-// Plantilla para Reporte de Incidente
+// Plantilla para Reporte de Incidente mejorado
 const generateIncidenteHTML = (formData: ReportFormData, sucursalName: string) => {
   const reportType = "REPORTE DE INCIDENTE";
   
@@ -843,12 +912,7 @@ const generateIncidenteHTML = (formData: ReportFormData, sucursalName: string) =
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        ${COMMON_STYLES}
-        .severity-high { color: #EF4444; font-weight: 600; }
-        .severity-medium { color: #F59E0B; font-weight: 600; }
-        .severity-low { color: #10B981; font-weight: 600; }
-      </style>
+      <style>${COMMON_STYLES}</style>
     </head>
     <body>
       <div class="container">
@@ -856,73 +920,94 @@ const generateIncidenteHTML = (formData: ReportFormData, sucursalName: string) =
           <h1 style="color: #D97706;">${reportType}</h1>
           <h2>${sucursalName}</h2>
           <div style="margin-top: 10px; font-size: ${FONT_SIZES.small}px; color: #6b7280;">
-            Generado el: ${formData.fecha} a las ${formData.hora} hrs.
+            Reporte generado: ${formData.fecha} ${formData.hora} hrs.
           </div>
         </div>
         
         <div class="info-grid">
           <div class="info-item">
-            <div class="info-label">Fecha del incidente:</div>
-            <div class="info-value">${formData.fechaProblema || '-'}</div>
+            <span class="info-label">Fecha del incidente:</span>
+            <span class="info-value">${formData.fechaProblema || '-'}</span>
           </div>
           <div class="info-item">
-            <div class="info-label">Tipo de incidente:</div>
-            <div class="info-value">${formData.raza || '-'}</div>
+            <span class="info-label">Hora aproximada:</span>
+            <span class="info-value">${formData.hora || '-'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Lugar:</span>
+            <span class="info-value">${formData.lugarIncidente || formData.area || '-'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Tipo de incidente:</span>
+            <span class="info-value">${formData.raza || '-'}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Gravedad:</span>
+            <span class="info-value">
+              <span class="severity-badge ${
+                formData.quejaResuelta?.toLowerCase().includes('grave') ? 'severity-alta' :
+                formData.quejaResuelta?.toLowerCase().includes('moderado') ? 'severity-media' : 'severity-baja'
+              }">${formData.quejaResuelta || '-'}</span>
+            </span>
           </div>
         </div>
-        
+
         <div class="section">
-          <div class="section-title" style="border-left-color: #D97706;">Información del Afectado</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${createCompactField('Nombre del Afectado', formData.nombreCliente, '48%')}
-            ${createCompactField('Teléfono', formData.telefono, '48%')}
-            ${createCompactField('Mascota involucrada', formData.nombreMascota, '48%')}
-            ${createCompactField('Gravedad', formData.quejaResuelta, '48%')}
+          <div class="section-title" style="border-left-color: #D97706;">Personas Involucradas</div>
+          <div class="field-row">
+            ${createField('Afectado(s)', formData.nombreCliente)}
+            ${createField('Personal involucrado', formData.personal)}
+          </div>
+          <div class="field-row">
+            ${createField('Responsable del reporte', formData.responsable)}
+            ${createField('Testigos', formData.testigos || 'Ninguno')}
           </div>
         </div>
-        
-        <div class="section">
-          <div class="section-title" style="border-left-color: #D97706;">Ubicación y Personal</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${createCompactField('Área del incidente', formData.area, '48%')}
-            ${createCompactField('Personal involucrado', formData.personal, '48%')}
-            ${createCompactField('Responsable del reporte', formData.responsable, '48%')}
-            ${createCompactField('Fecha de seguimiento', formData.planAccion, '48%')}
-          </div>
+
+        <div class="incident-details">
+          <div class="section-title" style="border-left-color: #D97706; margin-top: 0;">Descripción del Incidente</div>
+          <div class="field-label">¿Qué sucedió?</div>
+          <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
+          
+          ${formData.pasosResolver ? `
+            <div style="margin-top: 15px;">
+              <div class="field-label">¿Por qué sucedió?</div>
+              <div class="field-value text-area">${formData.pasosResolver}</div>
+            </div>
+          ` : ''}
         </div>
-        
-        <div class="section">
-          <div class="section-title" style="border-left-color: #D97706;">Descripción del Incidente</div>
-          <div>
-            <div class="field-label">Descripción detallada:</div>
-            <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
-          </div>
-        </div>
-        
+
         <div class="section">
           <div class="section-title" style="border-left-color: #D97706;">Acciones Tomadas</div>
-          <div style="margin-bottom: 10px;">
-            <div style="margin-bottom: 10px;">
-              <div class="field-label">Acciones inmediatas tomadas:</div>
-              <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+          <div class="field-label">Acciones inmediatas:</div>
+          <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+          
+          ${formData.accionesCorrectivas ? `
+            <div style="margin-top: 10px;">
+              <div class="field-label">Acciones correctivas:</div>
+              <div class="field-value text-area">${formData.accionesCorrectivas}</div>
             </div>
-            <div style="margin-bottom: 10px;">
-              <div class="field-label">Primeros auxilios aplicados:</div>
-              <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
-              ${createCompactField('Costo estimado', formData.costoArea ? `$${formData.costoArea}` : '-', '48%')}
-            </div>
+          ` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title" style="border-left-color: #D97706;">Seguimiento</div>
+          <div class="field-row">
+            ${createField('Notificaciones', formData.notificaciones || 'Ninguna')}
+            ${createField('Fecha de seguimiento', formData.planAccion || '-')}
+          </div>
+          <div class="field-row">
+            ${createField('Costo estimado', formData.costoArea ? `$${formData.costoArea}` : '-')}
           </div>
         </div>
-        
+
         ${formData.observaciones ? `
           <div class="section">
-            <div class="section-title" style="border-left-color: #D97706;">Recomendaciones de Prevención</div>
+            <div class="section-title" style="border-left-color: #D97706;">Observaciones y Medidas Preventivas</div>
             <div class="field-value text-area">${formData.observaciones}</div>
           </div>
         ` : ''}
-        
+
         <div class="footer">
           <div>Documento generado por el sistema de reportes - ${new Date().getFullYear()}</div>
           <div style="margin-top: 5px; font-size: ${FONT_SIZES.verySmall}px;">
@@ -935,9 +1020,54 @@ const generateIncidenteHTML = (formData: ReportFormData, sucursalName: string) =
   `;
 };
 
-// Plantilla para Reporte General
+// Función para renderizar tabla de pacientes
+const renderPacientesTable = (pacientes: PacienteInfo[] | undefined, titulo: string, color: string, tipo: string) => {
+  if (!pacientes || pacientes.length === 0) return '';
+  
+  const nombreHeader = tipo === 'pension' ? 'Huésped' : 'Paciente';
+  
+  return `
+    <div class="section">
+      <div class="section-title" style="border-left-color: ${color}; background: ${color}10;">
+        ${titulo} (${pacientes.length})
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>${nombreHeader}</th>
+            <th>Propietario</th>
+            <th>Ubicación/Jaula</th>
+            ${tipo !== 'transitorios' ? '<th>Tratamiento</th>' : '<th>Tipo de Servicio</th>'}
+          </tr>
+        </thead>
+        <tbody>
+          ${pacientes.map(p => `
+            <tr>
+              <td>${p.nombrePaciente || '-'}</td>
+              <td>${p.nombrePropietario || '-'}</td>
+              <td>${p.ubicacion || '-'}</td>
+              <td>
+                ${tipo === 'transitorios' 
+                  ? (p.tipoServicio || '-')
+                  : (p.requiereTratamiento 
+                      ? `<span class="treatment-badge">Sí: ${p.tratamiento || ''}</span>` 
+                      : 'No')
+                }
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+};
+
+// Plantilla para Reporte General con pacientes
 const generateGeneralHTML = (formData: ReportFormData, sucursalName: string) => {
-  const reportType = "REPORTE GENERAL";
+  const reportType = "REPORTE GENERAL DIARIO";
+  const totalPacientes = (formData.pacientesTransitorios?.length || 0) + 
+  (formData.pacientesHospitalizados?.length || 0) + 
+  (formData.pacientesPension?.length || 0);
   
   return `
     <!DOCTYPE html>
@@ -953,77 +1083,74 @@ const generateGeneralHTML = (formData: ReportFormData, sucursalName: string) => 
           <h1 style="color: #059669;">${reportType}</h1>
           <h2>${sucursalName}</h2>
           <div style="margin-top: 10px; font-size: ${FONT_SIZES.small}px; color: #6b7280;">
-            Generado el: ${formData.fecha} a las ${formData.hora} hrs.
+            Fecha del reporte: ${formData.fechaProblema || formData.fecha}
           </div>
         </div>
-        
-        <div class="info-grid">
-          <div class="info-item">
-            <div class="info-label">Fecha de actividad:</div>
-            <div class="info-value">${formData.fechaProblema || '-'}</div>
+
+        <div class="summary-card">
+          <div class="summary-number">${totalPacientes}</div>
+          <div style="font-size: 14px; opacity: 0.9;">Total de Pacientes/Huéspedes</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-number">${formData.pacientesTransitorios?.length || 0}</div>
+            <div style="font-size: 11px; color: #4b5563;">Transitorios</div>
           </div>
-          <div class="info-item">
-            <div class="info-label">Tipo de actividad:</div>
-            <div class="info-value">${formData.raza || '-'}</div>
+          <div class="stat-box">
+            <div class="stat-number">${formData.pacientesHospitalizados?.length || 0}</div>
+            <div style="font-size: 11px; color: #4b5563;">Hospitalizados</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number">${formData.pacientesPension?.length || 0}</div>
+            <div style="font-size: 11px; color: #4b5563;">Pensión</div>
           </div>
         </div>
-        
+
         <div class="section">
-          <div class="section-title" style="border-left-color: #059669;">Información de la Actividad</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${createCompactField('Cliente/Responsable', formData.nombreCliente, '48%')}
-            ${createCompactField('Teléfono', formData.telefono, '48%')}
-            ${createCompactField('Mascota(s)', formData.nombreMascota, '48%')}
-            ${createCompactField('Estado', formData.quejaResuelta, '48%')}
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title" style="border-left-color: #059669;">Equipo y Fechas</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            ${createCompactField('Área', formData.area, '48%')}
-            ${createCompactField('Personal participante', formData.personal, '48%')}
-            ${createCompactField('Responsable', formData.responsable, '48%')}
-            ${createCompactField('Fecha de término', formData.planAccion, '48%')}
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title" style="border-left-color: #059669;">Descripción de la Actividad</div>
-          <div>
-            <div class="field-label">Detalles de la actividad realizada:</div>
-            <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title" style="border-left-color: #059669;">Resultados y Proceso</div>
-          <div style="margin-bottom: 10px;">
-            <div style="margin-bottom: 10px;">
-              <div class="field-label">Resultados obtenidos:</div>
-              <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+          <div class="section-title" style="border-left-color: #059669;">Personal en Turno</div>
+          <div class="personal-grid">
+            <div class="personal-card">
+              <div class="personal-role">👨‍⚕️ Médico(s) en turno</div>
+              <div class="personal-name">${formData.personal || 'No especificado'}</div>
             </div>
-            <div style="margin-bottom: 10px;">
-              <div class="field-label">Metodología/proceso seguido:</div>
-              <div class="field-value text-area">${formData.pasosResolver || '-'}</div>
+            <div class="personal-card">
+              <div class="personal-role">👩‍💼 Recepcionista en turno</div>
+              <div class="personal-name">${formData.area || 'No especificado'}</div>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
-              ${createCompactField('Costo/Inversión', formData.costoArea ? `$${formData.costoArea}` : '-', '48%')}
+            <div class="personal-card">
+              <div class="personal-role">🐾 Encargado de pensión</div>
+              <div class="personal-name">${formData.responsable || 'No especificado'}</div>
             </div>
           </div>
         </div>
-        
+
+        ${renderPacientesTable(formData.pacientesTransitorios, 'Pacientes Transitorios (Consulta/Procedimientos)', '#3B82F6', 'transitorios')}
+        ${renderPacientesTable(formData.pacientesHospitalizados, 'Pacientes Hospitalizados', '#EF4444', 'hospitalizados')}
+        ${renderPacientesTable(formData.pacientesPension, 'Huéspedes en Pensión', '#F59E0B', 'pension')}
+
+        <div class="section">
+          <div class="section-title" style="border-left-color: #059669;">Actividades Realizadas</div>
+          <div class="field-label">Descripción de actividades:</div>
+          <div class="field-value text-area">${formData.retroalimentacion || '-'}</div>
+          
+          <div style="margin-top: 15px;">
+            <div class="field-label">Resultados obtenidos:</div>
+            <div class="field-value text-area">${formData.comoResolver || '-'}</div>
+          </div>
+        </div>
+
         ${formData.observaciones ? `
           <div class="section">
-            <div class="section-title" style="border-left-color: #059669;">Conclusiones y Observaciones</div>
+            <div class="section-title" style="border-left-color: #059669;">Observaciones</div>
             <div class="field-value text-area">${formData.observaciones}</div>
           </div>
         ` : ''}
-        
+
         <div class="footer">
           <div>Documento generado por el sistema de reportes - ${new Date().getFullYear()}</div>
           <div style="margin-top: 5px; font-size: ${FONT_SIZES.verySmall}px;">
-            ID de reporte: GEN-${Date.now().toString().slice(-8)}
+            ID del reporte: GEN-${Date.now().toString().slice(-8)}
           </div>
         </div>
       </div>

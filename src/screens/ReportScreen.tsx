@@ -17,7 +17,7 @@ import { generateReportPDF } from '../utils/pdfGenerator';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 import Toast from 'react-native-toast-message';
 import { stylesreport } from 'src/styles/report';
-import { ReportFormData } from 'src/types/report';
+import { ReportFormData, PacienteInfo } from 'src/types/report';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { initializeReportData, reportTypes } from 'src/utils/reportData';
@@ -43,7 +43,6 @@ export const ReportsScreen = () => {
         useCallback(() => {
             console.log('ReportsScreen recibió foco');
             
-            // Si recibimos una sucursal por parámetro, seleccionarla
             if (params?.sucursalKey) {
                 console.log('Parámetro sucursal recibido:', params.sucursalKey);
                 handleSucursalChange(params.sucursalKey);
@@ -51,19 +50,15 @@ export const ReportsScreen = () => {
                 console.log('Sin parámetros, recargando sucursal actual:', sucursalKey);
                 handleSucursalChange(sucursalKey);
             }
-        }, [sucursalKey, params?.sucursalKey]) // Añadir dependencia
+        }, [sucursalKey, params?.sucursalKey])
     );
 
     // Función para formatear fecha a DD/MM/AAAA
     const formatDate = (dateString: string): string => {
         if (!dateString) return '';
         
-        // Asegurarnos de manejar correctamente la zona horaria
-        // Crear fecha usando partes específicas
         const [year, month, day] = dateString.split('-').map(Number);
-        
-        // Crear fecha en zona horaria local
-        const date = new Date(year, month - 1, day); // mes es 0-indexed
+        const date = new Date(year, month - 1, day);
         
         const formattedDay = date.getDate().toString().padStart(2, '0');
         const formattedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -76,17 +71,13 @@ export const ReportsScreen = () => {
     const parseDateToCalendar = (dateString: string): string => {
         if (!dateString) return '';
         
-        // Parsear la fecha DD/MM/AAAA
         const parts = dateString.split('/');
         if (parts.length !== 3) return '';
         
         const [day, month, year] = parts.map(Number);
-        
-        // Validar que la fecha sea válida
         const date = new Date(year, month - 1, day);
         if (isNaN(date.getTime())) return '';
         
-        // Formatear a YYYY-MM-DD
         const formattedYear = date.getFullYear();
         const formattedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
         const formattedDay = date.getDate().toString().padStart(2, '0');
@@ -119,9 +110,8 @@ export const ReportsScreen = () => {
         setShowDatePicker(field);
     };
 
-    // Manejar selección de fecha - VERSIÓN CORREGIDA
+    // Manejar selección de fecha
     const handleDateSelect = (date: DateData) => {
-        // Usar directamente la fecha del calendario (ya está en formato YYYY-MM-DD)
         const selectedDateStr = formatDate(date.dateString);
         
         if (showDatePicker) {
@@ -138,11 +128,9 @@ export const ReportsScreen = () => {
     const handleSucursalChange = (newSucursalKey: SucursalType) => {
         const newSucursalName = SUCURSALES[newSucursalKey];
         
-        // Actualizar estados de sucursal
         setSucursalKey(newSucursalKey);
         setSucursalName(newSucursalName);
         
-        // También actualizar el formData con la nueva sucursal
         setFormData(prev => ({
             ...prev,
             sucursal: newSucursalName,
@@ -195,15 +183,15 @@ export const ReportsScreen = () => {
             Alert.alert('Error', 'La fecha del problema es obligatoria');
             return false;
         }
-        if (!formData.nombreCliente.trim()) {
+        if (!formData.nombreCliente?.trim()) {
             Alert.alert('Error', 'El nombre del cliente es obligatorio');
             return false;
         }
-        if (!formData.nombreMascota.trim()) {
+        if (!formData.nombreMascota?.trim()) {
             Alert.alert('Error', 'El nombre de la mascota es obligatorio');
             return false;
         }
-        if (!formData.responsable.trim()) {
+        if (!formData.responsable?.trim()) {
             Alert.alert('Error', 'El responsable del reporte es obligatorio');
             return false;
         }
@@ -211,15 +199,15 @@ export const ReportsScreen = () => {
             Alert.alert('Error', 'El área es obligatoria');
             return false;
         }
-        if (!formData.personal.trim()) {
+        if (!formData.personal?.trim()) {
             Alert.alert('Error', 'El personal involucrado es obligatorio');
             return false;
         }
-        if (!formData.quejaResuelta.trim()) {
+        if (!formData.quejaResuelta?.trim()) {
             Alert.alert('Error', 'El estado de la queja es obligatorio');
             return false;
         }
-        if (!formData.retroalimentacion.trim()) {
+        if (!formData.retroalimentacion?.trim()) {
             Alert.alert('Error', 'La retroalimentación del cliente es obligatoria');
             return false;
         }
@@ -231,11 +219,11 @@ export const ReportsScreen = () => {
             Alert.alert('Error', 'La fecha del incidente es obligatoria');
             return false;
         }
-        if (!formData.nombreCliente.trim()) {
+        if (!formData.nombreCliente?.trim()) {
             Alert.alert('Error', 'El nombre del afectado es obligatorio');
             return false;
         }
-        if (!formData.raza.trim()) {
+        if (!formData.raza?.trim()) {
             Alert.alert('Error', 'El tipo de incidente es obligatorio');
             return false;
         }
@@ -243,23 +231,23 @@ export const ReportsScreen = () => {
             Alert.alert('Error', 'El área del incidente es obligatoria');
             return false;
         }
-        if (!formData.personal.trim()) {
+        if (!formData.personal?.trim()) {
             Alert.alert('Error', 'El personal involucrado es obligatorio');
             return false;
         }
-        if (!formData.responsable.trim()) {
+        if (!formData.responsable?.trim()) {
             Alert.alert('Error', 'El responsable del reporte es obligatorio');
             return false;
         }
-        if (!formData.quejaResuelta.trim()) {
+        if (!formData.quejaResuelta?.trim()) {
             Alert.alert('Error', 'La gravedad del incidente es obligatoria');
             return false;
         }
-        if (!formData.retroalimentacion.trim()) {
+        if (!formData.retroalimentacion?.trim()) {
             Alert.alert('Error', 'La descripción del incidente es obligatoria');
             return false;
         }
-        if (!formData.comoResolver.trim()) {
+        if (!formData.comoResolver?.trim()) {
             Alert.alert('Error', 'Las acciones inmediatas tomadas son obligatorias');
             return false;
         }
@@ -271,45 +259,16 @@ export const ReportsScreen = () => {
             Alert.alert('Error', 'La fecha de actividad es obligatoria');
             return false;
         }
-        if (!formData.nombreCliente.trim()) {
-            Alert.alert('Error', 'El cliente/responsable es obligatorio');
-            return false;
-        }
-        if (!formData.raza.trim()) {
-            Alert.alert('Error', 'El tipo de actividad es obligatorio');
-            return false;
-        }
-        if (!formData.area) {
-            Alert.alert('Error', 'El área es obligatoria');
-            return false;
-        }
-        if (!formData.personal.trim()) {
-            Alert.alert('Error', 'El personal participante es obligatorio');
-            return false;
-        }
-        if (!formData.responsable.trim()) {
+        if (!formData.responsable?.trim()) {
             Alert.alert('Error', 'El responsable es obligatorio');
-            return false;
-        }
-        if (!formData.quejaResuelta.trim()) {
-            Alert.alert('Error', 'El estado de la actividad es obligatorio');
-            return false;
-        }
-        if (!formData.retroalimentacion.trim()) {
-            Alert.alert('Error', 'La descripción de la actividad es obligatoria');
-            return false;
-        }
-        if (!formData.comoResolver.trim()) {
-            Alert.alert('Error', 'Los resultados obtenidos son obligatorios');
             return false;
         }
         return true;
     };
 
-    // Función de validación general
     const validateForm = (): boolean => {
         switch (activeReport) {
-            case 'rq':
+            case 'rpc':
                 return validateRQForm();
             case 'incidente':
                 return validateIncidenteForm();
@@ -320,21 +279,18 @@ export const ReportsScreen = () => {
         }
     };
     
-    // Función para renombrar el archivo PDF
     const renamePDFFile = async (originalUri: string, newFileName: string): Promise<{success: boolean, uri: string, message: string}> => {
         try {
             console.log('=== INICIANDO RENOMBRE DE ARCHIVO ===');
             console.log('URI original:', originalUri);
             console.log('Nuevo nombre:', newFileName);
             
-            // Obtener directorio del archivo original
             const directoryPath = getFileDirectory(originalUri);
             const newUri = `${directoryPath}${newFileName}`;
             
             console.log('Directorio:', directoryPath);
             console.log('Nueva URI:', newUri);
             
-            // Verificar que el archivo original existe
             const fileInfo = await LegacyFileSystem.getInfoAsync(originalUri);
             if (!fileInfo.exists) {
                 console.error('❌ El archivo original no existe');
@@ -347,25 +303,21 @@ export const ReportsScreen = () => {
             
             console.log('✅ Archivo original existe, tamaño:', fileInfo.size, 'bytes');
             
-            // Copiar a nuevo nombre
             console.log('📋 Copiando archivo...');
             await LegacyFileSystem.copyAsync({
                 from: originalUri,
                 to: newUri
             });
             
-            // Verificar que se copió
             const newFileInfo = await LegacyFileSystem.getInfoAsync(newUri);
             if (newFileInfo.exists) {
                 console.log('✅ Archivo copiado exitosamente, tamaño:', newFileInfo.size, 'bytes');
                 
-                // Intentar eliminar original (opcional)
                 try {
                     await LegacyFileSystem.deleteAsync(originalUri);
                     console.log('🗑️ Archivo original eliminado');
                 } catch (deleteError) {
                     console.warn('⚠️ No se pudo eliminar el archivo original:', deleteError);
-                    // No es crítico, continuamos
                 }
                 
                 console.log('=== RENOMBRE COMPLETADO ===');
@@ -393,10 +345,9 @@ export const ReportsScreen = () => {
         }
     };
 
-    // Función para obtener el directorio del archivo
     const getFileDirectory = (fileUri: string): string => {
         const uriParts = fileUri.split('/');
-        uriParts.pop(); // Remover nombre del archivo
+        uriParts.pop();
         return uriParts.join('/') + '/';
     };
 
@@ -417,21 +368,18 @@ export const ReportsScreen = () => {
         return `${typeName}${clientName}${petName}_${date}_${sucursalKey}.pdf`;
     };
 
-    // Función para extraer nombre del archivo de la URI
     const extractFileNameFromUri = (uri: string): string => {
         const parts = uri.split('/');
         const fileNameWithExtension = parts[parts.length - 1];
         return fileNameWithExtension;
     };
 
-    // Función para generar y mostrar opciones de PDF
     const handleGenerateReport = async () => {
         try {
             if (!validateForm()) return;
             
             setIsLoading(true);
             
-            // Generar nombre del archivo
             const fileName = generateFileName();
             
             Toast.show({
@@ -440,10 +388,8 @@ export const ReportsScreen = () => {
                 text2: `Archivo: ${fileName}`,
             });
             
-            // Generar PDF con el tipo específico
             const tempPdfUri = await generateReportPDF(formData, sucursalName, activeReport);
             
-            // Renombrar el archivo
             const renameResult = await renamePDFFile(tempPdfUri, fileName);
             const newName = extractFileNameFromUri(renameResult.uri);
             
@@ -465,7 +411,6 @@ export const ReportsScreen = () => {
                     ]
                 );
             } else {
-                // Si falla el rename, usar el archivo original
                 Alert.alert(
                     '⚠️ PDF Generado',
                     `Se generó el PDF pero no se pudo renombrar.\n\n${renameResult.message}`,
@@ -478,7 +423,6 @@ export const ReportsScreen = () => {
                 );
             }
 
-            // Subir a Supabase
             const downloadURL = await uploadFileToSupabase(renameResult.uri, newName);
             
             if (downloadURL) {
@@ -500,7 +444,6 @@ export const ReportsScreen = () => {
         }
     };
 
-    // Compartir por WhatsApp
     const shareViaWhatsApp = async (pdfUri: string, fileName: string) => {
         try {
             if (!await Sharing.isAvailableAsync()) {
@@ -508,7 +451,6 @@ export const ReportsScreen = () => {
                 return;
             }
 
-            // Para Android, podemos usar un intent directo
             if (Platform.OS === 'android') {
                 const message = `*REPORTE DE QUEJA*\n\n` +
                 `*Sucursal:* ${sucursalName}\n` +
@@ -532,7 +474,6 @@ export const ReportsScreen = () => {
                     text2: `Selecciona WhatsApp para enviar ${fileName}`,
                 });
             } else {
-                // Para iOS
                 await Sharing.shareAsync(pdfUri);
             }
         } catch (error) {
@@ -545,191 +486,260 @@ export const ReportsScreen = () => {
         }
     };
 
+    // Funciones para manejar pacientes en reporte general
+    const addPacienteTransitorio = () => {
+        setFormData(prev => {
+            const pacientesActuales = prev.pacientesTransitorios || [];
+            return {
+                ...prev,
+                pacientesTransitorios: [
+                    ...pacientesActuales,
+                    {
+                        nombrePaciente: '',
+                        nombrePropietario: '',
+                        ubicacion: '',
+                        requiereTratamiento: false,
+                        tipoServicio: ''
+                    }
+                ]
+            };
+        });
+    };
+
+    const addPacienteHospitalizado = () => {
+        setFormData(prev => {
+            const pacientesActuales = prev.pacientesHospitalizados || [];
+            return {
+                ...prev,
+                pacientesHospitalizados: [
+                    ...pacientesActuales,
+                    {
+                        nombrePaciente: '',
+                        nombrePropietario: '',
+                        ubicacion: '',
+                        requiereTratamiento: false,
+                        tratamiento: ''
+                    }
+                ]
+            };
+        });
+    };
+
+    const addPacientePension = () => {
+        setFormData(prev => {
+            const pacientesActuales = prev.pacientesPension || [];
+            return {
+                ...prev,
+                pacientesPension: [
+                    ...pacientesActuales,
+                    {
+                        nombrePaciente: '',
+                        nombrePropietario: '',
+                        ubicacion: '',
+                        requiereTratamiento: false,
+                        tratamiento: ''
+                    }
+                ]
+            };
+        });
+    };
+
+    const updatePaciente = (
+        tipo: 'transitorios' | 'hospitalizados' | 'pension',
+        index: number,
+        campo: string,
+        valor: any
+    ) => {
+        setFormData(prev => {
+            const key = tipo === 'transitorios' ? 'pacientesTransitorios' : 
+                       tipo === 'hospitalizados' ? 'pacientesHospitalizados' : 
+                       'pacientesPension';
+            
+            const pacientes = [...(prev[key] || [])];
+            if (pacientes[index]) {
+                pacientes[index] = { ...pacientes[index], [campo]: valor };
+            }
+            
+            return {
+                ...prev,
+                [key]: pacientes
+            };
+        });
+    };
+
+    const removePaciente = (tipo: 'transitorios' | 'hospitalizados' | 'pension', index: number) => {
+        setFormData(prev => {
+            const key = tipo === 'transitorios' ? 'pacientesTransitorios' : 
+                       tipo === 'hospitalizados' ? 'pacientesHospitalizados' : 
+                       'pacientesPension';
+            
+            const pacientes = [...(prev[key] || [])];
+            pacientes.splice(index, 1);
+            
+            return {
+                ...prev,
+                [key]: pacientes
+            };
+        });
+    };
+
     // Componente para campos de fecha con calendario
     const renderDateInput = (
         label: string,
-        field: keyof ReportFormData,
+        field: string,
         placeholder: string,
-        isRequired: boolean = false
-    ) => (
-        <View style={stylesreport.inputGroup}>
-            <Text style={stylesreport.inputLabel}>
-                {label} {isRequired && <Text style={{ color: '#EF4444' }}>*</Text>}
-            </Text>
-            <TouchableOpacity
-                style={stylesreport.dateInputContainer}
-                onPress={() => openDatePicker(field, formData[field])}
-                disabled={isLoading}
-            >
-                <TextInput
-                    style={stylesreport.dateInput}
-                    value={formData[field]}
-                    placeholder={placeholder}
-                    placeholderTextColor="#9ca3af"
-                    editable={false}
-                    pointerEvents="none"
-                />
-                <View style={stylesreport.dateIcon}>
-                    <Icon name="calendar-today" size={20} color="#05aaca" />
-                </View>
-            </TouchableOpacity>
-        </View>
-    );
+        isRequired: boolean = false,
+        customStyle?: any
+    ) => {
+        const value = formData[field as keyof ReportFormData];
+        
+        return (
+            <View style={[stylesreport.inputGroup, customStyle]}>
+                <Text style={stylesreport.inputLabel}>
+                    {label} {isRequired && <Text style={{ color: '#EF4444' }}>*</Text>}
+                </Text>
+                <TouchableOpacity
+                    style={stylesreport.dateInputContainer}
+                    onPress={() => openDatePicker(field, typeof value === 'string' ? value : '')}
+                    disabled={isLoading}
+                >
+                    <TextInput
+                        style={stylesreport.dateInput}
+                        value={typeof value === 'string' ? value : ''}
+                        placeholder={placeholder}
+                        placeholderTextColor="#9ca3af"
+                        editable={false}
+                        pointerEvents="none"
+                    />
+                    <View style={stylesreport.dateIcon}>
+                        <Icon name="calendar-today" size={20} color="#05aaca" />
+                    </View>
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     const renderInput = (
         label: string,
-        field: keyof ReportFormData,
+        field: string,
         placeholder: string,
         isRequired: boolean = false,
         multiline: boolean = false,
-        keyboardType: 'default' | 'numeric' | 'email-address' | 'phone-pad' = 'default'
-    ) => (
-        <View style={stylesreport.inputGroup}>
-            <Text style={stylesreport.inputLabel}>
-                {label} {isRequired && <Text style={{ color: '#EF4444' }}>*</Text>}
-            </Text>
-            <TextInput
-                style={[
-                    stylesreport.textInput,
-                    multiline ? stylesreport.textArea : {}
-                ]}
-                value={formData[field]}
-                onChangeText={(text) => handleInputChange(field, text)}
-                placeholder={placeholder}
-                placeholderTextColor="#9ca3af"
-                multiline={multiline}
-                numberOfLines={multiline ? 4 : 1}
-                keyboardType={keyboardType}
-                editable={!isLoading}
-            />
-        </View>
-    );
-
-    const renderRQForm = () => (
-        <View style={stylesreport.formContainer}>
-            <View style={stylesreport.formHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <MaterialCommunityIcons name="clipboard-text" size={28} color="#1F2937" />
-                    <Text style={stylesreport.formTitle}>
-                        Reporte de Queja - {sucursalName}
-                    </Text>
-                </View>
+        keyboardType: 'default' | 'numeric' | 'email-address' | 'phone-pad' = 'default',
+        customStyle?: any
+    ) => {
+        const value = formData[field as keyof ReportFormData];
+        
+        return (
+            <View style={[stylesreport.inputGroup, customStyle]}>
+                <Text style={stylesreport.inputLabel}>
+                    {label} {isRequired && <Text style={{ color: '#EF4444' }}>*</Text>}
+                </Text>
+                <TextInput
+                    style={[
+                        stylesreport.textInput,
+                        multiline ? stylesreport.textArea : {}
+                    ]}
+                    value={typeof value === 'string' ? value : ''}
+                    onChangeText={(text) => handleInputChange(field as keyof ReportFormData, text)}
+                    placeholder={placeholder}
+                    placeholderTextColor="#9ca3af"
+                    multiline={multiline}
+                    numberOfLines={multiline ? 4 : 1}
+                    keyboardType={keyboardType}
+                    editable={!isLoading}
+                />
             </View>
+        );
+    };
 
-            <ScrollView 
-                showsVerticalScrollIndicator={false}
-                ref={areasScrollViewRef}
-                style={stylesreport.areasScrollView}
-            >
-                <View style={stylesreport.gridContainer}>
-                    <View style={stylesreport.gridColumn}>
-                        {renderDateInput(
-                            'Fecha del problema',
-                            'fechaProblema',
-                            'Seleccionar fecha',
-                            true
-                        )}
-                        {renderInput(
-                            'Nombre del Cliente',
-                            'nombreCliente',
-                            'Ej: ADRIANA ORLAINETA',
-                            true
-                        )}
-                        {renderInput(
-                            'Teléfono',
-                            'telefono',
-                            'Teléfono'
-                        )}
-                        {renderInput(
-                            'Nombre de la Mascota',
-                            'nombreMascota',
-                            'Ej: RICKY',
-                            true
-                        )}
-                        {renderInput(
-                            'Raza',
-                            'raza',
-                            'Ej: Yorkie'
-                        )}
-                    </View>
-                
-                    <View style={stylesreport.gridColumn}>
-                        {renderDateInput(
-                            'Fecha Plan de Acción',
-                            'planAccion',
-                            'Seleccionar fecha',
-                        )}
-                        {renderInput(
-                            'Área',
-                            'area',
-                            'Ej: Recepción',
-                            true
-                        )}
-                        {renderInput(
-                            'Personal involucrado',
-                            'personal',
-                            'Ej: ALICIA GOMEZ',
-                            true
-                        )}
-                        {renderInput(
-                            'Responsable del plan',
-                            'responsable',
-                            'Ej: Mayte colli',
-                            true
-                        )}
-                        {renderInput(
-                            'Queja resuelta',
-                            'quejaResuelta',
-                            'Ej: Si / No / En proceso',
-                            true
-                        )}
-                    </View>
+    // Renderizar componente para paciente
+    const renderPacienteItem = (
+        tipo: 'transitorios' | 'hospitalizados' | 'pension',
+        paciente: PacienteInfo,
+        index: number
+    ) => {
+        // Determinar el placeholder según el tipo
+        const nombrePlaceholder = tipo === 'pension' ? 'Nombre del huésped' : 'Nombre del paciente';
+        
+        return (
+            <View key={index} style={stylesreport.pacienteCard}>
+                <View style={stylesreport.pacienteHeader}>
+                    <Text style={stylesreport.pacienteTitle}>
+                        {tipo === 'transitorios' ? 'Paciente' : 
+                         tipo === 'hospitalizados' ? 'Paciente' : 'Huésped'} #{index + 1}
+                    </Text>
+                    <TouchableOpacity
+                        onPress={() => removePaciente(tipo, index)}
+                        style={stylesreport.removeButton}
+                    >
+                        <Icon name="close" size={20} color="#EF4444" />
+                    </TouchableOpacity>
                 </View>
 
-                {renderInput(
-                    'Costo al área ($)',
-                    'costoArea',
-                    '0.00',
-                    false,
-                    false,
-                    'numeric'
+                <TextInput
+                    style={stylesreport.textInput}
+                    value={paciente.nombrePaciente}
+                    onChangeText={(text) => updatePaciente(tipo, index, 'nombrePaciente', text)}
+                    placeholder={nombrePlaceholder}
+                    placeholderTextColor="#9ca3af"
+                />
+
+                <TextInput
+                    style={stylesreport.textInput}
+                    value={paciente.nombrePropietario}
+                    onChangeText={(text) => updatePaciente(tipo, index, 'nombrePropietario', text)}
+                    placeholder="Nombre del propietario"
+                    placeholderTextColor="#9ca3af"
+                />
+
+                <TextInput
+                    style={stylesreport.textInput}
+                    value={paciente.ubicacion}
+                    onChangeText={(text) => updatePaciente(tipo, index, 'ubicacion', text)}
+                    placeholder="Ubicación / Jaula"
+                    placeholderTextColor="#9ca3af"
+                />
+
+                {tipo === 'transitorios' && (
+                    <TextInput
+                        style={stylesreport.textInput}
+                        value={paciente.tipoServicio || ''}
+                        onChangeText={(text) => updatePaciente(tipo, index, 'tipoServicio', text)}
+                        placeholder="Tipo de servicio (consulta/procedimiento)"
+                        placeholderTextColor="#9ca3af"
+                    />
                 )}
 
-                {renderInput(
-                    'Retroalimentación del cliente',
-                    'retroalimentacion',
-                    'Describa detalladamente la queja o problema reportado por el cliente...',
-                    true,
-                    true
-                )}
-                
-                {renderInput(
-                    'Cómo se va a resolver el problema',
-                    'comoResolver',
-                    'Describa el plan de acción para resolver el problema...',
-                    false,
-                    true
-                )}
-                
-                {renderInput(
-                    'Pasos seguidos para resolver',
-                    'pasosResolver',
-                    'Describa los pasos específicos tomados para resolver la queja...',
-                    false,
-                    true
-                )}
+                <View style={stylesreport.checkboxContainer}>
+                    <TouchableOpacity
+                        style={[
+                            stylesreport.checkbox,
+                            paciente.requiereTratamiento && stylesreport.checkboxChecked
+                        ]}
+                        onPress={() => updatePaciente(tipo, index, 'requiereTratamiento', !paciente.requiereTratamiento)}
+                    >
+                        {paciente.requiereTratamiento && <Icon name="check" size={16} color="white" />}
+                    </TouchableOpacity>
+                    <Text style={stylesreport.checkboxLabel}>¿Requiere tratamiento médico?</Text>
+                </View>
 
-                {renderInput(
-                    'Observaciones adicionales',
-                    'observaciones',
-                    'Cualquier observación adicional o comentario...',
-                    false,
-                    true
+                {paciente.requiereTratamiento && (
+                    <TextInput
+                        style={[stylesreport.textInput, stylesreport.textArea]}
+                        value={paciente.tratamiento || ''}
+                        onChangeText={(text) => updatePaciente(tipo, index, 'tratamiento', text)}
+                        placeholder="Especificar tratamiento"
+                        placeholderTextColor="#9ca3af"
+                        multiline
+                        numberOfLines={2}
+                    />
                 )}
-            </ScrollView>
-        </View>
-    );
+            </View>
+        );
+    };
 
+    // Renderizar formulario de incidente mejorado
     const renderIncidenteForm = () => (
         <View style={stylesreport.formContainer}>
             <View style={stylesreport.formHeader}>
@@ -741,113 +751,90 @@ export const ReportsScreen = () => {
                 </View>
             </View>
 
-            <ScrollView 
-                showsVerticalScrollIndicator={false}
-                ref={areasScrollViewRef}
-                style={stylesreport.areasScrollView}
-            >
-                <View style={stylesreport.gridContainer}>
-                    <View style={stylesreport.gridColumn}>
-                        {renderDateInput(
-                            'Fecha del incidente',
-                            'fechaProblema',
-                            'Seleccionar fecha',
-                            true
-                        )}
-                        {renderInput(
-                            'Nombre del Cliente/Afectado',
-                            'nombreCliente',
-                            'Ej: JUAN PEREZ',
-                            true
-                        )}
-                        {renderInput(
-                            'Teléfono',
-                            'telefono',
-                            'Teléfono'
-                        )}
-                        {renderInput(
-                            'Mascota involucrada',
-                            'nombreMascota',
-                            'Ej: MAX'
-                        )}
-                        {renderInput(
-                            'Tipo de incidente',
-                            'raza',
-                            'Ej: Fuga, Mordida, Caída',
-                            true
-                        )}
-                    </View>
-                
-                    <View style={stylesreport.gridColumn}>
-                        {renderDateInput(
-                            'Fecha de seguimiento',
-                            'planAccion',
-                            'Seleccionar fecha'
-                        )}
-                        {renderInput(
-                            'Área del incidente',
-                            'area',
-                            'Ej: Albercas, Recepción, Hospedaje',
-                            true
-                        )}
-                        {renderInput(
-                            'Personal involucrado',
-                            'personal',
-                            'Ej: ALICIA GOMEZ',
-                            true
-                        )}
-                        {renderInput(
-                            'Responsable del reporte',
-                            'responsable',
-                            'Ej: Mayte colli',
-                            true
-                        )}
-                        {renderInput(
-                            'Gravedad',
-                            'quejaResuelta',
-                            'Ej: Leve / Moderado / Grave',
-                            true
-                        )}
+            <ScrollView showsVerticalScrollIndicator={false} style={stylesreport.areasScrollView}>
+                {/* Información básica */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Información General</Text>
+                    <View style={stylesreport.gridContainer}>
+                        <View style={stylesreport.gridColumn}>
+                            {renderDateInput('Fecha del incidente', 'fechaProblema', 'Seleccionar fecha', true)}
+                            {renderInput('Hora aproximada', 'hora', 'HH:MM', true)}
+                            {renderInput('Lugar específico', 'lugarIncidente', 'Ej: Recepción, Alberca, etc.', true)}
+                        </View>
+                        <View style={stylesreport.gridColumn}>
+                            {renderInput('Tipo de incidente', 'raza', 'Ej: Caída, Mordida, Fuga', true)}
+                            {renderInput('Gravedad', 'quejaResuelta', 'Leve / Moderado / Grave', true)}
+                            {renderInput('Área responsable', 'area', 'Área involucrada', true)}
+                        </View>
                     </View>
                 </View>
 
-                {renderInput(
-                    'Costo estimado ($)',
-                    'costoArea',
-                    '0.00',
-                    false,
-                    false,
-                    'numeric'
-                )}
+                {/* Personas involucradas */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Personas Involucradas</Text>
+                    {renderInput('Afectado(s)', 'nombreCliente', 'Nombre de persona(s) afectada(s)', true)}
+                    {renderInput('Personal involucrado', 'personal', 'Personal presente', true)}
+                    {renderInput('Responsable del reporte', 'responsable', 'Quién reporta', true)}
+                    {renderInput('Testigos', 'testigos', 'Nombre de testigos si los hay', false, true)}
+                </View>
 
-                {renderInput(
-                    'Descripción detallada del incidente',
-                    'retroalimentacion',
-                    'Describa exactamente qué sucedió, hora, lugar, circunstancias...',
-                    true,
-                    true
-                )}
-                
-                {renderInput(
-                    'Acciones inmediatas tomadas',
-                    'comoResolver',
-                    'Describa las acciones tomadas inmediatamente después del incidente...',
-                    true,
-                    true
-                )}
-                
-                {renderInput(
-                    'Primeros auxilios aplicados',
-                    'pasosResolver',
-                    'Describa los primeros auxilios o atención médica proporcionada...',
-                    false,
-                    true
-                )}
+                {/* Descripción del incidente */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Descripción del Incidente</Text>
+                    {renderInput(
+                        '¿Qué sucedió?',
+                        'retroalimentacion',
+                        'Describa detalladamente lo ocurrido...',
+                        true,
+                        true
+                    )}
+                    {renderInput(
+                        '¿Por qué sucedió?',
+                        'pasosResolver',
+                        'Causas del incidente...',
+                        false,
+                        true
+                    )}
+                </View>
 
+                {/* Acciones tomadas */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Acciones Realizadas</Text>
+                    {renderInput(
+                        'Acciones inmediatas',
+                        'comoResolver',
+                        '¿Qué se hizo inmediatamente después?',
+                        true,
+                        true
+                    )}
+                    {renderInput(
+                        'Acciones correctivas',
+                        'accionesCorrectivas',
+                        'Medidas para corregir la situación...',
+                        false,
+                        true
+                    )}
+                </View>
+
+                {/* Notificaciones y seguimiento */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Notificaciones y Seguimiento</Text>
+                    {renderInput(
+                        'Notificaciones realizadas',
+                        'notificaciones',
+                        '¿A quién se notificó? (Gerente, familia, etc.)',
+                        false,
+                        true
+                    )}
+                    {renderDateInput('Fecha de seguimiento', 'planAccion', 'Fecha programada')}
+                    {renderInput('Costo estimado', 'costoArea', '$0.00', false, false, 'numeric')}
+                </View>
+
+                {/* Observaciones */}
                 {renderInput(
-                    'Recomendaciones de prevención',
+                    'Observaciones adicionales',
                     'observaciones',
-                    'Medidas para prevenir incidentes similares en el futuro...',
+                    'Recomendaciones, medidas preventivas...',
                     false,
                     true
                 )}
@@ -855,124 +842,254 @@ export const ReportsScreen = () => {
         </View>
     );
 
-    const renderGeneralForm = () => (
+    // Renderizar formulario de reporte general con pacientes
+    const renderGeneralForm = () => {
+        const totalPacientes = (formData.pacientesTransitorios?.length || 0) + 
+        (formData.pacientesHospitalizados?.length || 0) + 
+        (formData.pacientesPension?.length || 0);
+
+        return (
+            <View style={stylesreport.formContainer}>
+                <View style={stylesreport.formHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <MaterialCommunityIcons name="file-document" size={28} color="#059669" />
+                        <Text style={[stylesreport.formTitle, { color: '#059669' }]}>
+                            Reporte General Diario - {sucursalName}
+                        </Text>
+                    </View>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} style={stylesreport.areasScrollView}>
+                    {/* Resumen del día */}
+                    <View style={stylesreport.sectionCard}>
+                        <Text style={stylesreport.sectionCardTitle}>Resumen del Día</Text>
+                        <View style={stylesreport.gridContainer}>
+                            <View style={stylesreport.gridColumn}>
+                                {renderDateInput('Fecha', 'fechaProblema', 'Fecha del reporte', true)}
+                                <View style={stylesreport.infoBox}>
+                                    <Text style={stylesreport.infoBoxLabel}>Total de pacientes/huéspedes:</Text>
+                                    <Text style={stylesreport.infoBoxValue}>{totalPacientes}</Text>
+                                </View>
+                            </View>
+                            <View style={stylesreport.gridColumn}>
+                                <View style={stylesreport.statsContainer}>
+                                    <View style={stylesreport.statItem}>
+                                        <Text style={stylesreport.statLabel}>Transitorios:</Text>
+                                        <Text style={stylesreport.statValue}>{formData.pacientesTransitorios?.length || 0}</Text>
+                                    </View>
+                                    <View style={stylesreport.statItem}>
+                                        <Text style={stylesreport.statLabel}>Hospitalizados:</Text>
+                                        <Text style={stylesreport.statValue}>{formData.pacientesHospitalizados?.length || 0}</Text>
+                                    </View>
+                                    <View style={stylesreport.statItem}>
+                                        <Text style={stylesreport.statLabel}>Pensión:</Text>
+                                        <Text style={stylesreport.statValue}>{formData.pacientesPension?.length || 0}</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Personal en turno */}
+                    <View style={stylesreport.sectionCard}>
+                        <Text style={stylesreport.sectionCardTitle}>Personal en Turno</Text>
+                        <View style={stylesreport.gridContainer}>
+                            <View style={stylesreport.gridColumn}>
+                                {renderInput('Médico(s) en turno', 'personal', 'Nombres de médicos', true, true)}
+                            </View>
+                            <View style={stylesreport.gridColumn}>
+                                {renderInput('Recepcionista en turno', 'area', 'Nombre de recepcionista', true)}
+                                {renderInput('Encargado de pensión', 'responsable', 'Nombre del encargado', true)}
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Pacientes Transitorios (Consulta/Procedimientos) */}
+                    <View style={stylesreport.sectionCard}>
+                        <View style={stylesreport.sectionHeader}>
+                            <Text style={stylesreport.sectionCardTitle}>
+                                Pacientes Transitorios ({formData.pacientesTransitorios?.length || 0})
+                            </Text>
+                            <TouchableOpacity
+                                style={stylesreport.addButton}
+                                onPress={addPacienteTransitorio}
+                            >
+                                <Icon name="add" size={20} color="white" />
+                                <Text style={stylesreport.addButtonText}>Agregar</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {formData.pacientesTransitorios?.map((paciente, index) => 
+                            renderPacienteItem('transitorios', paciente, index)
+                        )}
+
+                        {(!formData.pacientesTransitorios || formData.pacientesTransitorios.length === 0) && (
+                            <Text style={stylesreport.emptyText}>No hay pacientes transitorios registrados</Text>
+                        )}
+                    </View>
+
+                    {/* Pacientes Hospitalizados */}
+                    <View style={stylesreport.sectionCard}>
+                        <View style={stylesreport.sectionHeader}>
+                            <Text style={stylesreport.sectionCardTitle}>
+                                Pacientes Hospitalizados ({formData.pacientesHospitalizados?.length || 0})
+                            </Text>
+                            <TouchableOpacity
+                                style={stylesreport.addButton}
+                                onPress={addPacienteHospitalizado}
+                            >
+                                <Icon name="add" size={20} color="white" />
+                                <Text style={stylesreport.addButtonText}>Agregar</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {formData.pacientesHospitalizados?.map((paciente, index) => 
+                            renderPacienteItem('hospitalizados', paciente, index)
+                        )}
+
+                        {(!formData.pacientesHospitalizados || formData.pacientesHospitalizados.length === 0) && (
+                            <Text style={stylesreport.emptyText}>No hay pacientes hospitalizados</Text>
+                        )}
+                    </View>
+
+                    {/* Huéspedes en Pensión */}
+                    <View style={stylesreport.sectionCard}>
+                        <View style={stylesreport.sectionHeader}>
+                            <Text style={stylesreport.sectionCardTitle}>
+                                Huéspedes en Pensión ({formData.pacientesPension?.length || 0})
+                            </Text>
+                            <TouchableOpacity
+                                style={stylesreport.addButton}
+                                onPress={addPacientePension}
+                            >
+                                <Icon name="add" size={20} color="white" />
+                                <Text style={stylesreport.addButtonText}>Agregar</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {formData.pacientesPension?.map((paciente, index) => 
+                            renderPacienteItem('pension', paciente, index)
+                        )}
+
+                        {(!formData.pacientesPension || formData.pacientesPension.length === 0) && (
+                            <Text style={stylesreport.emptyText}>No hay huéspedes en pensión</Text>
+                        )}
+                    </View>
+
+                    {/* Actividades y resultados */}
+                    <View style={stylesreport.sectionCard}>
+                        <Text style={stylesreport.sectionCardTitle}>Actividades Realizadas</Text>
+                        {renderInput(
+                            'Descripción de actividades',
+                            'retroalimentacion',
+                            'Detalle de las actividades del día...',
+                            true,
+                            true
+                        )}
+                        {renderInput(
+                            'Resultados obtenidos',
+                            'comoResolver',
+                            'Logros y metas cumplidas...',
+                            true,
+                            true
+                        )}
+                    </View>
+
+                    {/* Observaciones */}
+                    {renderInput(
+                        'Observaciones y notas',
+                        'observaciones',
+                        'Incidencias, pendientes, recomendaciones...',
+                        false,
+                        true
+                    )}
+                </ScrollView>
+            </View>
+        );
+    };
+
+    // Renderizar RQ Form (mantener el existente)
+    const renderRQForm = () => (
         <View style={stylesreport.formContainer}>
             <View style={stylesreport.formHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <MaterialCommunityIcons name="file-document" size={28} color="#059669" />
-                    <Text style={[stylesreport.formTitle, { color: '#059669' }]}>
-                        Reporte General - {sucursalName}
+                    <MaterialCommunityIcons name="clipboard-text" size={28} color="#EF4444" />
+                    <Text style={[stylesreport.formTitle, { color: '#EF4444' }]}>
+                        Reporte de Queja - {sucursalName}
                     </Text>
                 </View>
             </View>
 
-            <ScrollView 
-                showsVerticalScrollIndicator={false}
-                ref={areasScrollViewRef}
-                style={stylesreport.areasScrollView}
-            >
-                <View style={stylesreport.gridContainer}>
-                    <View style={stylesreport.gridColumn}>
-                        {renderDateInput(
-                            'Fecha de actividad',
-                            'fechaProblema',
-                            'Seleccionar fecha',
-                            true
-                        )}
-                        {renderInput(
-                            'Cliente/Responsable',
-                            'nombreCliente',
-                            'Ej: PEDRO SANCHEZ',
-                            true
-                        )}
-                        {renderInput(
-                            'Teléfono',
-                            'telefono',
-                            'Teléfono'
-                        )}
-                        {renderInput(
-                            'Mascota(s)',
-                            'nombreMascota',
-                            'Ej: TOBY, MIA'
-                        )}
-                        {renderInput(
-                            'Tipo de actividad',
-                            'raza',
-                            'Ej: Capacitación, Mantenimiento, Visita',
-                            true
-                        )}
-                    </View>
-                
-                    <View style={stylesreport.gridColumn}>
-                        {renderDateInput(
-                            'Fecha de término',
-                            'planAccion',
-                            'Seleccionar fecha'
-                        )}
-                        {renderInput(
-                            'Área',
-                            'area',
-                            'Ej: Administración, Operaciones, Ventas',
-                            true
-                        )}
-                        {renderInput(
-                            'Personal participante',
-                            'personal',
-                            'Ej: ALICIA GOMEZ, CARLOS LOPEZ',
-                            true
-                        )}
-                        {renderInput(
-                            'Responsable',
-                            'responsable',
-                            'Ej: Gerente de sucursal',
-                            true
-                        )}
-                        {renderInput(
-                            'Estado',
-                            'quejaResuelta',
-                            'Ej: Completado / En proceso / Pendiente',
-                            true
-                        )}
+            <ScrollView showsVerticalScrollIndicator={false} style={stylesreport.areasScrollView}>
+                {/* Información del problema */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Información del Problema</Text>
+                    <View style={stylesreport.gridContainer}>
+                        <View style={stylesreport.gridColumn}>
+                            {renderDateInput('Fecha del problema', 'fechaProblema', 'Seleccionar fecha', true)}
+                            {renderInput('Área', 'area', 'Ej: Recepción, Consultorio, etc.', true)}
+                            {renderInput('Personal involucrado', 'personal', 'Ej: ALICIA GOMEZ', true)}
+                        </View>
+                        <View style={stylesreport.gridColumn}>
+                            {renderDateInput('Fecha plan de acción', 'planAccion', 'Seleccionar fecha')}
+                            {renderInput('Responsable del plan', 'responsable', 'Ej: Mayte colli', true)}
+                            {renderInput('Estado', 'quejaResuelta', 'Si / No / En proceso', true)}
+                        </View>
                     </View>
                 </View>
 
-                {renderInput(
-                    'Costo/Inversión ($)',
-                    'costoArea',
-                    '0.00',
-                    false,
-                    false,
-                    'numeric'
-                )}
+                {/* Información del cliente */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Información del Cliente</Text>
+                    <View style={stylesreport.gridContainer}>
+                        <View style={stylesreport.gridColumn}>
+                            {renderInput('Nombre del Cliente', 'nombreCliente', 'Ej: ADRIANA ORLAINETA', true)}
+                            {renderInput('Teléfono', 'telefono', 'Teléfono de contacto', false, false, 'phone-pad')}
+                        </View>
+                        <View style={stylesreport.gridColumn}>
+                            {renderInput('Nombre de la Mascota', 'nombreMascota', 'Ej: RICKY', true)}
+                            {renderInput('Raza', 'raza', 'Ej: Yorkie', false)}
+                        </View>
+                    </View>
+                </View>
 
-                {renderInput(
-                    'Descripción de la actividad',
-                    'retroalimentacion',
-                    'Describa detalladamente la actividad realizada...',
-                    true,
-                    true
-                )}
-                
-                {renderInput(
-                    'Resultados obtenidos',
-                    'comoResolver',
-                    'Describa los logros, aprendizajes, productos entregados...',
-                    true,
-                    true
-                )}
-                
-                {renderInput(
-                    'Metodología/proceso',
-                    'pasosResolver',
-                    'Describa cómo se realizó la actividad, pasos seguidos...',
-                    false,
-                    true
-                )}
+                {/* Descripción de la queja */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Descripción de la Queja</Text>
+                    {renderInput(
+                        'Retroalimentación del cliente',
+                        'retroalimentacion',
+                        'Describa detalladamente la queja o problema reportado...',
+                        true,
+                        true
+                    )}
+                </View>
 
+                {/* Plan de acción */}
+                <View style={stylesreport.sectionCard}>
+                    <Text style={stylesreport.sectionCardTitle}>Plan de Acción</Text>
+                    {renderInput(
+                        '¿Cómo se va a resolver?',
+                        'comoResolver',
+                        'Describa el plan de acción...',
+                        false,
+                        true
+                    )}
+                    {renderInput(
+                        'Pasos a seguir',
+                        'pasosResolver',
+                        'Pasos específicos para resolver...',
+                        false,
+                        true
+                    )}
+                    {renderInput('Costo al área ($)', 'costoArea', '0.00', false, false, 'numeric')}
+                </View>
+
+                {/* Observaciones */}
                 {renderInput(
-                    'Conclusiones y observaciones',
+                    'Observaciones adicionales',
                     'observaciones',
-                    'Conclusiones finales, áreas de oportunidad, mejoras...',
+                    'Cualquier observación adicional...',
                     false,
                     true
                 )}
@@ -1114,7 +1231,7 @@ export const ReportsScreen = () => {
                             maxDate={'2100-12-31'}
                             hideExtraDays={true}
                             disableMonthChange={false}
-                            firstDay={1} // Lunes como primer día
+                            firstDay={1}
                             hideDayNames={false}
                             showWeekNumbers={false}
                             disableArrowLeft={false}

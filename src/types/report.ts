@@ -16,6 +16,27 @@ export interface ReportFormData {
   quejaResuelta: string;
   costoArea: string;
   observaciones: string;
+  
+  // Campos específicos para incidentes
+  lugarIncidente?: string;
+  testigos?: string;
+  afectados?: string;
+  accionesCorrectivas?: string;
+  notificaciones?: string;
+  
+  // Campos específicos para reporte general (pacientes)
+  pacientesTransitorios?: PacienteInfo[];
+  pacientesHospitalizados?: PacienteInfo[];
+  pacientesPension?: PacienteInfo[];
+}
+
+export interface PacienteInfo {
+  nombrePaciente: string;
+  nombrePropietario: string;
+  ubicacion: string; // Jaula o área
+  requiereTratamiento: boolean;
+  tratamiento?: string;
+  tipoServicio?: string; // Consulta, procedimiento, etc.
 }
 
 export interface ReportType {
@@ -23,5 +44,5 @@ export interface ReportType {
   title: string;
   icon: string;
   description: string;
-  color?: string; // Color específico para cada tipo
+  color?: string;
 }
