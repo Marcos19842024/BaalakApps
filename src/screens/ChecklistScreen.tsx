@@ -52,6 +52,8 @@ export const ChecklistScreen = () => {
   const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const areasScrollViewRef = useRef<ScrollView>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
 
   // Solicitar permisos
   useEffect(() => {
@@ -401,18 +403,27 @@ export const ChecklistScreen = () => {
     return fileNameWithExtension;
   };
 
+  const MAX_PHOTOS = 15;
+
+  if (formData.photos && formData.photos.length > MAX_PHOTOS) {
+    Alert.alert(
+      'Muchas fotos',
+      `Has tomado ${formData.photos.length} fotos. Para mejor rendimiento, se recomienda máximo ${MAX_PHOTOS}.`,
+      [
+        { text: 'Continuar de todas formas', onPress: () => handleSaveInternal() },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
+    return;
+  }
+
   // Función interna para guardar (sin validación) - MODIFICADA PARA INCLUIR RENOMBRE
   const handleSaveInternal = async () => {
     try {
       setIsLoading(true);
+      setProgress(0);
+      setProgressMessage('Preparando datos...');
       
-      // Verificar que las fotos estén en formData
-      console.log('Fotos en formData:', formData.photos?.length || 0);
-      if (formData.photos && formData.photos.length > 0) {
-        console.log('Primera foto:', formData.photos[0].photoUri);
-      }
-      
-      // Actualizar datos
       const updatedData = {
         ...formData,
         horaFin: getCurrentTime(),
@@ -421,19 +432,35 @@ export const ChecklistScreen = () => {
         completed: areAllAreasComplete(formData.items, sucursalKey)
       };
       
-      // Generar nombre del archivo
       const fileName = generateChecklistFileName(updatedData);
-      
+    
       Toast.show({
         type: 'info',
         text1: 'Generando PDF...',
-        text2: `Archivo: ${fileName}`,
+        text2: `Procesando ${formData.photos?.length || 0} fotos`,
       });
-      
-      // Generar PDF temporal
-      const tempPdfUri = await generateChecklistPDF(updatedData, sucursalName);
-      
-      // Renombrar el archivo
+    
+      // Generar PDF con seguimiento de progreso
+      const tempPdfUri = await generateChecklistPDF(
+        updatedData, 
+        sucursalName,
+        (progress) => {
+          setProgress(progress);
+          
+          // Actualizar mensaje según el progreso
+          if (progress < 10) {
+            setProgressMessage('Preparando plantilla...');
+          } else if (progress >= 10 && progress < 90) {
+            const photoProgress = Math.round((progress - 10) / 80 * 100);
+            setProgressMessage(`Procesando fotos: ${photoProgress}%`);
+          } else if (progress >= 90 && progress < 100) {
+            setProgressMessage('Generando PDF final...');
+          } else {
+            setProgressMessage('¡Completado!');
+          }
+        }
+      );
+    
       const renameResult = await renamePDFFile(tempPdfUri, fileName);
       const newName = extractFileNameFromUri(renameResult.uri);
       
@@ -461,7 +488,11 @@ export const ChecklistScreen = () => {
           `Se generó el PDF pero no se pudo renombrar.\n\n${renameResult.message}`,
           [
             { 
-              text: 'OK',
+              text: 'Cancelar', 
+              style: 'cancel' 
+            },
+            { 
+              text: 'Compartir por WhatsApp',
               onPress: () => shareViaWhatsApp(tempPdfUri, newName, updatedData)
             }
           ]
@@ -478,15 +509,19 @@ export const ChecklistScreen = () => {
           text2: `${newName} subido al servidor`
         });
       }
-
     } catch (error) {
       setIsLoading(false);
+      setProgress(0);
       console.error('Error guardando checklist:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo guardar el checklist',
-      });
+      Alert.alert(
+        'Error',
+        'No se pudo guardar el checklist',
+        [
+          {
+            text: 'Ok'
+          }
+        ]
+      );
     }
   };
 
@@ -755,7 +790,14 @@ export const ChecklistScreen = () => {
             })}
           </ScrollView>
         </View>
+      </View>
 
+      {/* SCROLLVIEW SOLO PARA LAS ÁREAS */}
+      <ScrollView 
+        ref={areasScrollViewRef}
+        style={styleschecklist.areasScrollView}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Galería de fotos del área actual */}
         {areaPhotos.length > 0 && (
           <View style={styleschecklist.photosSection}>
@@ -790,14 +832,7 @@ export const ChecklistScreen = () => {
             </ScrollView>
           </View>
         )}
-      </View>
 
-      {/* SCROLLVIEW SOLO PARA LAS ÁREAS */}
-      <ScrollView 
-        ref={areasScrollViewRef}
-        style={styleschecklist.areasScrollView}
-        showsVerticalScrollIndicator={true}
-      >
         {/* Evaluación del área actual */}
         <View style={styleschecklist.evaluationSection}>
           {(itemsByArea[currentArea] || []).map((item) => (
@@ -1003,8 +1038,28 @@ export const ChecklistScreen = () => {
           <View style={styleschecklist.loadingContent}>
             <ActivityIndicator size="large" color="#05aaca" />
             <Text style={styleschecklist.loadingText}>
-              Generando PDF para {sucursalName}...
+              {progressMessage || `Generando PDF para ${sucursalName}...`}
             </Text>
+            
+            {/* Barra de progreso */}
+            <View style={styleschecklist.progressBarContainer}>
+              <View 
+                style={[
+                  styleschecklist.progressBarFill, 
+                  { width: `${progress}%` }
+                ]} 
+              />
+            </View>
+            
+            <Text style={styleschecklist.progressText}>
+              {progress}% completado
+            </Text>
+            
+            {formData.photos && formData.photos.length > 0 && (
+              <Text style={styleschecklist.progressDetail}>
+                Procesando {formData.photos.length} fotos...
+              </Text>
+            )}
           </View>
         </View>
       </Modal>
