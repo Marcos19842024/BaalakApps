@@ -36,6 +36,7 @@ import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { uploadFileToSupabase } from 'src/services/supabaseStorageService';
+import { clearDraft, getDraftAge, loadDraft, saveDraft } from 'src/services/checklistStorage';
 
 export const ChecklistScreen = () => {
   const route = useRoute();
@@ -54,6 +55,9 @@ export const ChecklistScreen = () => {
   const areasScrollViewRef = useRef<ScrollView>(null);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
+  // Auto-save timer
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Solicitar permisos
   useEffect(() => {
@@ -116,6 +120,88 @@ export const ChecklistScreen = () => {
     }, [reloadChecklist])
   );
   
+  // Efecto para autoguardado
+  useEffect(() => {
+    // Configurar autoguardado cada 30 segundos
+    autoSaveTimerRef.current = setInterval(() => {
+      saveProgressOnly();
+    }, 30000); // 30 segundos
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+      }
+    };
+  }, [formData]); // Dependencia en formData para guardar cambios
+
+  // Función para guardar solo el progreso (sin PDF)
+  const saveProgressOnly = async () => {
+    try {
+      await saveDraft(sucursalKey, formData);
+      setLastSaved(new Date());
+      
+      // Mostrar indicador sutil (opcional)
+      if (Platform.OS !== 'web') {
+        // Puedes mostrar un pequeño toast o actualizar un indicador
+        console.log('📝 Progreso guardado automáticamente');
+      }
+    } catch (error) {
+      console.error('Error en autoguardado:', error);
+    }
+  };
+
+  // Efecto para cargar borrador al iniciar
+  useEffect(() => {
+    loadExistingDraft();
+  }, [sucursalKey]);
+
+  useEffect(() => {
+    // Guardar cuando cambia el área o después de evaluaciones importantes
+    const debounceTimer = setTimeout(() => {
+      if (formData.items.some(item => item.cumplimiento !== '')) {
+        saveProgressOnly();
+      }
+    }, 5000); // 5 segundos después del último cambio
+    
+    return () => clearTimeout(debounceTimer);
+  }, [formData.items, formData.responsable, formData.comentariosAdicionales]);
+
+  // Cargar borrador existente
+  const loadExistingDraft = async () => {
+    try {
+      const draft = await loadDraft(sucursalKey);
+      if (draft) {
+        const draftAge = await getDraftAge(sucursalKey);
+        const minutesOld = draftAge ? Math.round(draftAge / 60000) : 0;
+        
+        Alert.alert(
+          'Borrador encontrado',
+          `Se encontró un progreso guardado de hace ${minutesOld} minutos. ¿Deseas continuar donde lo dejaste?`,
+          [
+            { 
+              text: 'Empezar nuevo', 
+              style: 'cancel',
+              onPress: () => clearDraft(sucursalKey)
+            },
+            { 
+              text: 'Continuar', 
+              onPress: () => {
+                setFormData(draft);
+                Toast.show({
+                  type: 'success',
+                  text1: '✅ Progreso cargado',
+                  text2: 'Continuando con el borrador guardado',
+                });
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error cargando borrador:', error);
+    }
+  };
+
   // Función para hacer scroll automático a un área
   const scrollToArea = (areaIndex: number) => {
     if (areasScrollViewRef.current && areaIndex >= 0 && areaIndex < areas.length) {
@@ -502,7 +588,12 @@ export const ChecklistScreen = () => {
       // Subir a Supabase
       const downloadURL = await uploadFileToSupabase(renameResult.uri, newName);
       
+      // Después de subir exitosamente a Supabase
       if (downloadURL) {
+        // Limpiar el borrador ya que se guardó permanentemente
+        await clearDraft(sucursalKey);
+        setLastSaved(null);
+        
         Toast.show({
           type: 'success',
           text1: '✅ ¡Éxito!',
@@ -659,6 +750,23 @@ export const ChecklistScreen = () => {
             <Icon name="save" size={24} color="white" />
             <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
           </TouchableOpacity>
+
+          {/* Guardar progreso */}
+          <TouchableOpacity
+            style={[styleschecklist.headerButton, styleschecklist.saveProgressButton]}
+            onPress={saveProgressOnly}
+            disabled={isLoading}
+          >
+            <MaterialCommunityIcons name="content-save-outline" size={24} color="white" />
+            <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
+          </TouchableOpacity>
+          
+          {/* Indicador de último guardado (opcional) */}
+          {lastSaved && (
+            <Text style={styleschecklist.lastSavedText}>
+              Guardado: {lastSaved.toLocaleTimeString()}
+            </Text>
+          )}
 
           <TouchableOpacity
             style={styleschecklist.headerButton}

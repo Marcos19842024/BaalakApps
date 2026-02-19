@@ -837,4 +837,29 @@ export const styleschecklist = StyleSheet.create({
         color: '#666',
         marginTop: 2,
     },
+    saveProgressButton: {
+        backgroundColor: '#10B981', // Verde para distinguir
+    },
+    lastSavedText: {
+        color: '#6B7280',
+        fontSize: 10,
+        marginLeft: 8,
+    },
+    progressIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 8,
+    },
+    progressDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 4,
+    },
+    progressDotActive: {
+        backgroundColor: '#10B981',
+    },
+    progressDotInactive: {
+        backgroundColor: '#D1D5DB',
+    },
 });
