@@ -792,16 +792,6 @@ export const ChecklistScreen = () => {
             <Icon name="save" size={24} color="white" />
             <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
           </TouchableOpacity>
-
-          {/* Guardar progreso */}
-          <TouchableOpacity
-            style={[styleschecklist.headerButton, styleschecklist.saveProgressButton]}
-            onPress={saveProgressOnly}
-            disabled={isLoading}
-          >
-            <MaterialCommunityIcons name="content-save-outline" size={24} color="white" />
-            <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
-          </TouchableOpacity>
           
           {/* Indicador de último guardado (opcional) */}
           {lastSaved && (
