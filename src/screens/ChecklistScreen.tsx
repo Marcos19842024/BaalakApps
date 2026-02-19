@@ -35,6 +35,7 @@ import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { uploadFileToSupabase } from 'src/services/supabaseStorageService';
 import { clearDraft, getDraftAge, loadDraft, saveDraft } from 'src/services/checklistStorage';
 
@@ -385,6 +386,44 @@ export const ChecklistScreen = () => {
     return true;
   };
 
+  const estimateTotalPhotoSize = async (photos: ChecklistPhoto[]): Promise<number> => {
+    let totalSize = 0;
+    
+    for (const photo of photos) {
+      try {
+        const info = await FileSystem.getInfoAsync(photo.photoUri);
+        if (info.exists) {
+          totalSize += info.size || 0;
+        }
+      } catch (error) {
+        console.error('Error estimando tamaño:', error);
+      }
+    }
+    
+    return totalSize;
+  };
+
+  const checkMemoryAndWarn = async () => {
+    if (formData.photos && formData.photos.length > 8) {
+      const totalSize = await estimateTotalPhotoSize(formData.photos);
+      
+      if (totalSize > 30 * 1024 * 1024) { // 30MB
+        Alert.alert(
+          '⚠️ Muchas fotos',
+          `Las fotos ocupan aproximadamente ${Math.round(totalSize / (1024 * 1024))}MB. ` +
+          'En dispositivos de gama baja esto puede causar problemas. ' +
+          '¿Deseas continuar?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Continuar', onPress: handleSaveInternal }
+          ]
+        );
+        return false;
+      }
+    }
+    return true;
+  };
+
   // Función para forzar guardar a pesar de áreas incompletas
   const handleForceSave = async () => {
     setShowValidationModal(false);
@@ -618,7 +657,10 @@ export const ChecklistScreen = () => {
 
   // Modificar handleSave para incluir validación
   const handleSave = async () => {
-    if (validateBeforeSave()) {
+    if (!validateBeforeSave()) return;
+  
+    const memoryOk = await checkMemoryAndWarn();
+    if (memoryOk) {
       await handleSaveInternal();
     }
   };
