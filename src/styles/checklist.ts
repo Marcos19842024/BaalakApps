@@ -843,7 +843,7 @@ export const styleschecklist = StyleSheet.create({
     lastSavedText: {
         color: '#6B7280',
         fontSize: 10,
-        marginLeft: 8,
+        marginLeft: 15,
     },
     progressIndicator: {
         flexDirection: 'row',

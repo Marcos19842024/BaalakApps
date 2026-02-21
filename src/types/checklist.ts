@@ -1,4 +1,5 @@
 export interface ChecklistItem {
+  aspectoId: any;
   id: string;
   area: string;
   aspecto: string;

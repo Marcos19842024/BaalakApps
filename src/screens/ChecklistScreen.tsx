@@ -8,6 +8,7 @@ import * as MediaLibrary from 'expo-media-library';
 import Toast from 'react-native-toast-message';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { decode } from 'js-base64';
 import { ChecklistData, ChecklistItem, ChecklistPhoto } from '../types/checklist';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
 import {
@@ -19,7 +20,6 @@ import {
   Image,
   Alert,
   Modal,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -34,10 +34,10 @@ import {
 import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
-import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as FileSystem from 'expo-file-system';
-import { uploadFileToSupabase } from 'src/services/supabaseStorageService';
-import { clearDraft, getDraftAge, loadDraft, saveDraft } from 'src/services/checklistStorage';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { loadDraft, clearDraft, saveDraft } from 'src/services/checklistStorage';
+import supabase from 'src/utils/supabaseConfig';
 
 export const ChecklistScreen = () => {
   const route = useRoute();
@@ -53,12 +53,11 @@ export const ChecklistScreen = () => {
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const areasScrollViewRef = useRef<ScrollView>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
-  // Auto-save timer
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const areasScrollViewRef = useRef<ScrollView | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Solicitar permisos
   useEffect(() => {
@@ -73,22 +72,48 @@ export const ChecklistScreen = () => {
     })();
   }, []);
 
+  // Auto-save cada 30 segundos
+  useEffect(() => {
+    autoSaveTimerRef.current = setInterval(() => {
+      saveProgressOnly();
+    }, 30000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+      }
+    };
+  }, [formData]);
+
+  // Cargar borrador al iniciar
+  useEffect(() => {
+    loadExistingDraft();
+  }, [sucursalKey]);
+
+  // Guardar cambios importantes
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (formData.items.some(item => item.cumplimiento !== '')) {
+        saveProgressOnly();
+      }
+    }, 5000);
+    
+    return () => clearTimeout(debounceTimer);
+  }, [formData.items, formData.responsable, formData.comentariosAdicionales]);
+
   // Función para recargar el checklist
   const reloadChecklist = useCallback(() => {
-    // Si recibimos una sucursal por parámetro, seleccionarla
     if (params?.sucursalKey) {
       setSucursalKey(params.sucursalKey);
     }
 
     console.log('Recargando checklist para sucursal:', sucursalKey);
     
-    // Recargar plantilla desde AsyncStorage (si hay personalizaciones)
     const loadTemplate = async () => {
       try {
         const newChecklist = initializeChecklistData(sucursalKey);
         setFormData(newChecklist);
         
-        // También recargar áreas únicas
         const areas = getUniqueAreasForSucursal(sucursalKey);
         if (areas.length > 0) {
           setCurrentArea(areas[0]);
@@ -108,76 +133,26 @@ export const ChecklistScreen = () => {
     loadTemplate();
   }, [sucursalKey]);
 
-  // Efecto para recargar cuando la pantalla recibe foco
+  // Focus effect
   useFocusEffect(
     useCallback(() => {
       console.log('ChecklistScreen recibió foco, recargando...');
       reloadChecklist();
       
-      // Limpiar si es necesario cuando pierde el foco
       return () => {
         console.log('ChecklistScreen perdió el foco');
       };
     }, [reloadChecklist])
   );
-  
-  // Efecto para autoguardado
-  useEffect(() => {
-    // Configurar autoguardado cada 30 segundos
-    autoSaveTimerRef.current = setInterval(() => {
-      saveProgressOnly();
-    }, 30000); // 30 segundos
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearInterval(autoSaveTimerRef.current);
-      }
-    };
-  }, [formData]); // Dependencia en formData para guardar cambios
-
-  // Función para guardar solo el progreso (sin PDF)
-  const saveProgressOnly = async () => {
-    try {
-      await saveDraft(sucursalKey, formData);
-      setLastSaved(new Date());
-      
-      // Mostrar indicador sutil (opcional)
-      if (Platform.OS !== 'web') {
-        // Puedes mostrar un pequeño toast o actualizar un indicador
-        console.log('📝 Progreso guardado automáticamente');
-      }
-    } catch (error) {
-      console.error('Error en autoguardado:', error);
-    }
-  };
-
-  // Efecto para cargar borrador al iniciar
-  useEffect(() => {
-    loadExistingDraft();
-  }, [sucursalKey]);
-
-  useEffect(() => {
-    // Guardar cuando cambia el área o después de evaluaciones importantes
-    const debounceTimer = setTimeout(() => {
-      if (formData.items.some(item => item.cumplimiento !== '')) {
-        saveProgressOnly();
-      }
-    }, 5000); // 5 segundos después del último cambio
-    
-    return () => clearTimeout(debounceTimer);
-  }, [formData.items, formData.responsable, formData.comentariosAdicionales]);
 
   // Cargar borrador existente
   const loadExistingDraft = async () => {
     try {
       const draft = await loadDraft(sucursalKey);
       if (draft) {
-        const draftAge = await getDraftAge(sucursalKey);
-        const minutesOld = draftAge ? Math.round(draftAge / 60000) : 0;
-        
         Alert.alert(
           'Borrador encontrado',
-          `Se encontró un progreso guardado de hace ${minutesOld} minutos. ¿Deseas continuar donde lo dejaste?`,
+          'Se encontró un progreso guardado. ¿Deseas continuar donde lo dejaste?',
           [
             { 
               text: 'Empezar nuevo', 
@@ -203,11 +178,21 @@ export const ChecklistScreen = () => {
     }
   };
 
+  // Guardar solo progreso (sin PDF)
+  const saveProgressOnly = async () => {
+    try {
+      await saveDraft(sucursalKey, formData);
+      setLastSaved(new Date());
+      console.log('📝 Progreso guardado automáticamente');
+    } catch (error) {
+      console.error('Error en autoguardado:', error);
+    }
+  };
+
   // Función para hacer scroll automático a un área
   const scrollToArea = (areaIndex: number) => {
     if (areasScrollViewRef.current && areaIndex >= 0 && areaIndex < areas.length) {
-      // Calcular la posición aproximada (ajusta según el alto de tus items)
-      const scrollPosition = areaIndex * 280; // Ajusta este valor según el alto de tus áreas
+      const scrollPosition = areaIndex * 280;
       areasScrollViewRef.current.scrollTo({ y: scrollPosition, animated: true });
     }
   };
@@ -219,33 +204,10 @@ export const ChecklistScreen = () => {
     setSucursalKey(newSucursalKey);
     setSucursalName(newSucursalName);
     
-    // Crear nuevo checklist con las áreas de la nueva sucursal
     const newChecklist = initializeChecklistData(newSucursalKey);
     setFormData(newChecklist);
     
-    // Establecer el primer área de la sucursal como activa
     const areas = getUniqueAreasForSucursal(newSucursalKey);
-
-    if (areas.length === 0) {
-      return (
-        <SafeAreaView style={styleschecklist.container}>
-          <View style={styleschecklist.noAreasContainer}>
-            <MaterialCommunityIcons name="folder-alert" size={64} color="#9CA3AF" />
-            <Text style={styleschecklist.noAreasTitle}>No hay áreas configuradas</Text>
-            <Text style={styleschecklist.noAreasText}>
-              Esta sucursal no tiene áreas configuradas. Contacta al administrador.
-            </Text>
-            <TouchableOpacity 
-              style={styleschecklist.refreshButton}
-              onPress={() => handleSucursalChange(sucursalKey)}
-            >
-              <Text style={styleschecklist.refreshButtonText}>Recargar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      );
-    }
-
     setCurrentArea(areas[0] || 'ESTACIONAMIENTO');
     
     Toast.show({
@@ -300,7 +262,6 @@ export const ChecklistScreen = () => {
     if (!tempPhoto) return;
 
     try {
-      // Guardar en la galería
       const asset = await MediaLibrary.createAssetAsync(tempPhoto);
       
       const newPhoto: ChecklistPhoto = {
@@ -325,6 +286,9 @@ export const ChecklistScreen = () => {
       setTempPhoto(null);
       setPhotoDescription('');
       setCameraVisible(false);
+      
+      // Guardar progreso después de agregar foto
+      saveProgressOnly();
     } catch (error) {
       console.error('Error guardando foto:', error);
       Toast.show({
@@ -345,6 +309,7 @@ export const ChecklistScreen = () => {
       type: 'success',
       text1: 'Foto eliminada',
     });
+    saveProgressOnly();
   };
 
   // Calcular porcentajes
@@ -361,7 +326,7 @@ export const ChecklistScreen = () => {
     return totalEvaluated > 0 ? (buenoItems / totalEvaluated) * 100 : 0;
   };
 
-  // Función para validar antes de guardar
+  // Validar antes de guardar
   const validateBeforeSave = (): boolean => {
     if (!formData.responsable.trim()) {
       Toast.show({
@@ -373,7 +338,6 @@ export const ChecklistScreen = () => {
       return false;
     }
 
-    // Verificar si todas las áreas están completas
     const allComplete = areAllAreasComplete(formData.items, sucursalKey);
     
     if (!allComplete) {
@@ -386,6 +350,358 @@ export const ChecklistScreen = () => {
     return true;
   };
 
+  // Forzar guardado
+  const handleForceSave = async () => {
+    setShowValidationModal(false);
+    await handleSaveInternal();
+  };
+
+  // ========== FUNCIONES PARA SUBIR FOTOS A SUPABASE ==========
+
+  // Función para comprimir imagen antes de subir
+  const compressImage = async (photoUri: string): Promise<string> => {
+    try {
+      console.log('Comprimiendo imagen:', photoUri);
+      
+      const compressedImage = await manipulateAsync(
+        photoUri,
+        [{ resize: { width: 1024 } }], // Reducir a 1024px de ancho
+        { compress: 0.7, format: SaveFormat.JPEG }
+      );
+      
+      console.log('✅ Imagen comprimida:', compressedImage.uri);
+      return compressedImage.uri;
+    } catch (error) {
+      console.error('Error comprimiendo imagen:', error);
+      return photoUri; // Devolver original si falla
+    }
+  };
+
+  // Función para subir foto a Supabase Storage
+  const uploadPhotoToStorage = async (photoUri: string, checklistId: string, photoIndex: number): Promise<string | null> => {
+    try {
+      console.log(`📸 Subiendo foto ${photoIndex + 1}:`, photoUri);
+      setProgressMessage(`Preparando foto ${photoIndex + 1}...`);
+      
+      // 1. Verificar que el archivo existe
+      const fileInfo = await FileSystem.getInfoAsync(photoUri);
+      if (!fileInfo.exists) {
+        console.error('❌ El archivo no existe:', photoUri);
+        return null;
+      }
+      
+      console.log('✅ Archivo existe, tamaño:', fileInfo.size, 'bytes');
+      
+      // 2. Comprimir si es muy grande (> 2MB)
+      let uriToUpload = photoUri;
+      if (fileInfo.size && fileInfo.size > 2 * 1024 * 1024) {
+        console.log('📦 Archivo grande, comprimiendo...');
+        uriToUpload = await compressImage(photoUri);
+      }
+      
+      // 3. Generar nombre único
+      const fileName = `${checklistId}_${Date.now()}_${photoIndex}.jpg`;
+      const filePath = `checklist-photos/${fileName}`;
+      
+      // 4. Leer el archivo como base64
+      setProgressMessage(`Procesando foto ${photoIndex + 1}...`);
+      const base64 = await FileSystem.readAsStringAsync(uriToUpload, {
+        encoding: 'base64',
+      });
+      
+      console.log('✅ Foto leída, tamaño base64:', base64.length);
+      
+      // 5. Convertir base64 a arraybuffer
+      const arrayBuffer = decode(base64);
+      
+      // 6. Subir a Supabase Storage
+      setProgressMessage(`Subiendo foto ${photoIndex + 1} a la nube...`);
+      
+      const { data, error } = await supabase.storage
+        .from('checklists')
+        .upload(filePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        
+        // Si el error es por tamaño, intentar con compresión más agresiva
+        if (error.message?.includes('size') || error.statusCode === 413) {
+          console.log('📦 Foto muy grande, comprimiendo más...');
+          const superCompressed = await manipulateAsync(
+            photoUri,
+            [{ resize: { width: 800 } }],
+            { compress: 0.5, format: SaveFormat.JPEG }
+          );
+          return await uploadPhotoToStorage(superCompressed.uri, checklistId, photoIndex);
+        }
+        
+        return null;
+      }
+      
+      console.log('✅ Foto subida a Storage:', data.path);
+      
+      // 7. Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('checklists')
+        .getPublicUrl(filePath);
+      
+      console.log('✅ URL pública:', urlData.publicUrl);
+      return urlData.publicUrl;
+      
+    } catch (error: any) {
+      console.error('❌ Error en uploadPhotoToStorage:', error);
+      
+      // Si es error de red, reintentar una vez
+      if (error.message?.includes('Network') || error.message?.includes('network')) {
+        console.log('🌐 Error de red, reintentando en 3 segundos...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return await uploadPhotoToStorage(photoUri, checklistId, photoIndex);
+      }
+      
+      return null;
+    }
+  };
+
+  // Función para subir fotos por lotes
+  const uploadPhotosInBatches = async (
+    photos: ChecklistPhoto[],
+    checklistId: string
+  ): Promise<{ success: number; failed: number; photosToInsert: any[] }> => {
+    const photosToInsert = [];
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Subir en lotes de 3 fotos
+    const batchSize = 3;
+    
+    for (let i = 0; i < photos.length; i += batchSize) {
+      const batch = photos.slice(i, i + batchSize);
+      
+      // Procesar lote en paralelo
+      const batchPromises = batch.map(async (photo, batchIndex) => {
+        const photoIndex = i + batchIndex;
+        
+        try {
+          setProgressMessage(`Subiendo foto ${photoIndex + 1} de ${photos.length}...`);
+          
+          const publicUrl = await uploadPhotoToStorage(photo.photoUri, checklistId, photoIndex);
+          
+          if (publicUrl) {
+            successCount++;
+            return {
+              checklist_id: checklistId,
+              area: photo.area,
+              photo_url: publicUrl,
+              timestamp: photo.timestamp,
+              description: photo.description || ''
+            };
+          } else {
+            failCount++;
+            // Guardar URI local como fallback
+            return {
+              checklist_id: checklistId,
+              area: photo.area,
+              photo_url: photo.photoUri,
+              timestamp: photo.timestamp,
+              description: photo.description || ''
+            };
+          }
+        } catch (error) {
+          console.error(`Error en foto ${photoIndex + 1}:`, error);
+          failCount++;
+          // Guardar URI local como fallback
+          return {
+            checklist_id: checklistId,
+            area: photo.area,
+            photo_url: photo.photoUri,
+            timestamp: photo.timestamp,
+            description: photo.description || ''
+          };
+        }
+      });
+      
+      // Esperar a que termine el lote
+      const batchResults = await Promise.all(batchPromises);
+      photosToInsert.push(...batchResults);
+      
+      // Pequeña pausa entre lotes
+      if (i + batchSize < photos.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    return { success: successCount, failed: failCount, photosToInsert };
+  };
+
+  // ========== FUNCIONES PARA SUPABASE ==========
+
+  // Formatear fecha para DB
+  const formatDateForDB = (dateStr: string): string => {
+    const [day, month, year] = dateStr.split('/');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Guardar checklist en Supabase
+  const saveChecklistToSupabase = async (checklistData: ChecklistData, pdfUrl: string) => {
+    try {
+      // 1. Insertar el checklist principal
+      const { data: checklist, error: checklistError } = await supabase
+        .from('checklists')
+        .insert({
+          sucursal_key: checklistData.sucursalKey,
+          sucursal_nombre: checklistData.sucursal,
+          responsable: checklistData.responsable,
+          fecha: formatDateForDB(checklistData.fecha),
+          hora_inicio: checklistData.horaInicio,
+          hora_fin: checklistData.horaFin,
+          comentarios_adicionales: checklistData.comentariosAdicionales,
+          pdf_url: pdfUrl,
+          completed: checklistData.completed
+        })
+        .select()
+        .single();
+
+      if (checklistError) throw checklistError;
+      console.log('✅ Checklist creado con ID:', checklist.id);
+
+      // 2. Insertar los items
+      if (checklistData.items.length > 0) {
+        const itemsToInsert = checklistData.items.map(item => ({
+          checklist_id: checklist.id,
+          area: item.area,
+          aspecto: item.aspecto,
+          cumplimiento: item.cumplimiento || '',
+          observaciones: item.observaciones || '',
+          aspecto_id: item.aspectoId
+        }));
+
+        // Insertar en lotes de 20 items
+        const batchSize = 20;
+        for (let i = 0; i < itemsToInsert.length; i += batchSize) {
+          const batch = itemsToInsert.slice(i, i + batchSize);
+          const { error: itemsError } = await supabase
+            .from('checklist_items')
+            .insert(batch);
+
+          if (itemsError) throw itemsError;
+        }
+        
+        console.log(`✅ ${itemsToInsert.length} items guardados`);
+      }
+
+      // 3. Subir fotos a Storage
+      if (checklistData.photos && checklistData.photos.length > 0) {
+        setProgressMessage('Subiendo fotos a la nube...');
+        
+        const { success, failed, photosToInsert } = await uploadPhotosInBatches(
+          checklistData.photos,
+          checklist.id
+        );
+        
+        console.log(`📊 Fotos: ${success} exitosas, ${failed} fallaron`);
+        
+        // Insertar fotos en la base de datos
+        if (photosToInsert.length > 0) {
+          setProgressMessage('Guardando referencias de fotos...');
+          
+          // Insertar en lotes de 5 fotos
+          const batchSize = 5;
+          for (let i = 0; i < photosToInsert.length; i += batchSize) {
+            const batch = photosToInsert.slice(i, i + batchSize);
+            const { error: photosError } = await supabase
+              .from('checklist_photos')
+              .insert(batch);
+
+            if (photosError) {
+              console.error(`Error insertando lote ${i}:`, photosError);
+            } else {
+              console.log(`✅ Lote ${i/batchSize + 1} insertado: ${batch.length} fotos`);
+            }
+          }
+        }
+      }
+
+      return checklist.id;
+    } catch (error) {
+      console.error('Error guardando en Supabase:', error);
+      throw error;
+    }
+  };
+
+  // Renombrar archivo PDF
+  const renamePDFFile = async (originalUri: string, newFileName: string): Promise<{success: boolean, uri: string, message: string}> => {
+    try {
+      console.log('=== INICIANDO RENOMBRE DE ARCHIVO CHECKLIST ===');
+      
+      const directoryPath = originalUri.substring(0, originalUri.lastIndexOf('/') + 1);
+      const newUri = `${directoryPath}${newFileName}`;
+      
+      const fileInfo = await FileSystem.getInfoAsync(originalUri);
+      if (!fileInfo.exists) {
+        return {
+          success: false,
+          uri: originalUri,
+          message: 'El archivo original no existe'
+        };
+      }
+      
+      await FileSystem.copyAsync({
+        from: originalUri,
+        to: newUri
+      });
+      
+      const newFileInfo = await FileSystem.getInfoAsync(newUri);
+      if (newFileInfo.exists) {
+        try {
+          await FileSystem.deleteAsync(originalUri);
+        } catch (deleteError) {
+          console.warn('No se pudo eliminar el archivo original');
+        }
+        
+        return {
+          success: true,
+          uri: newUri,
+          message: `Archivo renombrado a: ${newFileName}`
+        };
+      } else {
+        return {
+          success: false,
+          uri: originalUri,
+          message: 'No se pudo copiar el archivo'
+        };
+      }
+      
+    } catch (error: any) {
+      console.error('Error renombrando archivo:', error.message);
+      return {
+        success: false,
+        uri: originalUri,
+        message: `Error: ${error.message}`
+      };
+    }
+  };
+
+  // Generar nombre de archivo
+  const generateChecklistFileName = (data: ChecklistData): string => {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const sucursal = data.sucursalKey || sucursalKey;
+    const responsible = data.responsable 
+      ? `_${data.responsable.trim().replace(/\s+/g, '_')}` 
+      : '';
+    
+    return `Checklist_${sucursal}${responsible}_${date}.pdf`;
+  };
+
+  // Extraer nombre de archivo
+  const extractFileNameFromUri = (uri: string): string => {
+    return uri.split('/').pop() || 'checklist.pdf';
+  };
+
+  // Estimar tamaño total de fotos
   const estimateTotalPhotoSize = async (photos: ChecklistPhoto[]): Promise<number> => {
     let totalSize = 0;
     
@@ -403,146 +719,29 @@ export const ChecklistScreen = () => {
     return totalSize;
   };
 
-  const checkMemoryAndWarn = async () => {
+  // Verificar memoria antes de generar PDF
+  const checkMemoryAndWarn = async (): Promise<boolean> => {
     if (formData.photos && formData.photos.length > 8) {
       const totalSize = await estimateTotalPhotoSize(formData.photos);
       
       if (totalSize > 30 * 1024 * 1024) { // 30MB
-        Alert.alert(
-          '⚠️ Muchas fotos',
-          `Las fotos ocupan aproximadamente ${Math.round(totalSize / (1024 * 1024))}MB. ` +
-          'En dispositivos de gama baja esto puede causar problemas. ' +
-          '¿Deseas continuar?',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Continuar', onPress: handleSaveInternal }
-          ]
-        );
-        return false;
+        return new Promise((resolve) => {
+          Alert.alert(
+            '⚠️ Muchas fotos',
+            `Las fotos ocupan aproximadamente ${Math.round(totalSize / (1024 * 1024))}MB. ` +
+            'En dispositivos de gama baja esto puede causar problemas. ¿Deseas continuar?',
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Continuar', onPress: () => resolve(true) }
+            ]
+          );
+        });
       }
     }
     return true;
   };
 
-  // Función para forzar guardar a pesar de áreas incompletas
-  const handleForceSave = async () => {
-    setShowValidationModal(false);
-    await handleSaveInternal();
-  };
-
-  // Función para renombrar el archivo PDF - ADAPTADA DE REPORTS SCREEN
-  const renamePDFFile = async (originalUri: string, newFileName: string): Promise<{success: boolean, uri: string, message: string}> => {
-    try {
-      console.log('=== INICIANDO RENOMBRE DE ARCHIVO CHECKLIST ===');
-      console.log('URI original:', originalUri);
-      console.log('Nuevo nombre:', newFileName);
-      
-      // Obtener directorio del archivo original
-      const directoryPath = getFileDirectory(originalUri);
-      const newUri = `${directoryPath}${newFileName}`;
-      
-      console.log('Directorio:', directoryPath);
-      console.log('Nueva URI:', newUri);
-      
-      // Verificar que el archivo original existe
-      const fileInfo = await LegacyFileSystem.getInfoAsync(originalUri);
-      if (!fileInfo.exists) {
-        console.error('❌ El archivo original no existe');
-        return {
-          success: false,
-          uri: originalUri,
-          message: 'El archivo original no existe'
-        };
-      }
-      
-      console.log('✅ Archivo original existe, tamaño:', fileInfo.size, 'bytes');
-      
-      // Copiar a nuevo nombre
-      console.log('📋 Copiando archivo...');
-      await LegacyFileSystem.copyAsync({
-        from: originalUri,
-        to: newUri
-      });
-      
-      // Verificar que se copió
-      const newFileInfo = await LegacyFileSystem.getInfoAsync(newUri);
-      if (newFileInfo.exists) {
-        console.log('✅ Archivo copiado exitosamente, tamaño:', newFileInfo.size, 'bytes');
-        
-        // Intentar eliminar original (opcional)
-        try {
-          await LegacyFileSystem.deleteAsync(originalUri);
-          console.log('🗑️ Archivo original eliminado');
-        } catch (deleteError) {
-          console.warn('⚠️ No se pudo eliminar el archivo original:', deleteError);
-          // No es crítico, continuamos
-        }
-        
-        console.log('=== RENOMBRE CHECKLIST COMPLETADO ===');
-        return {
-          success: true,
-          uri: newUri,
-          message: `Archivo renombrado a: ${newFileName}`
-        };
-      } else {
-        console.error('❌ El archivo no se copió correctamente');
-        return {
-          success: false,
-          uri: originalUri,
-          message: 'No se pudo copiar el archivo'
-        };
-      }
-      
-    } catch (error: any) {
-      console.error('❌ Error renombrando archivo checklist:', error.message);
-      return {
-        success: false,
-        uri: originalUri,
-        message: `Error: ${error.message}`
-      };
-    }
-  };
-
-  // Función para obtener el directorio del archivo
-  const getFileDirectory = (fileUri: string): string => {
-    const uriParts = fileUri.split('/');
-    uriParts.pop(); // Remover nombre del archivo
-    return uriParts.join('/') + '/';
-  };
-
-  // Función para generar nombre de archivo para checklist
-  const generateChecklistFileName = (data: ChecklistData): string => {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const sucursal = data.sucursalKey || sucursalKey;
-    const responsible = data.responsable 
-      ? `_${data.responsable.trim().replace(/\s+/g, '_')}` 
-      : '';
-    
-    return `Checklist_${sucursal}${responsible}_${date}.pdf`;
-  };
-
-  // Función para extraer nombre del archivo de la URI
-  const extractFileNameFromUri = (uri: string): string => {
-    const parts = uri.split('/');
-    const fileNameWithExtension = parts[parts.length - 1];
-    return fileNameWithExtension;
-  };
-
-  const MAX_PHOTOS = 15;
-
-  if (formData.photos && formData.photos.length > MAX_PHOTOS) {
-    Alert.alert(
-      'Muchas fotos',
-      `Has tomado ${formData.photos.length} fotos. Para mejor rendimiento, se recomienda máximo ${MAX_PHOTOS}.`,
-      [
-        { text: 'Continuar de todas formas', onPress: () => handleSaveInternal() },
-        { text: 'Cancelar', style: 'cancel' }
-      ]
-    );
-    return;
-  }
-
-  // Función interna para guardar (sin validación) - MODIFICADA PARA INCLUIR RENOMBRE
+  // Guardar interno
   const handleSaveInternal = async () => {
     try {
       setIsLoading(true);
@@ -565,14 +764,13 @@ export const ChecklistScreen = () => {
         text2: `Procesando ${formData.photos?.length || 0} fotos`,
       });
     
-      // Generar PDF con seguimiento de progreso
+      // Generar PDF
       const tempPdfUri = await generateChecklistPDF(
         updatedData, 
         sucursalName,
         (progress) => {
           setProgress(progress);
           
-          // Actualizar mensaje según el progreso
           if (progress < 10) {
             setProgressMessage('Preparando plantilla...');
           } else if (progress >= 10 && progress < 90) {
@@ -589,90 +787,106 @@ export const ChecklistScreen = () => {
       const renameResult = await renamePDFFile(tempPdfUri, fileName);
       const newName = extractFileNameFromUri(renameResult.uri);
       
-      setIsLoading(false);
-
-      if (renameResult.success) {
-        Alert.alert(
-          '✅ Checklist Generado',
-          `${fileName}`,
-          [
-            { 
-              text: 'Cancelar', 
-              style: 'cancel' 
-            },
-            { 
-              text: 'Compartir por WhatsApp',
-              onPress: () => shareViaWhatsApp(renameResult.uri, newName, updatedData)
-            }
-          ]
-        );
-      } else {
-        // Si falla el rename, usar el archivo original
-        Alert.alert(
-          '⚠️ Checklist Generado',
-          `Se generó el PDF pero no se pudo renombrar.\n\n${renameResult.message}`,
-          [
-            { 
-              text: 'Cancelar', 
-              style: 'cancel' 
-            },
-            { 
-              text: 'Compartir por WhatsApp',
-              onPress: () => shareViaWhatsApp(tempPdfUri, newName, updatedData)
-            }
-          ]
-        );
-      }
-
-      // Subir a Supabase
-      const downloadURL = await uploadFileToSupabase(renameResult.uri, newName);
+      // Subir PDF a Supabase Storage
+      setProgressMessage('Subiendo PDF a la nube...');
+      const pdfUrl = await uploadPDFToStorage(renameResult.uri, newName);
       
-      // Después de subir exitosamente a Supabase
-      if (downloadURL) {
-        // Limpiar el borrador ya que se guardó permanentemente
+      if (pdfUrl) {
+        // Guardar en la base de datos
+        await saveChecklistToSupabase(updatedData, pdfUrl);
+        
+        // Limpiar borrador
         await clearDraft(sucursalKey);
         setLastSaved(null);
         
         Toast.show({
           type: 'success',
           text1: '✅ ¡Éxito!',
-          text2: `${newName} subido al servidor`
+          text2: `${newName} guardado en el servidor`
         });
       }
+      
+      setIsLoading(false);
+
+      Alert.alert(
+        '✅ Checklist Generado',
+        `${fileName}`,
+        [
+          { 
+            text: 'Cerrar', 
+            style: 'cancel' 
+          },
+          { 
+            text: 'Compartir',
+            onPress: () => shareViaWhatsApp(renameResult.uri, newName, updatedData)
+          }
+        ]
+      );
+
     } catch (error) {
       setIsLoading(false);
       setProgress(0);
       console.error('Error guardando checklist:', error);
       Alert.alert(
         'Error',
-        'No se pudo guardar el checklist',
-        [
-          {
-            text: 'Ok'
-          }
-        ]
+        'No se pudo guardar el checklist. Intenta de nuevo.'
       );
     }
   };
 
-  // Modificar handleSave para incluir validación
+  // Función para subir PDF a Storage
+  const uploadPDFToStorage = async (pdfUri: string, fileName: string): Promise<string | null> => {
+    try {
+      console.log('📄 Subiendo PDF:', fileName);
+      
+      // Leer PDF como base64
+      const base64 = await FileSystem.readAsStringAsync(pdfUri, {
+        encoding: 'base64',
+      });
+      
+      const arrayBuffer = decode(base64);
+      
+      // Subir a Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('checklists')
+        .upload(`pdfs/${fileName}`, arrayBuffer, {
+          contentType: 'application/pdf',
+          cacheControl: '3600',
+        });
+      
+      if (error) throw error;
+      
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('checklists')
+        .getPublicUrl(`pdfs/${fileName}`);
+      
+      console.log('✅ PDF subido:', urlData.publicUrl);
+      return urlData.publicUrl;
+      
+    } catch (error) {
+      console.error('Error subiendo PDF:', error);
+      return null;
+    }
+  };
+
+  // Handle save principal
   const handleSave = async () => {
     if (!validateBeforeSave()) return;
-  
+    
     const memoryOk = await checkMemoryAndWarn();
     if (memoryOk) {
       await handleSaveInternal();
     }
   };
 
-  // Función para navegar a un área incompleta
+  // Navegar a área incompleta
   const navigateToIncompleteArea = (area: string) => {
     const areaIndex = areas.findIndex(a => a === area);
     setCurrentArea(area);
     setShowValidationModal(false);
     
     if (areaIndex >= 0) {
-      // Hacer scroll al área después de un pequeño delay
       setTimeout(() => {
         scrollToArea(areaIndex);
       }, 100);
@@ -685,41 +899,29 @@ export const ChecklistScreen = () => {
     });
   };
 
-  // Compartir por WhatsApp - MODIFICADA PARA ACEPTAR NOMBRE DE ARCHIVO
+  // Compartir por WhatsApp
   const shareViaWhatsApp = async (pdfUri: string, fileName: string, data: ChecklistData) => {
     try {
       if (!await Sharing.isAvailableAsync()) {
-        Alert.alert('Error', 'La función de compartir no está disponible en este dispositivo');
+        Alert.alert('Error', 'La función de compartir no está disponible');
         return;
       }
 
-      // Para Android, podemos usar un intent directo
-      if (Platform.OS === 'android') {
-        const message = `*CHECKLIST DE SUPERVISIÓN*\n\n` +
+      const message = `*CHECKLIST DE SUPERVISIÓN*\n\n` +
         `*Sucursal:* ${sucursalName}\n` +
         `*Responsable:* ${data.responsable}\n` +
         `*Fecha:* ${data.fecha}\n` +
         `*Hora:* ${data.horaInicio} - ${data.horaFin}\n` +
         `*Áreas evaluadas:* ${areas.length}\n` +
         `*Evaluación:* ${data.items.filter(item => item.cumplimiento !== '').length}/${data.items.length} items\n\n` +
-        `*Archivo adjunto:* ${fileName}\n\n` +
-        `Adjunto el reporte completo.`;
+        `*Archivo adjunto:* ${fileName}`;
 
-        await Sharing.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Compartir Checklist',
-          UTI: 'public.pdf',
-        });
+      await Sharing.shareAsync(pdfUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Compartir Checklist',
+        UTI: 'public.pdf',
+      });
 
-        Toast.show({
-          type: 'success',
-          text1: 'Compartiendo...',
-          text2: `Selecciona WhatsApp para enviar ${fileName}`,
-        });
-      } else {
-        // Para iOS
-        await Sharing.shareAsync(pdfUri);
-      }
     } catch (error) {
       console.error('Error compartiendo:', error);
       Toast.show({
@@ -730,7 +932,7 @@ export const ChecklistScreen = () => {
     }
   };
 
-  // Resetear checklist
+  // Nuevo checklist
   const handleNewChecklist = () => {
     Alert.alert(
       'Nuevo Checklist',
@@ -743,6 +945,7 @@ export const ChecklistScreen = () => {
             const newData = initializeChecklistData(sucursalKey);
             setFormData(newData);
             setCurrentArea(areas[0] || 'ESTACIONAMIENTO');
+            clearDraft(sucursalKey);
             Toast.show({
               type: 'success',
               text1: 'Nuevo checklist',
@@ -781,9 +984,8 @@ export const ChecklistScreen = () => {
     <SafeAreaView style={styleschecklist.container}>
       {/* SECCIÓN FIJA SUPERIOR */}
       <View style={styleschecklist.fixedSection}>
-        {/* Header */}
+        {/* Header con botones */}
         <View style={styleschecklist.header}>
-          {/* Botones de acción */}
           <TouchableOpacity
             style={styleschecklist.headerButton}
             onPress={handleSave}
@@ -792,13 +994,6 @@ export const ChecklistScreen = () => {
             <Icon name="save" size={24} color="white" />
             <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
           </TouchableOpacity>
-          
-          {/* Indicador de último guardado (opcional) */}
-          {lastSaved && (
-            <Text style={styleschecklist.lastSavedText}>
-              Guardado: {lastSaved.toLocaleTimeString()}
-            </Text>
-          )}
 
           <TouchableOpacity
             style={styleschecklist.headerButton}
@@ -815,9 +1010,16 @@ export const ChecklistScreen = () => {
             disabled={hasCameraPermission === false || isLoading}
           >
             <MaterialCommunityIcons name="camera" size={24} color="white" />
-            <Text style={styleschecklist.cameraButtonText}>Tomar Foto</Text>
+            <Text style={styleschecklist.cameraButtonText}>Foto</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Info de último guardado */}
+        {lastSaved && (
+          <Text style={styleschecklist.lastSavedText}>
+            💾 Guardado: {lastSaved.toLocaleTimeString()}
+          </Text>
+        )}
 
         {/* Información general */}
         <View style={styleschecklist.infoCard}>
@@ -835,7 +1037,10 @@ export const ChecklistScreen = () => {
               style={styleschecklist.responsableInput}
               placeholder="Nombre del responsable"
               value={formData.responsable}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, responsable: text }))}
+              onChangeText={(text) => {
+                setFormData(prev => ({ ...prev, responsable: text }));
+                saveProgressOnly();
+              }}
               editable={!isLoading}
             />
           </View>
@@ -850,7 +1055,7 @@ export const ChecklistScreen = () => {
               { color: getProgressColor(generalStats.porcentajeBueno) }
             ]}>
               {generalStats.porcentajeBueno >= 80 ? 'EXCELENTE' :
-                generalStats.porcentajeBueno >= 60 ? 'ACEPTABLE' : 'REQUIERE MEJORA'}
+               generalStats.porcentajeBueno >= 60 ? 'ACEPTABLE' : 'REQUIERE MEJORA'}
             </Text>
           </View>
           
@@ -905,7 +1110,6 @@ export const ChecklistScreen = () => {
                   ]}
                   onPress={() => {
                     setCurrentArea(area);
-                    // Opcional: hacer scroll automático al área
                     scrollToArea(index);
                   }}
                   disabled={isLoading}
@@ -915,7 +1119,7 @@ export const ChecklistScreen = () => {
                     styleschecklist.areaButtonText,
                     currentArea === area && styleschecklist.areaButtonTextActive
                   ]}>
-                    {area.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
+                    {area}
                   </Text>
                   <View style={[
                     styleschecklist.areaBadge,
@@ -932,7 +1136,7 @@ export const ChecklistScreen = () => {
         </View>
       </View>
 
-      {/* SCROLLVIEW SOLO PARA LAS ÁREAS */}
+      {/* SCROLLVIEW PARA LAS ÁREAS */}
       <ScrollView 
         ref={areasScrollViewRef}
         style={styleschecklist.areasScrollView}
@@ -995,6 +1199,7 @@ export const ChecklistScreen = () => {
                         i.id === item.id ? { ...i, cumplimiento: rating as any } : i
                       );
                       setFormData(prev => ({ ...prev, items: newItems }));
+                      saveProgressOnly();
                     }}
                     disabled={isLoading}
                   >
@@ -1031,6 +1236,7 @@ export const ChecklistScreen = () => {
                   );
                   setFormData(prev => ({ ...prev, items: newItems }));
                 }}
+                onBlur={saveProgressOnly}
                 multiline
                 editable={!isLoading}
               />
@@ -1046,6 +1252,7 @@ export const ChecklistScreen = () => {
             placeholder="Ingrese comentarios adicionales aquí..."
             value={formData.comentariosAdicionales}
             onChangeText={(text) => setFormData(prev => ({ ...prev, comentariosAdicionales: text }))}
+            onBlur={saveProgressOnly}
             multiline
             numberOfLines={4}
             editable={!isLoading}
@@ -1053,7 +1260,7 @@ export const ChecklistScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Modal de validación de áreas incompletas */}
+      {/* Modal de validación */}
       <Modal
         visible={showValidationModal}
         transparent={true}
@@ -1109,7 +1316,7 @@ export const ChecklistScreen = () => {
                 disabled={isLoading}
               >
                 <MaterialCommunityIcons name="file-document-outline" size={20} color="white" />
-                <Text style={styleschecklist.forceSaveButtonText}>Guardar como Incompleto</Text>
+                <Text style={styleschecklist.forceSaveButtonText}>Guardar Incompleto</Text>
               </TouchableOpacity>
             </View>
             
@@ -1120,7 +1327,7 @@ export const ChecklistScreen = () => {
         </View>
       </Modal>
 
-      {/* Modal para vista previa de foto */}
+      {/* Modal de foto */}
       <Modal
         visible={cameraVisible}
         animationType="slide"
@@ -1178,10 +1385,9 @@ export const ChecklistScreen = () => {
           <View style={styleschecklist.loadingContent}>
             <ActivityIndicator size="large" color="#05aaca" />
             <Text style={styleschecklist.loadingText}>
-              {progressMessage || `Generando PDF para ${sucursalName}...`}
+              {progressMessage || `Generando PDF...`}
             </Text>
             
-            {/* Barra de progreso */}
             <View style={styleschecklist.progressBarContainer}>
               <View 
                 style={[
