@@ -1,85 +1,7 @@
 import * as Print from 'expo-print';
-import * as FileSystem from 'expo-file-system/legacy';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { ChecklistData } from '../types/checklist';
 import { calculateAreaStats } from './checklistData';
 import { ReportFormData, PacienteInfo } from 'src/types/report';
-
-// Función para comprimir imagen antes de convertir a base64
-const compressAndConvertToBase64 = async (photoUri: string): Promise<string> => {
-  try {
-    console.log('Comprimiendo y convirtiendo foto:', photoUri);
-    
-    if (photoUri.startsWith('file://') || photoUri.startsWith('content://')) {
-      try {
-        const compressedImage = await manipulateAsync(
-          photoUri,
-          [{ resize: { width: 800 } }],
-          { compress: 0.6, format: SaveFormat.JPEG }
-        );
-        
-        const base64 = await FileSystem.readAsStringAsync(compressedImage.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        return `data:image/jpeg;base64,${base64}`;
-      } catch (fsError) {
-        console.warn('Error leyendo archivo local:', fsError);
-        return '';
-      }
-    }
-    
-    return photoUri;
-    
-  } catch (error) {
-    console.error('Error en compressAndConvertToBase64:', error);
-    return '';
-  }
-};
-
-// Función para procesar fotos en lotes
-const processPhotosInBatches = async (
-  photos: ChecklistData['photos'],
-  batchSize: number = 3,
-  onProgress?: (processed: number, total: number) => void
-): Promise<any[]> => {
-  if (!photos || photos.length === 0) return [];
-  
-  const results = [];
-  const total = photos.length;
-  
-  for (let i = 0; i < photos.length; i += batchSize) {
-    const batch = photos.slice(i, i + batchSize);
-    
-    const batchResults = await Promise.all(
-      batch.map(async (photo) => {
-        try {
-          const base64 = await compressAndConvertToBase64(photo.photoUri);
-          return {
-            ...photo,
-            base64
-          };
-        } catch (error) {
-          console.error(`Error procesando foto ${photo.id}:`, error);
-          return {
-            ...photo,
-            base64: ''
-          };
-        }
-      })
-    );
-    
-    results.push(...batchResults);
-    
-    if (onProgress) {
-      onProgress(Math.min(i + batchSize, total), total);
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  
-  return results;
-};
 
 // Función para generar HTML base sin fotos
 const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
@@ -212,6 +134,8 @@ const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
           .bueno { background-color: #d4edda; color: #155724; }
           .regular { background-color: #fff3cd; color: #856404; }
           .malo { background-color: #f8d7da; color: #721c24; }
+          
+          /* 🔥 NUEVO ESTILO PARA ENLACES DE FOTOS */
           .photos-section {
             margin-top: 20px;
             padding: 15px;
@@ -242,18 +166,22 @@ const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
             page-break-inside: avoid;
             border: 1px solid #ddd;
             border-radius: 8px;
-            padding: 10px;
+            padding: 15px;
             background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
-          .photo-image {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
+          .photo-link {
+            display: inline-block;
+            background-color: #0ea5e9;
+            color: white;
+            padding: 8px 16px;
             border-radius: 4px;
-            display: block;
-            margin-bottom: 8px;
-            border: 1px solid #e2e8f0;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 8px;
+          }
+          .photo-link:hover {
+            background-color: #0369a1;
           }
           .photo-info {
             font-size: 10px;
@@ -269,21 +197,11 @@ const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
             color: #64748b;
             font-style: italic;
           }
-          .photo-placeholder {
-            width: 100%;
-            height: 150px;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #666;
-          }
-          @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+          .qr-code {
+            width: 100px;
+            height: 100px;
+            margin: 10px auto;
+            display: block;
           }
           .comments-section {
             margin-top: 20px;
@@ -454,18 +372,21 @@ const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
                 <div class="photos-section">
                   <div class="photos-title">Fotos de ${area} (${photoCount})</div>
                   <div class="photos-grid">
-                    ${Array(photoCount).fill(0).map((_, idx) => `
+                    ${areaPhotos.map((photo, idx) => `
                       <div class="photo-card">
-                        <!-- PHOTO_${area}_${idx} -->
-                        <div class="photo-placeholder">
-                          Cargando foto ${idx + 1}...
-                        </div>
                         <div class="photo-info">
                           <div class="photo-description">
-                            ${areaPhotos[idx]?.description || 'Sin descripción'}
+                            ${photo.description || 'Sin descripción'}
                           </div>
                           <div class="photo-timestamp">
-                            📅 ${areaPhotos[idx]?.timestamp || ''}
+                            📅 ${photo.timestamp || ''}
+                          </div>
+                          <!-- 🔥 ENLACE EN LUGAR DE LA IMAGEN -->
+                          <a href="${photo.photoUri}" target="_blank" class="photo-link">
+                            Ver Foto ${idx + 1} 🔗
+                          </a>
+                          <div style="font-size: 9px; color: #666; margin-top: 5px;">
+                            Haz clic para ver la imagen en tu navegador
                           </div>
                         </div>
                       </div>
@@ -487,55 +408,12 @@ const generateBaseHTML = (data: ChecklistData, sucursal: string): string => {
         <div class="footer">
           <strong>Checklist de Supervisión - ${sucursal}</strong><br/>
           Documento generado automáticamente el ${new Date().toLocaleDateString()} | 
+          Las fotos están disponibles mediante enlaces externos<br/>
           Válido únicamente para uso interno
         </div>
       </body>
     </html>
   `;
-};
-
-// Función para inyectar fotos en el HTML
-const injectPhotosIntoHTML = (html: string, photosWithBase64: any[]): string => {
-  if (!photosWithBase64.length) return html;
-  
-  let modifiedHtml = html;
-  
-  const photosByArea: Record<string, any[]> = {};
-  photosWithBase64.forEach(photo => {
-    if (!photosByArea[photo.area]) {
-      photosByArea[photo.area] = [];
-    }
-    photosByArea[photo.area].push(photo);
-  });
-  
-  Object.entries(photosByArea).forEach(([area, photos]) => {
-    photos.forEach((photo, idx) => {
-      const placeholder = `<!-- PHOTO_${area}_${idx} -->`;
-      
-      if (photo.base64 && photo.base64.startsWith('data:image')) {
-        const photoHtml = `
-          <img src="${photo.base64}" 
-               alt="Foto ${idx + 1} - ${area}" 
-               class="photo-image"
-               onerror="this.parentElement.innerHTML='<div style=\\'padding: 20px; text-align: center; background: #fee; border-radius: 4px;\\'>❌ Error cargando imagen</div>'"
-          />
-        `;
-        modifiedHtml = modifiedHtml.replace(placeholder, photoHtml);
-      } else {
-        const photoHtml = `
-          <div style="padding: 20px; text-align: center; background: #f5f5f5; border-radius: 4px; height: 150px; display: flex; align-items: center; justify-content: center;">
-            <div>
-              <div style="font-size: 24px; margin-bottom: 5px;">📷</div>
-              <div style="font-size: 11px; color: #666;">Foto no disponible</div>
-            </div>
-          </div>
-        `;
-        modifiedHtml = modifiedHtml.replace(placeholder, photoHtml);
-      }
-    });
-  });
-  
-  return modifiedHtml;
 };
 
 // Función principal optimizada para generar PDF del checklist
@@ -545,37 +423,24 @@ export const generateChecklistPDF = async (
   onProgress?: (progress: number) => void
 ): Promise<string> => {
   try {
-    console.log('Generando PDF optimizado con fotos...');
+    console.log('📄 Generando PDF ligero con enlaces a fotos...');
     console.log('Total de fotos:', data.photos?.length || 0);
     
     if (onProgress) onProgress(10);
-    let html = generateBaseHTML(data, sucursal);
     
-    if (data.photos && data.photos.length > 0) {
-      console.log('Procesando fotos en lotes...');
-      
-      const photosWithBase64 = await processPhotosInBatches(
-        data.photos, 
-        3, 
-        (processed, total) => {
-          const progress = 10 + (processed / total) * 80;
-          if (onProgress) onProgress(Math.round(progress));
-        }
-      );
-      
-      html = injectPhotosIntoHTML(html, photosWithBase64);
-      
-      if (onProgress) onProgress(95);
-    }
+    // 🔥 Generar HTML directamente sin procesar imágenes
+    const html = generateBaseHTML(data, sucursal);
     
-    console.log('Generando PDF final...');
+    if (onProgress) onProgress(50);
+    
+    console.log('📄 Generando PDF final...');
     const { uri } = await Print.printToFileAsync({ 
       html,
       base64: false
     });
     
     if (onProgress) onProgress(100);
-    console.log('PDF generado exitosamente en:', uri);
+    console.log('✅ PDF generado exitosamente en:', uri);
     
     return uri;
   } catch (error) {

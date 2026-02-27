@@ -22,6 +22,7 @@ import {
     listSupabaseFiles,
     deleteFileFromSupabase,
     shareSupabaseFile,
+    deleteChecklistAndPhotos, // Nueva función para eliminar checklists completos
 } from 'src/services/supabaseStorageService';
 import { SupabaseFile } from 'src/types/supabase';
 
@@ -54,9 +55,12 @@ export const DriveFilesScreen = () => {
         try {
             setIsLoading(true);
             const supabaseFiles = await listSupabaseFiles();
-            setFiles(supabaseFiles);
+
+            // Asegurar que siempre es un array
+            setFiles(Array.isArray(supabaseFiles) ? supabaseFiles : []);
         } catch (error) {
             console.error('Error cargando archivos:', error);
+            setFiles([]);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
@@ -150,70 +154,129 @@ export const DriveFilesScreen = () => {
     const handleDelete = () => {
         if (!selectedFile) return;
         
-        // Guardar el archivo a eliminar y abrir modal de contraseña
         setFileToDelete(selectedFile);
         setShowFileModal(false);
         setShowPasswordModal(true);
-        setPassword(''); // Limpiar contraseña anterior
+        setPassword('');
     };
 
-    // NUEVO: Verificar contraseña y proceder con la eliminación
+    // Determinar si el archivo es un checklist (para eliminación especial)
+    const isChecklistFile = (fileName: string): boolean => {
+        return fileName.includes('_Checklist_');
+    };
+
+    // Verificar contraseña y proceder con la eliminación
     const handlePasswordSubmit = () => {
         setAuthLoading(true);
         
-        // Simular un pequeño delay para mejor UX
         setTimeout(() => {
             if (password === DELETE_PASSWORD) {
-                // Contraseña correcta
                 setAuthLoading(false);
                 setShowPasswordModal(false);
                 
-                // Mostrar alerta de confirmación
-                Alert.alert(
-                    'Eliminar Archivo',
-                    `¿Estás seguro de eliminar "${fileToDelete?.name}" del servidor?`,
-                    [
-                        { 
-                            text: 'Cancelar', 
-                            style: 'cancel',
-                            onPress: () => {
-                                setFileToDelete(null);
-                                setPassword('');
-                            }
-                        },
-                        {
-                            text: 'Eliminar',
-                            style: 'destructive',
-                            onPress: async () => {
-                                if (fileToDelete) {
-                                    try {
-                                        const success = await deleteFileFromSupabase(fileToDelete.fileName);
-                                        if (success) {
-                                            await loadFiles();
-                                            Toast.show({
-                                                type: 'success',
-                                                text1: '✅ Archivo eliminado',
-                                                text2: `${fileToDelete.name} se eliminó correctamente`
-                                            });
+                if (fileToDelete && isChecklistFile(fileToDelete.fileName)) {
+                    // Es un checklist - eliminar PDF y fotos asociadas
+                    Alert.alert(
+                        'Eliminar Checklist Completo',
+                        `Este archivo es un checklist. ¿Deseas eliminar el PDF y TODAS sus fotos asociadas?`,
+                        [
+                            { 
+                                text: 'Solo PDF', 
+                                onPress: async () => {
+                                    if (fileToDelete) {
+                                        try {
+                                            const success = await deleteFileFromSupabase(fileToDelete.fileName);
+                                            if (success) {
+                                                await loadFiles();
+                                                Toast.show({
+                                                    type: 'success',
+                                                    text1: '✅ PDF eliminado',
+                                                    text2: 'Las fotos permanecen en el servidor'
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Error:', error);
+                                        } finally {
+                                            setFileToDelete(null);
+                                            setPassword('');
                                         }
-                                    } catch (error) {
-                                        console.error('Error eliminando archivo:', error);
-                                        Toast.show({
-                                            type: 'error',
-                                            text1: 'Error',
-                                            text2: 'No se pudo eliminar el archivo'
-                                        });
-                                    } finally {
-                                        setFileToDelete(null);
-                                        setPassword('');
+                                    }
+                                }
+                            },
+                            {
+                                text: 'Todo (PDF + Fotos)',
+                                style: 'destructive',
+                                onPress: async () => {
+                                    if (fileToDelete) {
+                                        try {
+                                            const success = await deleteChecklistAndPhotos(fileToDelete.fileName);
+                                            if (success) {
+                                                await loadFiles();
+                                                Toast.show({
+                                                    type: 'success',
+                                                    text1: '✅ Checklist eliminado',
+                                                    text2: 'PDF y fotos eliminados del servidor'
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Error eliminando checklist:', error);
+                                        } finally {
+                                            setFileToDelete(null);
+                                            setPassword('');
+                                        }
+                                    }
+                                }
+                            },
+                            { text: 'Cancelar', style: 'cancel' }
+                        ]
+                    );
+                } else {
+                    // Es un archivo normal (reporte, etc.)
+                    Alert.alert(
+                        'Eliminar Archivo',
+                        `¿Estás seguro de eliminar "${fileToDelete?.name}" del servidor?`,
+                        [
+                            { 
+                                text: 'Cancelar', 
+                                style: 'cancel',
+                                onPress: () => {
+                                    setFileToDelete(null);
+                                    setPassword('');
+                                }
+                            },
+                            {
+                                text: 'Eliminar',
+                                style: 'destructive',
+                                onPress: async () => {
+                                    if (fileToDelete) {
+                                        try {
+                                            const success = await deleteFileFromSupabase(fileToDelete.fileName);
+                                            if (success) {
+                                                await loadFiles();
+                                                Toast.show({
+                                                    type: 'success',
+                                                    text1: '✅ Archivo eliminado',
+                                                    text2: `${fileToDelete.name} se eliminó correctamente`
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Error eliminando archivo:', error);
+                                            Toast.show({
+                                                type: 'error',
+                                                text1: 'Error',
+                                                text2: 'No se pudo eliminar el archivo'
+                                            });
+                                        } finally {
+                                            setFileToDelete(null);
+                                            setPassword('');
+                                        }
                                     }
                                 }
                             }
-                        }
-                    ]
-                );
+                        ]
+                    );
+                }
             } else {
-                // Contraseña incorrecta
                 setAuthLoading(false);
                 Toast.show({
                     type: 'error',
@@ -222,7 +285,7 @@ export const DriveFilesScreen = () => {
                 });
                 setPassword('');
             }
-        }, 800); // Delay de 800ms para mostrar el loading
+        }, 800);
     };
 
     // Cancelar eliminación
@@ -252,57 +315,65 @@ export const DriveFilesScreen = () => {
     };
 
     const getFileIcon = (mimeType: string) => {
+        if (!mimeType) return 'file-outline';
         if (mimeType.includes('pdf')) return 'file-pdf-box';
         if (mimeType.includes('image')) return 'image';
         if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) 
-        return 'file-excel';
+            return 'file-excel';
         if (mimeType.includes('document') || mimeType.includes('word')) 
-        return 'file-word';
+            return 'file-word';
         if (mimeType.includes('text')) return 'file-document-outline';
-        return 'database';
+        return 'file-outline';
     };
 
-    const renderFileItem = ({ item }: { item: SupabaseFile }) => (
-        <TouchableOpacity
-            style={stylessupabase.fileItem}
-            onPress={() => handleFilePress(item)}
-            activeOpacity={0.7}
-        >
-            <View style={stylessupabase.fileIconContainer}>
-                <MaterialCommunityIcons
-                    name={getFileIcon(item.mimeType)}
-                    size={32}
-                    color="#05aaca"
-                />
-            </View>
-    
-            <View style={stylessupabase.fileInfo}>
-                <Text style={stylessupabase.fileName} numberOfLines={2}>
-                    {item.name}
-                </Text>
-                
-                <View style={stylessupabase.fileMeta}>
-                    {item.createdTime && (
-                        <View style={stylessupabase.metaItem}>
-                            <Icon name="calendar-today" size={12} color="#6B7280" />
-                            <Text style={stylessupabase.metaText}>
-                                {formatDate(item.createdTime)}
-                            </Text>
-                        </View>
-                    )}
-                
-                    {item.size && (
-                        <View style={stylessupabase.metaItem}>
-                            <Icon name="storage" size={12} color="#6B7280" />
-                            <Text style={stylessupabase.metaText}>
-                                {formatFileSize(parseInt(item.size))}
-                            </Text>
-                        </View>
-                    )}
+    const renderFileItem = ({ item }: { item: SupabaseFile }) => {
+        // Validación extra para evitar archivos corruptos
+        if (!item || !item.name || item.name.includes('.emptyFolderPlaceholder')) {
+            return null;
+        }
+
+        return (
+            <TouchableOpacity
+                style={stylessupabase.fileItem}
+                onPress={() => handleFilePress(item)}
+                activeOpacity={0.7}
+            >
+                <View style={stylessupabase.fileIconContainer}>
+                    <MaterialCommunityIcons
+                        name={getFileIcon(item.mimeType)}
+                        size={32}
+                        color="#05aaca"
+                    />
                 </View>
-            </View>
-        </TouchableOpacity>
-    );
+        
+                <View style={stylessupabase.fileInfo}>
+                    <Text style={stylessupabase.fileName} numberOfLines={2}>
+                        {item.name}
+                    </Text>
+                    
+                    <View style={stylessupabase.fileMeta}>
+                        {item.createdTime && (
+                            <View style={stylessupabase.metaItem}>
+                                <Icon name="calendar-today" size={12} color="#6B7280" />
+                                <Text style={stylessupabase.metaText}>
+                                    {formatDate(item.createdTime)}
+                                </Text>
+                            </View>
+                        )}
+                    
+                        {item.size && (
+                            <View style={stylessupabase.metaItem}>
+                                <Icon name="storage" size={12} color="#6B7280" />
+                                <Text style={stylessupabase.metaText}>
+                                    {formatFileSize(parseInt(item.size))}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={stylessupabase.container}>
@@ -354,14 +425,6 @@ export const DriveFilesScreen = () => {
                                 </Text>
                             </>
                         )}
-                    </TouchableOpacity>
-                
-                    <TouchableOpacity
-                        style={stylessupabase.refreshButton}
-                        onPress={loadFiles}
-                    >
-                        <Icon name="refresh" size={20} color="white" />
-                        <Text style={stylessupabase.refreshButtonText}>Actualizar</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
@@ -418,17 +481,21 @@ export const DriveFilesScreen = () => {
                                 
                                     <View style={stylessupabase.modalFileMeta}>
                                         {selectedFile.createdTime && (
-                                            <Text style={stylessupabase.modalFileMetaText}>
-                                                <Icon name="calendar-today" size={12} />{' '}
-                                                Subido: {formatDate(selectedFile.createdTime)}
-                                            </Text>
+                                            <View style={stylessupabase.metaItem}>
+                                                <Icon name="calendar-today" size={12} color="#6B7280" />
+                                                <Text style={stylessupabase.metaText}>
+                                                    Subido: {formatDate(selectedFile.createdTime)}
+                                                </Text>
+                                            </View>
                                         )}
                                         
                                         {selectedFile.size && (
-                                            <Text style={stylessupabase.modalFileMetaText}>
-                                                <Icon name="storage" size={12} />{' '}
-                                                Tamaño: {formatFileSize(parseInt(selectedFile.size))}
-                                            </Text>
+                                            <View style={stylessupabase.metaItem}>
+                                                <Icon name="storage" size={12} color="#6B7280" />
+                                                <Text style={stylessupabase.metaText}>
+                                                    Tamaño: {formatFileSize(parseInt(selectedFile.size))}
+                                                </Text>
+                                            </View>
                                         )}
                                     </View>
                                 </View>

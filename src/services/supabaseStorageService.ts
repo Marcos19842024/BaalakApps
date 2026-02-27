@@ -1,271 +1,16 @@
 import Toast from 'react-native-toast-message';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Platform } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import supabase from 'src/utils/supabaseConfig';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import * as base64js from 'base64-js';
 
 // Variables
 const BUCKET_NAME = 'Documentos';
 
-// =========== AUTENTICACIÓN ANÓNIMA ===========
-export const authenticateSupabase = async (): Promise<boolean> => {
-    try {
-        // Supabase permite acceso anónimo con la anon key
-        console.log('✅ Supabase autenticado (modo anónimo)');
-        return true;
-    } catch (error) {
-        console.error('Error autenticando:', error);
-        return false;
-    }
-};
+// =========== FUNCIONES COMPARTIDAS ===========
 
-// =========== SUBIR ARCHIVO CON POLÍTICAS CORRECTAS ===========
-export const uploadFileToSupabase = async (
-    fileUri: string,
-    fileName: string
-): Promise<string | null> => {
-    try {
-        console.log('📤 Subiendo archivo:', fileName);
-        
-        // Autenticar primero
-        await authenticateSupabase();
-
-        // Leer archivo
-        const response = await fetch(fileUri);
-        const arrayBuffer = await response.arrayBuffer();
-        
-        // Crear nombre único
-        const uniqueName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const mimeType = getMimeType(fileName);
-
-        // Opción A: Subir con autenticación explícita
-        const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(uniqueName, arrayBuffer, {
-            contentType: mimeType,
-            upsert: false,
-            cacheControl: '3600'
-        });
-
-        if (error) {
-            // Si falla por RLS, intentar método alternativo
-            console.log('⚠️  Intentando método alternativo...');
-            return await uploadWithServiceRole(fileUri, fileName);
-        }
-
-        // Obtener URL
-        const { data: urlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(uniqueName);
-
-        Toast.show({
-            type: 'success',
-            text1: '✅ Subido exitosamente',
-            text2: `${fileName} disponible para el equipo`
-        });
-
-        return urlData.publicUrl;
-
-    } catch (error: any) {
-        console.error('❌ Error subiendo:', error);
-        Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: 'Configura políticas RLS en Supabase'
-        });
-        return null;
-    }
-};
-
-// =========== MÉTODO ALTERNATIVO: Usar Service Role Key ===========
-const uploadWithServiceRole = async (fileUri: string, fileName: string): Promise<string | null> => {
-    try {
-        // NOTA: Solo para desarrollo. En producción usa políticas RLS correctas
-        const SERVICE_ROLE_KEY = 'TU_SERVICE_ROLE_KEY'; // Obtén de Supabase Settings → API
-        
-        const response = await fetch(fileUri);
-        const arrayBuffer = await response.arrayBuffer();
-        
-        const uniqueName = `${Date.now()}_${fileName}`;
-    
-        // Subir directamente con fetch
-        const uploadResponse = await fetch(
-            `https://TU_PROYECTO.supabase.co/storage/v1/object/${BUCKET_NAME}/${uniqueName}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                    'Content-Type': getMimeType(fileName),
-                    'x-upsert': 'false'
-                },
-                body: arrayBuffer
-            }
-        );
-
-        if (uploadResponse.ok) {
-        return `https://TU_PROYECTO.supabase.co/storage/v1/object/public/${BUCKET_NAME}/${uniqueName}`;
-        }
-    
-        return null;
-    } catch (error) {
-        console.error('Error método alternativo:', error);
-        return null;
-    }
-};
-
-// =========== LISTAR ARCHIVOS ===========
-export const listSupabaseFiles = async () => {
-    try {
-        // Obtener lista de archivos
-        const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .list('', {
-            limit: 100,
-            offset: 0,
-            sortBy: { column: 'created_at', order: 'desc' }
-        });
-
-        if (error) {
-            console.error('❌ Error listando archivos:', error);
-            return [];
-        }
-
-        // Obtener URLs públicas y metadatos
-        const files = await Promise.all(
-            data.map(async (item) => {
-                try {
-                    // Obtener URL pública (método CORRECTO)
-                    const { data: { publicUrl } } = supabase.storage
-                    .from(BUCKET_NAME)
-                    .getPublicUrl(item.name);
-
-                    // Extraer nombre original (remover timestamp)
-                    const originalName = item.name.replace(/^\d+_/, '').replace(/_/g, ' ');
-
-                    return {
-                        id: item.id || item.name,
-                        name: originalName,
-                        fileName: item.name,
-                        downloadURL: publicUrl,
-                        createdTime: item.created_at,
-                        size: item.metadata?.size || '0',
-                        mimeType: item.metadata?.mimetype || getMimeType(item.name),
-                        lastModified: item.updated_at
-                    };
-                } catch (error) {
-                    console.error('Error procesando archivo:', error);
-                    return null;
-                }
-            })
-        );
-
-        // Filtrar nulos y ordenar por fecha
-        const validFiles = files.filter((file): file is NonNullable<typeof file> => file !== null);
-        
-        return validFiles.sort((a, b) => 
-            new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime()
-        );
-
-    } catch (error: any) {
-        console.error('❌ Error listando archivos de Supabase:', error);
-        return [];
-    }
-};
-
-// =========== DESCARGAR ARCHIVO ===========
-export const downloadFileFromSupabase = async (fileUrl: string, fileName: string) => {
-    try {
-        // Directorio local
-        const downloadDir = FileSystem.documentDirectory + 'downloads/';
-    
-        // Crear directorio si no existe
-        const dirInfo = await FileSystem.getInfoAsync(downloadDir);
-        if (!dirInfo.exists) {
-            await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
-        }
-    
-        const localUri = downloadDir + fileName;
-
-        // Descargar archivo
-        const downloadResult = await FileSystem.downloadAsync(fileUrl, localUri);
-
-        if (downloadResult.status === 200) {
-            Toast.show({
-                type: 'success',
-                text1: '✅ Descargado',
-                text2: `Archivo guardado localmente`
-            });
-            return localUri;
-        }
-    
-        return null;
-    
-    } catch (error: any) {
-        console.error('❌ Error descargando:', error);
-        Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: 'No se pudo descargar el archivo'
-        });
-        return null;
-    }
-};
-
-// =========== ELIMINAR ARCHIVO ===========
-export const deleteFileFromSupabase = async (fileName: string): Promise<boolean> => {
-    try {
-        // Eliminar de Supabase Storage
-        const { error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .remove([fileName]);
-
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        Toast.show({
-        type: 'success',
-        text1: '✅ Eliminado',
-        text2: 'Archivo eliminado del servidor'
-        });
-    
-        return true;
-    
-    } catch (error: any) {
-        console.error('❌ Error eliminando:', error);
-        Toast.show({
-            type: 'error',
-            text1: 'Error',
-            text2: 'No se pudo eliminar el archivo'
-        });
-        return false;
-    }
-};
-
-// =========== COMPARTIR ARCHIVO ===========
-export const shareSupabaseFile = async (fileUrl: string, fileName: string) => {
-    try {
-        // Primero descargar localmente
-        const localUri = await downloadFileFromSupabase(fileUrl, fileName);
-        
-        if (localUri && Platform.OS === 'android') {
-            await Sharing.shareAsync(localUri, {
-                mimeType: getMimeType(fileName),
-                dialogTitle: `Compartir ${fileName}`,
-                UTI: 'public.data'
-            });
-        } else if (localUri && Platform.OS === 'ios') {
-            await Sharing.shareAsync(localUri);
-        }
-        
-        return localUri;
-    } catch (error) {
-        console.error('Error compartiendo:', error);
-        return null;
-    }
-};
-
-// =========== FUNCIONES AUXILIARES ===========
+// Obtener tipo MIME
 const getMimeType = (fileName: string): string => {
     const extension = fileName.split('.').pop()?.toLowerCase();
   
@@ -290,15 +35,449 @@ const getMimeType = (fileName: string): string => {
     }
 };
 
-// =========== FUNCIONES SIMPLES ===========
-export const isAuthenticated = (): boolean => {
-    return true; // Supabase no requiere autenticación para storage público
+// Comprimir imagen (útil para fotos)
+export const compressImage = async (photoUri: string): Promise<string> => {
+    try {
+        console.log('Comprimiendo imagen:', photoUri);
+        
+        const compressedImage = await manipulateAsync(
+            photoUri,
+            [{ resize: { width: 1024 } }],
+            { compress: 0.7, format: SaveFormat.JPEG }
+        );
+        
+        return compressedImage.uri;
+    } catch (error) {
+        console.error('Error comprimiendo imagen:', error);
+        return photoUri;
+    }
 };
 
-export const logoutFromCloud = () => {
-    Toast.show({
-        type: 'info',
-        text1: 'Sesión cerrada',
-        text2: 'Datos locales eliminados'
-    });
+// =========== SUBIR ARCHIVO (PDFs - usado por Checklist y Reports) ===========
+export const uploadFileToSupabase = async (
+    fileUri: string,
+    fileName: string
+): Promise<string | null> => {
+    try {
+        console.log('📤 Subiendo archivo:', fileName);
+        
+        // Leer archivo
+        const response = await fetch(fileUri);
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Crear nombre único pero mantener la estructura de carpetas
+        const uniqueName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const filePath = `pdfs/${uniqueName}`; // Guardar en carpeta pdfs/
+        const mimeType = getMimeType(fileName);
+
+        // Subir a Supabase
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .upload(filePath, arrayBuffer, {
+                contentType: mimeType,
+                upsert: false,
+                cacheControl: '3600'
+            });
+
+        if (error) {
+            console.error('❌ Error subiendo:', error);
+            throw error;
+        }
+
+        // Obtener URL pública
+        const { data: urlData } = supabase.storage
+            .from(BUCKET_NAME)
+            .getPublicUrl(filePath);
+
+        console.log('✅ Archivo subido:', urlData.publicUrl);
+
+        Toast.show({
+            type: 'success',
+            text1: '✅ Subido exitosamente',
+            text2: `${fileName} disponible`
+        });
+
+        return urlData.publicUrl;
+
+    } catch (error: any) {
+        console.error('❌ Error subiendo:', error);
+        Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: error.message || 'No se pudo subir el archivo'
+        });
+        return null;
+    }
+};
+
+// =========== SUBIR FOTO (solo para Checklist) ===========
+export const uploadPhotoToSupabase = async (
+    photoUri: string,
+    checklistId: string,
+    photoId: string
+): Promise<string | null> => {
+    try {
+        console.log(`📸 Subiendo foto ${photoId} para checklist ${checklistId}...`);
+        
+        // Verificar que el archivo existe
+        const fileInfo = await FileSystem.getInfoAsync(photoUri);
+        if (!fileInfo.exists) {
+            throw new Error('El archivo no existe');
+        }
+        
+        // Comprimir si es necesario
+        let uriToUpload = photoUri;
+        if (fileInfo.size && fileInfo.size > 2 * 1024 * 1024) {
+            uriToUpload = await compressImage(photoUri);
+        }
+        
+        // Nombre del archivo con checklistId (Opción B)
+        const fileName = `${checklistId}_${photoId}.jpg`;
+        const filePath = `checklist-photos/${fileName}`;
+        
+        // Leer archivo como base64
+        const base64 = await FileSystem.readAsStringAsync(uriToUpload, {
+            encoding: 'base64',
+        });
+        
+        const arrayBuffer = base64js.toByteArray(base64);
+        
+        // Subir a Supabase
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .upload(filePath, arrayBuffer, {
+                contentType: 'image/jpeg',
+                cacheControl: '3600',
+                upsert: true
+            });
+
+        if (error) {
+            console.error('❌ Error subiendo foto:', error);
+            throw error;
+        }
+
+        // Obtener URL pública
+        const { data: urlData } = supabase.storage
+            .from(BUCKET_NAME)
+            .getPublicUrl(filePath);
+
+        console.log('✅ Foto subida:', urlData.publicUrl);
+        return urlData.publicUrl;
+
+    } catch (error: any) {
+        console.error('❌ Error subiendo foto:', error);
+        Toast.show({
+            type: 'error',
+            text1: 'Error subiendo foto',
+            text2: error.message || 'No se pudo subir la foto'
+        });
+        return null;
+    }
+};
+
+// =========== ELIMINAR FOTO ===========
+export const deletePhotoFromSupabase = async (
+    checklistId: string,
+    photoId: string
+): Promise<boolean> => {
+    try {
+        const fileName = `${checklistId}_${photoId}.jpg`;
+        const filePath = `checklist-photos/${fileName}`;
+        
+        const { error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .remove([filePath]);
+
+        if (error) {
+            console.error('❌ Error eliminando foto:', error);
+            return false;
+        }
+
+        console.log('✅ Foto eliminada:', photoId);
+        return true;
+
+    } catch (error: any) {
+        console.error('❌ Error eliminando foto:', error);
+        return false;
+    }
+};
+
+// =========== ELIMINAR CHECKLIST COMPLETO (PDF + fotos) ===========
+export const deleteChecklistAndPhotos = async (pdfFileName: string): Promise<boolean> => {
+    try {
+        console.log('🗑️ Eliminando checklist completo:', pdfFileName);
+        
+        // Extraer el checklistId del nombre del PDF
+        // Formato: [checklistId]_Checklist_[...].pdf
+        const match = pdfFileName.match(/^([a-f0-9-]+)_Checklist_.+\.pdf$/);
+        
+        if (!match || !match[1]) {
+            console.error('No se pudo extraer checklistId del nombre:', pdfFileName);
+            return false;
+        }
+        
+        const checklistId = match[1];
+        console.log('📋 Checklist ID extraído:', checklistId);
+        
+        // 1. Eliminar el PDF
+        const pdfPath = `pdfs/${pdfFileName}`;
+        const { error: pdfError } = await supabase.storage
+            .from(BUCKET_NAME)
+            .remove([pdfPath]);
+        
+        if (pdfError) {
+            console.error('Error eliminando PDF:', pdfError);
+            return false;
+        }
+        
+        console.log('✅ PDF eliminado');
+        
+        // 2. Buscar todas las fotos que comienzan con checklistId
+        const { data: fotos, error: listError } = await supabase.storage
+            .from(BUCKET_NAME)
+            .list('checklist-photos', {
+                search: checklistId
+            });
+        
+        if (listError) {
+            console.error('Error buscando fotos:', listError);
+            return true; // El PDF ya se eliminó
+        }
+        
+        if (fotos && fotos.length > 0) {
+            console.log(`📸 Encontradas ${fotos.length} fotos asociadas`);
+            
+            // Eliminar todas las fotos encontradas
+            const fotoPaths = fotos.map(foto => `fotos/${foto.name}`);
+            const { error: fotosError } = await supabase.storage
+                .from(BUCKET_NAME)
+                .remove(fotoPaths);
+            
+            if (fotosError) {
+                console.error('Error eliminando fotos:', fotosError);
+            } else {
+                console.log(`✅ ${fotos.length} fotos eliminadas`);
+            }
+        } else {
+            console.log('📸 No se encontraron fotos asociadas');
+        }
+        
+        return true;
+        
+    } catch (error: any) {
+        console.error('❌ Error eliminando checklist:', error);
+        return false;
+    }
+};
+
+// =========== LISTAR ARCHIVOS ===========
+export const listSupabaseFiles = async () => {
+    try {
+        console.log('📂 Listando archivos del bucket:', BUCKET_NAME);
+        
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .list('pdfs', {
+                limit: 100,
+                offset: 0,
+                sortBy: { column: 'created_at', order: 'desc' }
+            });
+
+        if (error) {
+            console.error('❌ Error listando archivos:', error);
+            return [];
+        }
+
+        if (!data || data.length === 0) {
+            console.log('📂 La carpeta pdfs está vacía');
+            return [];
+        }
+
+        // Filtrar archivos placeholder
+        const realFiles = data.filter(item => 
+            item.name && !item.name.includes('.emptyFolderPlaceholder')
+        );
+
+        console.log(`✅ Encontrados ${data.length} archivos totales, ${realFiles.length} reales`);
+
+        const files = await Promise.all(
+            realFiles.map(async (item) => {
+                try {
+                    if (!item || !item.name) return null;
+                    
+                    const filePath = `pdfs/${item.name}`;
+                    
+                    const { data: { publicUrl } } = supabase.storage
+                        .from(BUCKET_NAME)
+                        .getPublicUrl(filePath);
+
+                    const originalName = item.name.replace(/^\d+_/, '').replace(/_/g, ' ');
+
+                    return {
+                        id: item.id || item.name,
+                        name: originalName,
+                        fileName: item.name,
+                        downloadURL: publicUrl,
+                        createdTime: item.created_at,
+                        updated_at: item.updated_at,
+                        size: item.metadata?.size || 0,
+                        mimeType: item.metadata?.mimetype || getMimeType(item.name),
+                        fullPath: filePath
+                    };
+                } catch (err) {
+                    console.error('Error procesando archivo:', item?.name, err);
+                    return null;
+                }
+            })
+        );
+
+        const validFiles = files.filter((file): file is NonNullable<typeof file> => file !== null);
+        return validFiles;
+
+    } catch (error: any) {
+        console.error('❌ Error listando archivos:', error);
+        return [];
+    }
+};
+
+// =========== DESCARGAR ARCHIVO ===========
+export const downloadFileFromSupabase = async (fileUrl: string, fileName: string) => {
+    try {
+        console.log('📥 Descargando:', fileName);
+        
+        const downloadDir = FileSystem.documentDirectory + 'downloads/';
+    
+        const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+        if (!dirInfo.exists) {
+            await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+        }
+    
+        const localUri = downloadDir + fileName;
+
+        const downloadResult = await FileSystem.downloadAsync(fileUrl, localUri);
+
+        if (downloadResult.status === 200) {
+            console.log('✅ Archivo descargado:', localUri);
+            Toast.show({
+                type: 'success',
+                text1: '✅ Descargado',
+                text2: `Archivo guardado localmente`
+            });
+            return localUri;
+        }
+    
+        return null;
+    
+    } catch (error: any) {
+        console.error('❌ Error descargando:', error);
+        Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: 'No se pudo descargar el archivo'
+        });
+        return null;
+    }
+};
+
+// =========== ELIMINAR ARCHIVO (solo PDF) ===========
+export const deleteFileFromSupabase = async (fileName: string): Promise<boolean> => {
+    try {
+        console.log('🗑️ Eliminando archivo:', fileName);
+        
+        const filePath = `pdfs/${fileName}`;
+        
+        const { error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .remove([filePath]);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        Toast.show({
+            type: 'success',
+            text1: '✅ Eliminado',
+            text2: 'Archivo eliminado del servidor'
+        });
+    
+        return true;
+    
+    } catch (error: any) {
+        console.error('❌ Error eliminando:', error);
+        Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: 'No se pudo eliminar el archivo'
+        });
+        return false;
+    }
+};
+
+// =========== COMPARTIR ARCHIVO ===========
+export const shareSupabaseFile = async (fileUrl: string, fileName: string) => {
+    try {
+        const localUri = await downloadFileFromSupabase(fileUrl, fileName);
+        
+        if (localUri && await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(localUri, {
+                mimeType: getMimeType(fileName),
+                dialogTitle: `Compartir ${fileName}`,
+                UTI: 'public.data'
+            });
+            return localUri;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error compartiendo:', error);
+        return null;
+    }
+};
+
+// =========== VERIFICAR ARCHIVO ===========
+export const checkFileExists = async (fileName: string): Promise<boolean> => {
+    try {
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .list('pdfs', {
+                search: fileName
+            });
+
+        if (error) throw error;
+        
+        return data && data.length > 0;
+    } catch (error) {
+        console.error('Error verificando archivo:', error);
+        return false;
+    }
+};
+
+// =========== OBTENER URL PÚBLICA ===========
+export const getPublicUrl = (fileName: string): string => {
+    const filePath = `pdfs/${fileName}`;
+    const { data } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(filePath);
+    
+    return data.publicUrl;
+};
+
+// =========== VERIFICAR CONEXIÓN ===========
+export const testConnection = async (): Promise<boolean> => {
+    try {
+        const { data, error } = await supabase.storage
+            .from(BUCKET_NAME)
+            .list('pdfs', { limit: 1 });
+        
+        if (error) {
+            console.error('Error de conexión:', error);
+            return false;
+        }
+        
+        console.log('✅ Conexión a Supabase exitosa');
+        return true;
+    } catch (error) {
+        console.error('Error conectando a Supabase:', error);
+        return false;
+    }
 };

@@ -8,7 +8,6 @@ import * as MediaLibrary from 'expo-media-library';
 import Toast from 'react-native-toast-message';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { decode } from 'js-base64';
 import { ChecklistData, ChecklistItem, ChecklistPhoto } from '../types/checklist';
 import { generateChecklistPDF } from '../utils/pdfGenerator';
 import {
@@ -35,17 +34,33 @@ import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
 import * as FileSystem from 'expo-file-system';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import 'react-native-get-random-values';
+import * as Crypto from 'expo-crypto';
+
+// Servicio compartido de Supabase
+import {
+  uploadFileToSupabase,
+  uploadPhotoToSupabase,
+  deletePhotoFromSupabase,
+} from 'src/services/supabaseStorageService';
+
+// Storage local
 import { loadDraft, clearDraft, saveDraft } from 'src/services/checklistStorage';
-import supabase from 'src/utils/supabaseConfig';
 
 export const ChecklistScreen = () => {
   const route = useRoute();
   const params = route.params as RouteParams;
+
+  // Estados principales
   const [sucursalKey, setSucursalKey] = useState<SucursalType>(params?.sucursalKey || 'BAALAK_CENTRAL');
   const [sucursalName, setSucursalName] = useState<string>(SUCURSALES.BAALAK_CENTRAL);
   const [formData, setFormData] = useState<ChecklistData>(initializeChecklistData(params?.sucursalKey || 'BAALAK_CENTRAL'));
   const [currentArea, setCurrentArea] = useState('ESTACIONAMIENTO');
+  
+  // ID único para este checklist (se genera una sola vez)
+  const [checklistId] = useState<string>(Crypto.randomUUID());
+  
+  // Estados de UI
   const [cameraVisible, setCameraVisible] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [photoDescription, setPhotoDescription] = useState('');
@@ -54,10 +69,11 @@ export const ChecklistScreen = () => {
   const [incompleteAreas, setIncompleteAreas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState<Record<string, boolean>>({});
+  const areasScrollViewRef = useRef<ScrollView>(null);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
-  const areasScrollViewRef = useRef<ScrollView | null>(null);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout>(null);
 
   // Solicitar permisos
   useEffect(() => {
@@ -100,6 +116,144 @@ export const ChecklistScreen = () => {
     
     return () => clearTimeout(debounceTimer);
   }, [formData.items, formData.responsable, formData.comentariosAdicionales]);
+
+  // ========== FUNCIONES DE FOTOS ==========
+
+  // Tomar foto
+  const takePhoto = async () => {
+    if (hasCameraPermission === false) {
+      Alert.alert('Permiso denegado', 'Necesitas permitir el acceso a la cámara');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setTempPhoto(result.assets[0].uri);
+        setCameraVisible(true);
+      }
+    } catch (error) {
+      console.error('Error tomando foto:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo tomar la foto',
+      });
+    }
+  };
+
+  // Guardar foto (subir a Storage inmediatamente)
+  const savePhoto = async () => {
+    if (!tempPhoto) return;
+
+    const photoId = Crypto.randomUUID();
+
+    try {
+      const newPhoto: ChecklistPhoto = {
+        id: photoId,
+        area: currentArea,
+        photoUri: tempPhoto, // URI local temporal
+        timestamp: getCurrentTime(),
+        description: photoDescription,
+      };
+
+      // Actualizar estado primero
+      setFormData(prev => ({
+        ...prev,
+        photos: [...(prev.photos || []), newPhoto]
+      }));
+
+      // Mostrar indicador de carga
+      setUploadingPhotos(prev => ({ ...prev, [photoId]: true }));
+
+      // Subir a Storage usando el servicio compartido
+      const publicUrl = await uploadPhotoToSupabase(tempPhoto, checklistId, photoId);
+      
+      setUploadingPhotos(prev => ({ ...prev, [photoId]: false }));
+      
+      if (publicUrl) {
+        // Actualizar la foto con la URL pública
+        setFormData(prev => ({
+          ...prev,
+          photos: prev.photos?.map(p => 
+            p.id === photoId 
+              ? { ...p, photoUri: publicUrl, synced: true }
+              : p
+          ) || []
+        }));
+        
+        Toast.show({
+          type: 'success',
+          text1: '✅ Foto subida a la nube',
+          text2: 'Aparecerá como enlace en el PDF',
+        });
+      } else {
+        Toast.show({
+          type: 'warning',
+          text1: '⚠️ Foto guardada localmente',
+          text2: 'Se subirá cuando haya conexión',
+        });
+      }
+
+      // Limpiar estado temporal
+      setTempPhoto(null);
+      setPhotoDescription('');
+      setCameraVisible(false);
+      
+      // Guardar progreso
+      saveProgressOnly();
+      
+    } catch (error) {
+      console.error('Error guardando foto:', error);
+      setUploadingPhotos(prev => ({ ...prev, [photoId || '']: false }));
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo guardar la foto',
+      });
+    }
+  };
+
+  // Eliminar foto
+  const removePhoto = (photoId: string) => {
+    Alert.alert(
+      'Eliminar foto',
+      '¿Estás seguro de que deseas eliminar esta foto?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            // Eliminar de Storage usando el servicio compartido
+            await deletePhotoFromSupabase(checklistId, photoId);
+            
+            // Eliminar del estado
+            setFormData(prev => ({
+              ...prev,
+              photos: prev.photos?.filter(photo => photo.id !== photoId) || []
+            }));
+            
+            Toast.show({
+              type: 'success',
+              text1: 'Foto eliminada',
+            });
+            
+            saveProgressOnly();
+          }
+        }
+      ]
+    );
+  };
+
+  // ========== FUNCIONES EXISTENTES ==========
 
   // Función para recargar el checklist
   const reloadChecklist = useCallback(() => {
@@ -227,91 +381,6 @@ export const ChecklistScreen = () => {
   // Obtener áreas únicas para la sucursal actual
   const areas = getUniqueAreasForSucursal(sucursalKey);
 
-  // Tomar foto
-  const takePhoto = async () => {
-    if (hasCameraPermission === false) {
-      Alert.alert('Permiso denegado', 'Necesitas permitir el acceso a la cámara');
-      return;
-    }
-
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-        base64: false,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setTempPhoto(result.assets[0].uri);
-        setCameraVisible(true);
-      }
-    } catch (error) {
-      console.error('Error tomando foto:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo tomar la foto',
-      });
-    }
-  };
-
-  // Guardar foto
-  const savePhoto = async () => {
-    if (!tempPhoto) return;
-
-    try {
-      const asset = await MediaLibrary.createAssetAsync(tempPhoto);
-      
-      const newPhoto: ChecklistPhoto = {
-        id: `photo-${Date.now()}`,
-        area: currentArea,
-        photoUri: asset.uri,
-        timestamp: getCurrentTime(),
-        description: photoDescription,
-      };
-
-      setFormData(prev => ({
-        ...prev,
-        photos: [...(prev.photos || []), newPhoto]
-      }));
-
-      Toast.show({
-        type: 'success',
-        text1: '✅ Foto guardada',
-        text2: 'La foto se ha agregado al checklist',
-      });
-
-      setTempPhoto(null);
-      setPhotoDescription('');
-      setCameraVisible(false);
-      
-      // Guardar progreso después de agregar foto
-      saveProgressOnly();
-    } catch (error) {
-      console.error('Error guardando foto:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo guardar la foto',
-      });
-    }
-  };
-
-  // Eliminar foto
-  const removePhoto = (photoId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      photos: prev.photos?.filter(photo => photo.id !== photoId) || []
-    }));
-    Toast.show({
-      type: 'success',
-      text1: 'Foto eliminada',
-    });
-    saveProgressOnly();
-  };
-
   // Calcular porcentajes
   const calculateBuenoPercentage = (area?: string): number => {
     const itemsToCheck = area 
@@ -356,287 +425,11 @@ export const ChecklistScreen = () => {
     await handleSaveInternal();
   };
 
-  // ========== FUNCIONES PARA SUBIR FOTOS A SUPABASE ==========
-
-  // Función para comprimir imagen antes de subir
-  const compressImage = async (photoUri: string): Promise<string> => {
-    try {
-      console.log('Comprimiendo imagen:', photoUri);
-      
-      const compressedImage = await manipulateAsync(
-        photoUri,
-        [{ resize: { width: 1024 } }], // Reducir a 1024px de ancho
-        { compress: 0.7, format: SaveFormat.JPEG }
-      );
-      
-      console.log('✅ Imagen comprimida:', compressedImage.uri);
-      return compressedImage.uri;
-    } catch (error) {
-      console.error('Error comprimiendo imagen:', error);
-      return photoUri; // Devolver original si falla
-    }
-  };
-
-  // Función para subir foto a Supabase Storage
-  const uploadPhotoToStorage = async (photoUri: string, checklistId: string, photoIndex: number): Promise<string | null> => {
-    try {
-      console.log(`📸 Subiendo foto ${photoIndex + 1}:`, photoUri);
-      setProgressMessage(`Preparando foto ${photoIndex + 1}...`);
-      
-      // 1. Verificar que el archivo existe
-      const fileInfo = await FileSystem.getInfoAsync(photoUri);
-      if (!fileInfo.exists) {
-        console.error('❌ El archivo no existe:', photoUri);
-        return null;
-      }
-      
-      console.log('✅ Archivo existe, tamaño:', fileInfo.size, 'bytes');
-      
-      // 2. Comprimir si es muy grande (> 2MB)
-      let uriToUpload = photoUri;
-      if (fileInfo.size && fileInfo.size > 2 * 1024 * 1024) {
-        console.log('📦 Archivo grande, comprimiendo...');
-        uriToUpload = await compressImage(photoUri);
-      }
-      
-      // 3. Generar nombre único
-      const fileName = `${checklistId}_${Date.now()}_${photoIndex}.jpg`;
-      const filePath = `checklist-photos/${fileName}`;
-      
-      // 4. Leer el archivo como base64
-      setProgressMessage(`Procesando foto ${photoIndex + 1}...`);
-      const base64 = await FileSystem.readAsStringAsync(uriToUpload, {
-        encoding: 'base64',
-      });
-      
-      console.log('✅ Foto leída, tamaño base64:', base64.length);
-      
-      // 5. Convertir base64 a arraybuffer
-      const arrayBuffer = decode(base64);
-      
-      // 6. Subir a Supabase Storage
-      setProgressMessage(`Subiendo foto ${photoIndex + 1} a la nube...`);
-      
-      const { data, error } = await supabase.storage
-        .from('checklists')
-        .upload(filePath, arrayBuffer, {
-          contentType: 'image/jpeg',
-          cacheControl: '3600',
-          upsert: false
-        });
-      
-      if (error) {
-        console.error('❌ Error de Supabase:', error);
-        
-        // Si el error es por tamaño, intentar con compresión más agresiva
-        if (error.message?.includes('size') || error.statusCode === 413) {
-          console.log('📦 Foto muy grande, comprimiendo más...');
-          const superCompressed = await manipulateAsync(
-            photoUri,
-            [{ resize: { width: 800 } }],
-            { compress: 0.5, format: SaveFormat.JPEG }
-          );
-          return await uploadPhotoToStorage(superCompressed.uri, checklistId, photoIndex);
-        }
-        
-        return null;
-      }
-      
-      console.log('✅ Foto subida a Storage:', data.path);
-      
-      // 7. Obtener URL pública
-      const { data: urlData } = supabase.storage
-        .from('checklists')
-        .getPublicUrl(filePath);
-      
-      console.log('✅ URL pública:', urlData.publicUrl);
-      return urlData.publicUrl;
-      
-    } catch (error: any) {
-      console.error('❌ Error en uploadPhotoToStorage:', error);
-      
-      // Si es error de red, reintentar una vez
-      if (error.message?.includes('Network') || error.message?.includes('network')) {
-        console.log('🌐 Error de red, reintentando en 3 segundos...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        return await uploadPhotoToStorage(photoUri, checklistId, photoIndex);
-      }
-      
-      return null;
-    }
-  };
-
-  // Función para subir fotos por lotes
-  const uploadPhotosInBatches = async (
-    photos: ChecklistPhoto[],
-    checklistId: string
-  ): Promise<{ success: number; failed: number; photosToInsert: any[] }> => {
-    const photosToInsert = [];
-    let successCount = 0;
-    let failCount = 0;
-    
-    // Subir en lotes de 3 fotos
-    const batchSize = 3;
-    
-    for (let i = 0; i < photos.length; i += batchSize) {
-      const batch = photos.slice(i, i + batchSize);
-      
-      // Procesar lote en paralelo
-      const batchPromises = batch.map(async (photo, batchIndex) => {
-        const photoIndex = i + batchIndex;
-        
-        try {
-          setProgressMessage(`Subiendo foto ${photoIndex + 1} de ${photos.length}...`);
-          
-          const publicUrl = await uploadPhotoToStorage(photo.photoUri, checklistId, photoIndex);
-          
-          if (publicUrl) {
-            successCount++;
-            return {
-              checklist_id: checklistId,
-              area: photo.area,
-              photo_url: publicUrl,
-              timestamp: photo.timestamp,
-              description: photo.description || ''
-            };
-          } else {
-            failCount++;
-            // Guardar URI local como fallback
-            return {
-              checklist_id: checklistId,
-              area: photo.area,
-              photo_url: photo.photoUri,
-              timestamp: photo.timestamp,
-              description: photo.description || ''
-            };
-          }
-        } catch (error) {
-          console.error(`Error en foto ${photoIndex + 1}:`, error);
-          failCount++;
-          // Guardar URI local como fallback
-          return {
-            checklist_id: checklistId,
-            area: photo.area,
-            photo_url: photo.photoUri,
-            timestamp: photo.timestamp,
-            description: photo.description || ''
-          };
-        }
-      });
-      
-      // Esperar a que termine el lote
-      const batchResults = await Promise.all(batchPromises);
-      photosToInsert.push(...batchResults);
-      
-      // Pequeña pausa entre lotes
-      if (i + batchSize < photos.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    return { success: successCount, failed: failCount, photosToInsert };
-  };
-
-  // ========== FUNCIONES PARA SUPABASE ==========
-
-  // Formatear fecha para DB
-  const formatDateForDB = (dateStr: string): string => {
-    const [day, month, year] = dateStr.split('/');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Guardar checklist en Supabase
-  const saveChecklistToSupabase = async (checklistData: ChecklistData, pdfUrl: string) => {
-    try {
-      // 1. Insertar el checklist principal
-      const { data: checklist, error: checklistError } = await supabase
-        .from('checklists')
-        .insert({
-          sucursal_key: checklistData.sucursalKey,
-          sucursal_nombre: checklistData.sucursal,
-          responsable: checklistData.responsable,
-          fecha: formatDateForDB(checklistData.fecha),
-          hora_inicio: checklistData.horaInicio,
-          hora_fin: checklistData.horaFin,
-          comentarios_adicionales: checklistData.comentariosAdicionales,
-          pdf_url: pdfUrl,
-          completed: checklistData.completed
-        })
-        .select()
-        .single();
-
-      if (checklistError) throw checklistError;
-      console.log('✅ Checklist creado con ID:', checklist.id);
-
-      // 2. Insertar los items
-      if (checklistData.items.length > 0) {
-        const itemsToInsert = checklistData.items.map(item => ({
-          checklist_id: checklist.id,
-          area: item.area,
-          aspecto: item.aspecto,
-          cumplimiento: item.cumplimiento || '',
-          observaciones: item.observaciones || '',
-          aspecto_id: item.aspectoId
-        }));
-
-        // Insertar en lotes de 20 items
-        const batchSize = 20;
-        for (let i = 0; i < itemsToInsert.length; i += batchSize) {
-          const batch = itemsToInsert.slice(i, i + batchSize);
-          const { error: itemsError } = await supabase
-            .from('checklist_items')
-            .insert(batch);
-
-          if (itemsError) throw itemsError;
-        }
-        
-        console.log(`✅ ${itemsToInsert.length} items guardados`);
-      }
-
-      // 3. Subir fotos a Storage
-      if (checklistData.photos && checklistData.photos.length > 0) {
-        setProgressMessage('Subiendo fotos a la nube...');
-        
-        const { success, failed, photosToInsert } = await uploadPhotosInBatches(
-          checklistData.photos,
-          checklist.id
-        );
-        
-        console.log(`📊 Fotos: ${success} exitosas, ${failed} fallaron`);
-        
-        // Insertar fotos en la base de datos
-        if (photosToInsert.length > 0) {
-          setProgressMessage('Guardando referencias de fotos...');
-          
-          // Insertar en lotes de 5 fotos
-          const batchSize = 5;
-          for (let i = 0; i < photosToInsert.length; i += batchSize) {
-            const batch = photosToInsert.slice(i, i + batchSize);
-            const { error: photosError } = await supabase
-              .from('checklist_photos')
-              .insert(batch);
-
-            if (photosError) {
-              console.error(`Error insertando lote ${i}:`, photosError);
-            } else {
-              console.log(`✅ Lote ${i/batchSize + 1} insertado: ${batch.length} fotos`);
-            }
-          }
-        }
-      }
-
-      return checklist.id;
-    } catch (error) {
-      console.error('Error guardando en Supabase:', error);
-      throw error;
-    }
-  };
+  // ========== FUNCIONES PARA PDF ==========
 
   // Renombrar archivo PDF
   const renamePDFFile = async (originalUri: string, newFileName: string): Promise<{success: boolean, uri: string, message: string}> => {
     try {
-      console.log('=== INICIANDO RENOMBRE DE ARCHIVO CHECKLIST ===');
-      
       const directoryPath = originalUri.substring(0, originalUri.lastIndexOf('/') + 1);
       const newUri = `${directoryPath}${newFileName}`;
       
@@ -654,26 +447,17 @@ export const ChecklistScreen = () => {
         to: newUri
       });
       
-      const newFileInfo = await FileSystem.getInfoAsync(newUri);
-      if (newFileInfo.exists) {
-        try {
-          await FileSystem.deleteAsync(originalUri);
-        } catch (deleteError) {
-          console.warn('No se pudo eliminar el archivo original');
-        }
-        
-        return {
-          success: true,
-          uri: newUri,
-          message: `Archivo renombrado a: ${newFileName}`
-        };
-      } else {
-        return {
-          success: false,
-          uri: originalUri,
-          message: 'No se pudo copiar el archivo'
-        };
+      try {
+        await FileSystem.deleteAsync(originalUri);
+      } catch (deleteError) {
+        console.warn('No se pudo eliminar el archivo original');
       }
+      
+      return {
+        success: true,
+        uri: newUri,
+        message: `Archivo renombrado a: ${newFileName}`
+      };
       
     } catch (error: any) {
       console.error('Error renombrando archivo:', error.message);
@@ -685,7 +469,7 @@ export const ChecklistScreen = () => {
     }
   };
 
-  // Generar nombre de archivo
+  // Generar nombre de archivo (incluye checklistId para Opción B)
   const generateChecklistFileName = (data: ChecklistData): string => {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const sucursal = data.sucursalKey || sucursalKey;
@@ -693,52 +477,13 @@ export const ChecklistScreen = () => {
       ? `_${data.responsable.trim().replace(/\s+/g, '_')}` 
       : '';
     
-    return `Checklist_${sucursal}${responsible}_${date}.pdf`;
+    // Incluir checklistId en el nombre del PDF
+    return `${checklistId}_Checklist_${sucursal}${responsible}_${date}.pdf`;
   };
 
   // Extraer nombre de archivo
   const extractFileNameFromUri = (uri: string): string => {
     return uri.split('/').pop() || 'checklist.pdf';
-  };
-
-  // Estimar tamaño total de fotos
-  const estimateTotalPhotoSize = async (photos: ChecklistPhoto[]): Promise<number> => {
-    let totalSize = 0;
-    
-    for (const photo of photos) {
-      try {
-        const info = await FileSystem.getInfoAsync(photo.photoUri);
-        if (info.exists) {
-          totalSize += info.size || 0;
-        }
-      } catch (error) {
-        console.error('Error estimando tamaño:', error);
-      }
-    }
-    
-    return totalSize;
-  };
-
-  // Verificar memoria antes de generar PDF
-  const checkMemoryAndWarn = async (): Promise<boolean> => {
-    if (formData.photos && formData.photos.length > 8) {
-      const totalSize = await estimateTotalPhotoSize(formData.photos);
-      
-      if (totalSize > 30 * 1024 * 1024) { // 30MB
-        return new Promise((resolve) => {
-          Alert.alert(
-            '⚠️ Muchas fotos',
-            `Las fotos ocupan aproximadamente ${Math.round(totalSize / (1024 * 1024))}MB. ` +
-            'En dispositivos de gama baja esto puede causar problemas. ¿Deseas continuar?',
-            [
-              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Continuar', onPress: () => resolve(true) }
-            ]
-          );
-        });
-      }
-    }
-    return true;
   };
 
   // Guardar interno
@@ -787,14 +532,11 @@ export const ChecklistScreen = () => {
       const renameResult = await renamePDFFile(tempPdfUri, fileName);
       const newName = extractFileNameFromUri(renameResult.uri);
       
-      // Subir PDF a Supabase Storage
+      // Subir PDF a Storage usando el servicio compartido
       setProgressMessage('Subiendo PDF a la nube...');
-      const pdfUrl = await uploadPDFToStorage(renameResult.uri, newName);
+      const pdfUrl = await uploadFileToSupabase(renameResult.uri, newName);
       
       if (pdfUrl) {
-        // Guardar en la base de datos
-        await saveChecklistToSupabase(updatedData, pdfUrl);
-        
         // Limpiar borrador
         await clearDraft(sucursalKey);
         setLastSaved(null);
@@ -834,50 +576,10 @@ export const ChecklistScreen = () => {
     }
   };
 
-  // Función para subir PDF a Storage
-  const uploadPDFToStorage = async (pdfUri: string, fileName: string): Promise<string | null> => {
-    try {
-      console.log('📄 Subiendo PDF:', fileName);
-      
-      // Leer PDF como base64
-      const base64 = await FileSystem.readAsStringAsync(pdfUri, {
-        encoding: 'base64',
-      });
-      
-      const arrayBuffer = decode(base64);
-      
-      // Subir a Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('checklists')
-        .upload(`pdfs/${fileName}`, arrayBuffer, {
-          contentType: 'application/pdf',
-          cacheControl: '3600',
-        });
-      
-      if (error) throw error;
-      
-      // Obtener URL pública
-      const { data: urlData } = supabase.storage
-        .from('checklists')
-        .getPublicUrl(`pdfs/${fileName}`);
-      
-      console.log('✅ PDF subido:', urlData.publicUrl);
-      return urlData.publicUrl;
-      
-    } catch (error) {
-      console.error('Error subiendo PDF:', error);
-      return null;
-    }
-  };
-
   // Handle save principal
   const handleSave = async () => {
     if (!validateBeforeSave()) return;
-    
-    const memoryOk = await checkMemoryAndWarn();
-    if (memoryOk) {
-      await handleSaveInternal();
-    }
+    await handleSaveInternal();
   };
 
   // Navegar a área incompleta
@@ -1026,7 +728,7 @@ export const ChecklistScreen = () => {
           <View style={styleschecklist.infoGrid}>
             <Text style={styleschecklist.infoLabel}>FECHA:</Text>
             <Text style={styleschecklist.infoValue}>{formData.fecha}</Text>
-            <Text></Text><Text></Text><Text></Text>
+            <View style={{ width: 8 }} />
             <Text style={styleschecklist.infoLabel}>HORA INICIO:</Text>
             <Text style={styleschecklist.infoValue}>{formData.horaInicio} hrs.</Text>
           </View>
@@ -1154,6 +856,21 @@ export const ChecklistScreen = () => {
               {areaPhotos.map((photo) => (
                 <View key={photo.id} style={styleschecklist.photoCard}>
                   <Image source={{ uri: photo.photoUri }} style={styleschecklist.photo} />
+                  
+                  {/* Indicador de subida */}
+                  {uploadingPhotos[photo.id] && (
+                    <View style={styleschecklist.uploadingOverlay}>
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    </View>
+                  )}
+                  
+                  {/* Badge de sincronizado */}
+                  {!uploadingPhotos[photo.id] && photo.photoUri?.startsWith('http') && (
+                    <View style={styleschecklist.syncedBadge}>
+                      <MaterialCommunityIcons name="cloud-check" size={16} color="#10B981" />
+                    </View>
+                  )}
+                  
                   <TouchableOpacity
                     style={styleschecklist.deleteButton}
                     onPress={() => removePhoto(photo.id)}
@@ -1161,6 +878,7 @@ export const ChecklistScreen = () => {
                   >
                     <Icon name="delete" size={20} color="white" />
                   </TouchableOpacity>
+                  
                   <View style={styleschecklist.photoInfo}>
                     {photo.description && (
                       <Text style={styleschecklist.photoDescription} numberOfLines={2}>

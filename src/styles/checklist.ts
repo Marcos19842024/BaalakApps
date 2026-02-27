@@ -838,12 +838,7 @@ export const styleschecklist = StyleSheet.create({
         marginTop: 2,
     },
     saveProgressButton: {
-        backgroundColor: '#10B981', // Verde para distinguir
-    },
-    lastSavedText: {
-        color: '#6B7280',
-        fontSize: 10,
-        marginLeft: 15,
+        backgroundColor: '#10B981',
     },
     progressIndicator: {
         flexDirection: 'row',
@@ -861,5 +856,34 @@ export const styleschecklist = StyleSheet.create({
     },
     progressDotInactive: {
         backgroundColor: '#D1D5DB',
+    },
+    uploadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    syncedBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 4,
+    },
+    lastSavedContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 4,
+        backgroundColor: '#f0f9ff',
+    },
+    lastSavedText: {
+        fontSize: 12,
+        color: '#0369a1',
+        textAlign: 'right',
     },
 });

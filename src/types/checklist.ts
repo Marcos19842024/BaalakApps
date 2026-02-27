@@ -1,19 +1,21 @@
-export interface ChecklistItem {
-  aspectoId: any;
-  id: string;
-  area: string;
-  aspecto: string;
-  cumplimiento: '' | 'bueno' | 'regular' | 'malo';
-  observaciones: string;
-}
+export type Cumplimiento = 'bueno' | 'regular' | 'malo' | '';
 
 export interface ChecklistPhoto {
   id: string;
   area: string;
-  photoUri: string;
+  photoUri: string; // URL pública de Supabase o local
   timestamp: string;
-  description?: string;
-  base64?: string;
+  description: string;
+  synced?: boolean;
+}
+
+export interface ChecklistItem {
+  id: string;
+  area: string;
+  aspecto: string;
+  cumplimiento: Cumplimiento;
+  observaciones: string;
+  aspectoId?: string;
 }
 
 export interface ChecklistData {
@@ -23,8 +25,8 @@ export interface ChecklistData {
   responsable: string;
   items: ChecklistItem[];
   comentariosAdicionales: string;
-  photos?: ChecklistPhoto[];
+  photos: ChecklistPhoto[];
   completed: boolean;
-  sucursal?: string;
-  sucursalKey?: string;
+  sucursal: string;
+  sucursalKey: string;
 }
