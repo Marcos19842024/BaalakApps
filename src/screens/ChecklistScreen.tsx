@@ -33,7 +33,7 @@ import {
 import { RouteParams } from 'src/types/navigation';
 import { styleschecklist } from 'src/styles/checklist';
 import { SUCURSALES, SucursalType } from 'src/types/sucursal';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import 'react-native-get-random-values';
 import * as Crypto from 'expo-crypto';
 
@@ -469,16 +469,17 @@ export const ChecklistScreen = () => {
     }
   };
 
-  // Generar nombre de archivo (incluye checklistId para Opción B)
+  // Generar nombre de archivo (con timestamp para ordenar y checklistId para identificar)
   const generateChecklistFileName = (data: ChecklistData): string => {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const timestamp = Date.now(); // Timestamp para ordenar archivos
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
     const sucursal = data.sucursalKey || sucursalKey;
     const responsible = data.responsable 
-      ? `_${data.responsable.trim().replace(/\s+/g, '_')}` 
-      : '';
+    ? `_${data.responsable.trim().replace(/\s+/g, '_')}` 
+    : '';
     
-    // Incluir checklistId en el nombre del PDF
-    return `${checklistId}_Checklist_${sucursal}${responsible}_${date}.pdf`;
+    // Formato: [timestamp]_[checklistId]_Checklist_[sucursal][responsable]_[fecha].pdf
+    return `${timestamp}_${checklistId}_Checklist_${sucursal}${responsible}_${date}.pdf`;
   };
 
   // Extraer nombre de archivo
@@ -694,7 +695,21 @@ export const ChecklistScreen = () => {
             disabled={isLoading}
           >
             <Icon name="save" size={24} color="white" />
-            <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
+            <View>
+              <Text style={styleschecklist.cameraButtonText}>Guardar</Text>
+
+              {/* Info de último guardado */}
+              {lastSaved && (
+                <>
+                  <Text style={styleschecklist.lastSavedText}>
+                    Guardado automático:
+                  </Text>
+                  <Text style={styleschecklist.lastSavedText}>
+                    {lastSaved.toLocaleTimeString()}
+                  </Text>
+                </>
+              )}
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -715,13 +730,6 @@ export const ChecklistScreen = () => {
             <Text style={styleschecklist.cameraButtonText}>Foto</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Info de último guardado */}
-        {lastSaved && (
-          <Text style={styleschecklist.lastSavedText}>
-            💾 Guardado: {lastSaved.toLocaleTimeString()}
-          </Text>
-        )}
 
         {/* Información general */}
         <View style={styleschecklist.infoCard}>

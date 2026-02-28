@@ -65,9 +65,9 @@ export const uploadFileToSupabase = async (
         const response = await fetch(fileUri);
         const arrayBuffer = await response.arrayBuffer();
         
-        // Crear nombre único pero mantener la estructura de carpetas
-        const uniqueName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const filePath = `pdfs/${uniqueName}`; // Guardar en carpeta pdfs/
+        // NO generar nuevo timestamp, usar el nombre ya formateado
+        // que ya incluye timestamp_checklistId_...
+        const filePath = `pdfs/${fileName}`; // Guardar en carpeta pdfs/
         const mimeType = getMimeType(fileName);
 
         // Subir a Supabase
@@ -208,44 +208,60 @@ export const deleteChecklistAndPhotos = async (pdfFileName: string): Promise<boo
         console.log('🗑️ Eliminando checklist completo:', pdfFileName);
         
         // Extraer el checklistId del nombre del PDF
-        // Formato: [checklistId]_Checklist_[...].pdf
-        const match = pdfFileName.match(/^([a-f0-9-]+)_Checklist_.+\.pdf$/);
+        // Formatos posibles:
+        // 1. Con timestamp: [timestamp]_[checklistId]_Checklist_[...].pdf
+        // 2. Sin timestamp: [checklistId]_Checklist_[...].pdf
+        let checklistId = '';
         
-        if (!match || !match[1]) {
-            console.error('No se pudo extraer checklistId del nombre:', pdfFileName);
+        // Patrón 1: Con timestamp al inicio (ej: 1234567890_uuid_Checklist_...)
+        const matchWithTimestamp = pdfFileName.match(/^\d+_([a-f0-9-]+)_Checklist_.+\.pdf$/);
+        
+        // Patrón 2: Sin timestamp (solo checklistId)
+        const matchWithoutTimestamp = pdfFileName.match(/^([a-f0-9-]+)_Checklist_.+\.pdf$/);
+        
+        if (matchWithTimestamp && matchWithTimestamp[1]) {
+            checklistId = matchWithTimestamp[1];
+            console.log('📋 Checklist ID extraído (con timestamp):', checklistId);
+        } else if (matchWithoutTimestamp && matchWithoutTimestamp[1]) {
+            checklistId = matchWithoutTimestamp[1];
+            console.log('📋 Checklist ID extraído (sin timestamp):', checklistId);
+        } else {
+            console.error('❌ No se pudo extraer checklistId del nombre:', pdfFileName);
+            console.log('Formatos esperados: [timestamp]_[uuid]_Checklist_...pdf o [uuid]_Checklist_...pdf');
             return false;
         }
-        
-        const checklistId = match[1];
-        console.log('📋 Checklist ID extraído:', checklistId);
         
         // 1. Eliminar el PDF
+        console.log('📄 Eliminando PDF:', pdfFileName);
         const pdfPath = `pdfs/${pdfFileName}`;
         const { error: pdfError } = await supabase.storage
-            .from(BUCKET_NAME)
-            .remove([pdfPath]);
+        .from(BUCKET_NAME)
+        .remove([pdfPath]);
         
         if (pdfError) {
-            console.error('Error eliminando PDF:', pdfError);
+            console.error('❌ Error eliminando PDF:', pdfError);
             return false;
         }
         
-        console.log('✅ PDF eliminado');
+        console.log('✅ PDF eliminado correctamente');
         
         // 2. Buscar todas las fotos que comienzan con checklistId
+        console.log(`🔍 Buscando fotos con ID: ${checklistId}...`);
         const { data: fotos, error: listError } = await supabase.storage
-            .from(BUCKET_NAME)
-            .list('checklist-photos', {
-                search: checklistId
-            });
+        .from(BUCKET_NAME)
+        .list('fotos', {
+            search: checklistId,
+            limit: 100
+        });
         
         if (listError) {
-            console.error('Error buscando fotos:', listError);
-            return true; // El PDF ya se eliminó
+            console.error('❌ Error buscando fotos:', listError);
+            return true; // El PDF ya se eliminó, no fallamos por las fotos
         }
         
         if (fotos && fotos.length > 0) {
-            console.log(`📸 Encontradas ${fotos.length} fotos asociadas`);
+            console.log(`📸 Encontradas ${fotos.length} fotos asociadas:`);
+            fotos.forEach(foto => console.log(`   - ${foto.name}`));
             
             // Eliminar todas las fotos encontradas
             const fotoPaths = fotos.map(foto => `fotos/${foto.name}`);
@@ -254,18 +270,38 @@ export const deleteChecklistAndPhotos = async (pdfFileName: string): Promise<boo
                 .remove(fotoPaths);
             
             if (fotosError) {
-                console.error('Error eliminando fotos:', fotosError);
+                console.error('❌ Error eliminando fotos:', fotosError);
+                Toast.show({
+                    type: 'warning',
+                    text1: '⚠️ Eliminación parcial',
+                    text2: `PDF eliminado, pero ${fotos.length} fotos no pudieron eliminarse`
+                });
             } else {
-                console.log(`✅ ${fotos.length} fotos eliminadas`);
+                console.log(`✅ ${fotos.length} fotos eliminadas correctamente`);
+                Toast.show({
+                    type: 'success',
+                    text1: '✅ Checklist eliminado',
+                    text2: `PDF y ${fotos.length} ${fotos.length === 1 ? 'foto' : 'fotos'} eliminados`
+                });
             }
         } else {
-            console.log('📸 No se encontraron fotos asociadas');
+            console.log('📸 No se encontraron fotos asociadas a este checklist');
+            Toast.show({
+                type: 'success',
+                text1: '✅ PDF eliminado',
+                text2: 'No había fotos asociadas'
+            });
         }
         
         return true;
         
     } catch (error: any) {
         console.error('❌ Error eliminando checklist:', error);
+        Toast.show({
+            type: 'error',
+            text1: 'Error',
+            text2: error.message || 'No se pudo eliminar el checklist'
+        });
         return false;
     }
 };

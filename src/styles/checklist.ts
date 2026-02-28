@@ -882,8 +882,9 @@ export const styleschecklist = StyleSheet.create({
         backgroundColor: '#f0f9ff',
     },
     lastSavedText: {
-        fontSize: 12,
-        color: '#0369a1',
-        textAlign: 'right',
+        fontSize: 8,
+        color: 'white',
+        textAlign: 'left',
+        marginLeft: 8,
     },
 });
