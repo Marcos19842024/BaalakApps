@@ -249,7 +249,7 @@ export const deleteChecklistAndPhotos = async (pdfFileName: string): Promise<boo
         console.log(`🔍 Buscando fotos con ID: ${checklistId}...`);
         const { data: fotos, error: listError } = await supabase.storage
         .from(BUCKET_NAME)
-        .list('fotos', {
+        .list('checklist-photos', {
             search: checklistId,
             limit: 100
         });
@@ -264,7 +264,7 @@ export const deleteChecklistAndPhotos = async (pdfFileName: string): Promise<boo
             fotos.forEach(foto => console.log(`   - ${foto.name}`));
             
             // Eliminar todas las fotos encontradas
-            const fotoPaths = fotos.map(foto => `fotos/${foto.name}`);
+            const fotoPaths = fotos.map(foto => `checklist-photos/${foto.name}`);
             const { error: fotosError } = await supabase.storage
                 .from(BUCKET_NAME)
                 .remove(fotoPaths);
