@@ -148,6 +148,63 @@ class remindersData {
         }
     ];
 
+    // Mapeo de códigos y términos a texto legible
+    private readonly serviciosMap: { [key: string]: string } = {
+        // Transporte
+        'transporte de clínica': 'transporte',
+        'transporte': 'transporte',
+        
+        // Consultas
+        'consulta': 'consulta',
+        'consulta nocturna': 'consulta nocturna',
+        'consulta festivos': 'consulta en festivos',
+        'urgencias': 'urgencias',
+        
+        // Seguimiento y control
+        'seguimiento': 'seguimiento',
+        'control sin costo': 'control sin costo',
+        'control sc': 'control sin costo',
+        'seguimiento sct': 'seguimiento',
+        
+        // Medicina preventiva
+        'medicina preventiva': 'medicina preventiva',
+        'vacunación': 'vacunación',
+        'desparasitación': 'desparasitación',
+        
+        // Hospitalización y cirugía
+        'hospitalización': 'hospitalización',
+        'cirugía': 'cirugía',
+        'procedimiento': 'procedimiento',
+        
+        // Diagnóstico
+        'análisis clínicos': 'análisis clínicos',
+        'rx-us': 'radiografía y ultrasonido',
+        'rx': 'radiografía',
+        'us': 'ultrasonido',
+        'radiografía - us': 'radiografía y ultrasonido',
+        'radiografía': 'radiografía',
+        'ultrasonido': 'ultrasonido',
+        
+        // Tratamientos
+        'tratamiento': 'tratamiento',
+        'láser': 'láser terapia',
+        'láser terapia': 'láser terapia',
+        'fisioterapia': 'fisioterapia',
+        
+        // Documentos
+        'certificado médico': 'certificado médico',
+        
+        // Servicio FCM
+        'servicio fcm': 'servicio FCM',
+        'fcm': 'servicio FCM',
+        
+        // Términos quirúrgicos comunes en asunto
+        'castración': 'castración',
+        'ovh': 'OVH (esterilización)',
+        'esterilización': 'esterilización',
+        'eutanasia': 'eutanasia'
+    };
+
     // Obtener todas las plantillas
     obtenerTemplates(): ExcelTemplate[] {
         return this.templatesFijos.filter(t => t.activo);
@@ -428,9 +485,9 @@ class remindersData {
                 const propietario = this.formatString(cell[3]?.toString() || '');
                 const nombreMascota = this.formatString(cell[4]?.toString() || '');
                 const telefono = this.formatNumbers(cell[5]?.toString() || '');
-                const asunto = this.formatString(cell[6]?.toString() || '');
+                const asunto = cell[6]?.toString() || '';
                 const agenda = this.formatString(cell[7]?.toString() || '');
-                const estado = this.formatString(cell[8]?.toString() || '');
+                const estado = cell[8]?.toString() || '';
 
                 // Validar datos mínimos
                 if (!propietario || propietario.trim() === '' || !telefono || telefono.trim() === '') {
@@ -550,7 +607,7 @@ class remindersData {
             if (mascotasConCitas.length === 1) {
                 const mascotaNombre = mascotasConCitas[0];
                 const citasMascota = citasPorMascota[mascotaNombre];
-                mensajeCita = `la cita de su mascota '${mascotaNombre}'`;
+                mensajeCita = `la cita de su mascota '${mascotaNombre}' `;
                 mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
             } else {
                 mensajeCita = "las citas de sus mascotas: ";
@@ -560,14 +617,14 @@ class remindersData {
                     const citasMascota = citasPorMascota[mascotaNombre];
                     
                     if (i === 0) {
-                        mensajeCita += `'${mascotaNombre}'`;
+                        mensajeCita += `'${mascotaNombre}' `;
                         mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
                     } else {
                         if (i === (mascotasConCitas.length - 1)) {
-                            mensajeCita += ` y '${mascotaNombre}'`;
+                            mensajeCita += ` y '${mascotaNombre}' `;
                             mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
                         } else {
-                            mensajeCita += `, '${mascotaNombre}'`;
+                            mensajeCita += `, '${mascotaNombre}' `;
                             mensajeCita += this.listarCitasParaMascota(citasMascota, !mismoDia);
                         }
                     }
@@ -605,13 +662,153 @@ class remindersData {
                 mensajeCompleto += `⏰ Hora: ${todasLasCitas[0].hora_inicio}\n`;
             }
             
-            mensajeCompleto += `\nPor favor confirme su asistencia y el serviciocon anticipación.\n\n¡Gracias! 🐾`;
+            mensajeCompleto += `\nPor favor confirme su asistencia y el servicio con anticipación.\n\n¡Gracias! 🐾`;
             
             cliente.mensajes.push(this.createNewMsg(mensajeCompleto));
             
             // Eliminar el campo temporal
             delete (cliente as any).todasLasCitas;
         });
+    }
+
+    //****************************************************
+    //*************   Procesador de Servicios   **********
+    //****************************************************
+
+    // Procesar los campos de servicio para generar texto legible
+    private procesarServicio(tipoVisita: string, asunto: string, estado: string): string {
+        const servicios: string[] = [];
+        
+        // 1. Primero, verificar si el asunto contiene términos quirúrgicos específicos
+        const asuntoLower = asunto.toLowerCase();
+        const terminosQuirurgicos = ['castración', 'ovh', 'esterilización', 'eutanasia'];
+        const terminoQuirurgico = terminosQuirurgicos.find(term => asuntoLower.includes(term));
+        
+        if (terminoQuirurgico) {
+            return this.serviciosMap[terminoQuirurgico] || terminoQuirurgico;
+        }
+        
+        // 2. Procesar según el tipo de visita
+        const tipoLower = tipoVisita.toLowerCase().trim();
+        
+        // Casos especiales que necesitan combinación de campos
+        if (tipoLower.includes('peluquer') || tipoLower.includes('estética')) {
+            return this.procesarServicioEstetica(asunto, estado);
+        }
+        
+        // 3. Para otros tipos, combinar información de todos los campos
+        const camposParaAnalizar = [
+            tipoVisita,
+            estado,
+            asunto
+        ];
+        
+        // Buscar servicios en todos los campos
+        camposParaAnalizar.forEach(campo => {
+            if (!campo || campo.trim() === '') return;
+            
+            const campoLower = campo.toLowerCase();
+            
+            // Buscar coincidencias en el mapa de servicios
+            Object.keys(this.serviciosMap).forEach(key => {
+                // Buscar la key completa o palabras clave
+                if (campoLower.includes(key.toLowerCase())) {
+                    const servicio = this.serviciosMap[key];
+                    if (!servicios.includes(servicio)) {
+                        servicios.push(servicio);
+                    }
+                }
+            });
+            
+            // También buscar términos compuestos (ej: "rx y us")
+            if (campoLower.includes('rx') && campoLower.includes('us')) {
+                if (!servicios.includes('radiografía y ultrasonido')) {
+                    servicios.push('radiografía y ultrasonido');
+                }
+            }
+        });
+        
+        // 4. Si no se encontraron servicios, devolver el tipo de visita formateado
+        if (servicios.length === 0) {
+            return this.formatString(tipoVisita);
+        }
+        
+        // 5. Construir el texto final
+        return this.combinarServicios(servicios);
+    }
+
+    // Procesar servicios de estética (peluquería)
+    private procesarServicioEstetica(asunto: string, estado: string): string {
+        // Combinar asunto y estado para análisis
+        const textoCompleto = `${asunto} ${estado}`.toLowerCase();
+        const servicios: string[] = [];
+        
+        // Detectar servicios de estética
+        const tieneB = textoCompleto.includes('b') && !textoCompleto.includes('bm') && !textoCompleto.includes('baño');
+        const tieneBaño = textoCompleto.includes('baño') && !textoCompleto.includes('medicado');
+        const tieneBM = textoCompleto.includes('bm') || textoCompleto.includes('baño medicado');
+        const tieneCP = textoCompleto.includes('cp') || textoCompleto.includes('corte');
+        const tieneTransporte = textoCompleto.includes('transporte');
+        
+        // Construir la lista de servicios
+        if (tieneCP) servicios.push('corte');
+        if (tieneB || tieneBaño) servicios.push('baño');
+        if (tieneBM) servicios.push('baño medicado');
+        if (tieneTransporte) servicios.push('transporte');
+        
+        // Si no se detectaron servicios específicos pero hay texto, procesar normalmente
+        if (servicios.length === 0) {
+            return this.procesarTextoGenerico(textoCompleto);
+        }
+        
+        return this.combinarServicios(servicios);
+    }
+
+    // Procesar texto genérico (cuando no hay servicios detectados)
+    private procesarTextoGenerico(texto: string): string {
+        if (!texto || texto.trim() === '') return '';
+        
+        // Dividir por comas, guiones o espacios y limpiar
+        const partes = texto.split(/[, \-_]+/)
+            .map(p => p.trim())
+            .filter(p => p.length > 0 && p !== 'cp' && p !== 'bm' && p !== 'b');
+        
+        if (partes.length === 0) return '';
+        
+        // Mapear partes a servicios conocidos
+        const servicios = partes.map(parte => {
+            const parteLower = parte.toLowerCase();
+            // Buscar en el mapa de servicios
+            for (const [key, value] of Object.entries(this.serviciosMap)) {
+                if (parteLower.includes(key.toLowerCase())) {
+                    return value;
+                }
+            }
+            // Si no se encuentra, capitalizar la parte
+            return this.formatString(parte);
+        });
+        
+        // Filtrar duplicados
+        const serviciosUnicos = [...new Set(servicios)];
+        
+        return this.combinarServicios(serviciosUnicos);
+    }
+
+    // Combinar lista de servicios en texto legible
+    private combinarServicios(servicios: string[]): string {
+        if (servicios.length === 0) return '';
+        
+        // Eliminar duplicados y ordenar
+        const unicos = [...new Set(servicios)];
+        
+        if (unicos.length === 1) {
+            return unicos[0];
+        } else if (unicos.length === 2) {
+            return `${unicos[0]} y ${unicos[1]}`;
+        } else {
+            const ultimo = unicos.pop();
+            return `${unicos.join(', ')} y ${ultimo}`;
+        }
     }
 
     // Listar todas las citas para una mascota
@@ -621,16 +818,22 @@ class remindersData {
         if (citas.length === 1) {
             return this.describirCita(citas[0], incluirFecha);
         } else {
-            let descripcion = ` tiene ${citas.length} citas: `;
+            let descripcion = ` tiene ${citas.length} citas programadas: `;
             
             for (let i = 0; i < citas.length; i++) {
+                const servicio = this.procesarServicio(
+                    citas[i].tipo_visita, 
+                    citas[i].asunto, 
+                    citas[i].estado
+                );
+                
                 if (i === 0) {
-                    descripcion += this.describirCita(citas[i], incluirFecha);
+                    descripcion += this.construirDescripcionCita(citas[i], servicio, incluirFecha, false);
                 } else {
                     if (i === (citas.length - 1)) {
-                        descripcion += ` y ${this.describirCita(citas[i], incluirFecha, true)}`;
+                        descripcion += ` y ${this.construirDescripcionCita(citas[i], servicio, incluirFecha, true)}`;
                     } else {
-                        descripcion += `, ${this.describirCita(citas[i], incluirFecha, true)}`;
+                        descripcion += `, ${this.construirDescripcionCita(citas[i], servicio, incluirFecha, true)}`;
                     }
                 }
             }
@@ -640,24 +843,63 @@ class remindersData {
     }
 
     // Describir una cita individual
-    private describirCita(cita: any, incluirFecha: boolean = true, esSegundaOMas: boolean = false): string {
+    private describirCita(cita: any, incluirFecha: boolean = true): string {
+        const servicio = this.procesarServicio(
+            cita.tipo_visita, 
+            cita.asunto, 
+            cita.estado
+        );
+        
+        return this.construirDescripcionCita(cita, servicio, incluirFecha, false);
+    }
+
+    // Construir la descripción de la cita
+    private construirDescripcionCita(
+        cita: any, 
+        servicio: string, 
+        incluirFecha: boolean,
+        esSegundaOMas: boolean
+    ): string {
         let descripcion = '';
         
-        // Ajustar la gramática según si es la primera cita o no
-        if (esSegundaOMas) {
-            // Para citas después de la primera
-            if (cita.tipo_visita.toLowerCase().startsWith('para ')) {
-                descripcion += cita.tipo_visita;
+        const tipoVisitaBase = cita.tipo_visita.toLowerCase();
+        const esEstetica = tipoVisitaBase.includes('peluquer') || tipoVisitaBase.includes('estética');
+        
+        if (esEstetica) {
+            // Para estética, mostramos el servicio procesado
+            if (esSegundaOMas) {
+                descripcion += servicio;
             } else {
-                descripcion += `para ${cita.tipo_visita}`;
+                descripcion += `para ${servicio}`;
             }
         } else {
-            // Para la primera cita
-            descripcion += ` para ${cita.tipo_visita}`;
-        }
-        
-        if (cita.asunto) {
-            descripcion += ` (${cita.asunto})`;
+            // Para otros tipos, determinamos si necesitamos mostrar el tipo de visita
+            const tipoFormateado = this.formatString(cita.tipo_visita);
+            
+            // Verificar si el servicio ya incluye el tipo de visita
+            if (servicio.toLowerCase().includes(tipoVisitaBase)) {
+                // El servicio ya contiene el tipo, no lo repetimos
+                if (esSegundaOMas) {
+                    descripcion += servicio;
+                } else {
+                    descripcion += `para ${servicio}`;
+                }
+            } else {
+                // El servicio es diferente al tipo, mostramos ambos
+                if (servicio) {
+                    if (esSegundaOMas) {
+                        descripcion += `${tipoFormateado} (${servicio})`;
+                    } else {
+                        descripcion += `para ${tipoFormateado} (${servicio})`;
+                    }
+                } else {
+                    if (esSegundaOMas) {
+                        descripcion += tipoFormateado;
+                    } else {
+                        descripcion += `para ${tipoFormateado}`;
+                    }
+                }
+            }
         }
         
         if (incluirFecha && cita.fecha) {
@@ -665,7 +907,6 @@ class remindersData {
         }
         
         if (cita.hora_inicio) {
-            // Solo agregar "a las" si no es una cita después de la primera
             if (!esSegundaOMas || descripcion.includes(' el ')) {
                 descripcion += ` a las ${cita.hora_inicio}`;
             } else {
