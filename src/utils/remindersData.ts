@@ -350,7 +350,7 @@ class remindersData {
     private ListPetsVacunas(clientes: Cliente[], nombreClinica: string) {
         clientes.forEach(cliente => {
             const mascotas = cliente.mascotas;
-            let mensaje;
+            let mensaje: string;
             
             // Mensaje de saludo
             cliente.mensajes.push(this.createNewMsg(`Hola ${cliente.nombre}.`));
@@ -602,7 +602,7 @@ class remindersData {
             // Nombre de la clínica
             const nombreClinicaLimpio = this.extraerNombreClinica(nombreClinica);
             
-            let mensajeCita;
+            let mensajeCita: string;
             
             if (mascotasConCitas.length === 1) {
                 const mascotaNombre = mascotasConCitas[0];
@@ -634,9 +634,10 @@ class remindersData {
             // Construir mensaje completo
             let mensajeCompleto = `${nombreClinicaLimpio} le recuerda ${mensajeCita}`;
             
-            // Agregar la fecha al final si todas son del mismo día
+            // CORREGIDO: Usar formatFechaParaMensaje correctamente
             if (mismoDia && primeraFecha) {
-                mensajeCompleto += ` el día ${primeraFecha}`;
+                const fechaFormateada = this.formatFechaParaMensaje(primeraFecha);
+                mensajeCompleto += ` ${fechaFormateada}`;
             }
             
             mensajeCompleto += `.\n\n`;
@@ -663,6 +664,8 @@ class remindersData {
             }
             
             mensajeCompleto += `\nPor favor confirme su asistencia y el servicio con anticipación.\n\n¡Gracias! 🐾`;
+            
+            console.log(`Mensaje final: "${mensajeCompleto}"`);
             
             cliente.mensajes.push(this.createNewMsg(mensajeCompleto));
             
@@ -864,7 +867,7 @@ class remindersData {
         
         const tipoVisitaBase = cita.tipo_visita.toLowerCase();
         const esEstetica = tipoVisitaBase.includes('peluquer') || tipoVisitaBase.includes('estética');
-        
+    
         if (esEstetica) {
             // Para estética, mostramos el servicio procesado
             if (esSegundaOMas) {
@@ -902,12 +905,13 @@ class remindersData {
             }
         }
         
+        // CORREGIDO: Usar formatFechaParaMensaje correctamente
         if (incluirFecha && cita.fecha) {
-            descripcion += ` el ${cita.fecha}`;
+            descripcion += ` ${this.formatFechaParaMensaje(cita.fecha)}`;
         }
         
         if (cita.hora_inicio) {
-            if (!esSegundaOMas || descripcion.includes(' el ')) {
+            if (!esSegundaOMas || descripcion.includes('el día') || descripcion.includes('mañana')) {
                 descripcion += ` a las ${cita.hora_inicio}`;
             } else {
                 descripcion += ` ${cita.hora_inicio}`;
@@ -992,15 +996,43 @@ class remindersData {
     // Formatear fecha larga
     private formatDateLong(date: string): string {
         if (!date) return '';
-        
-        let dateObject;
+    
+        let dateObject: Date;
+    
+        // Si la fecha ya está en formato texto español, intentar parsearla
+        if (date.includes(' de ')) {
+            const meses: { [key: string]: number } = {
+                'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+                'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+                'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
+            };
+            
+            const partes = date.split(' de ');
+            if (partes.length === 3) {
+                const day = parseInt(partes[0]);
+                const monthName = partes[1].toLowerCase();
+                const year = parseInt(partes[2]);
+                const month = meses[monthName];
+                
+                if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+                    dateObject = new Date(year, month, day);
+                    // Devolver en formato largo español
+                    return date;
+                }
+            }
+        }
         
         // Si la fecha está en formato ISO (YYYY-MM-DD)
         if (date.includes('-')) {
             const [year, month, day] = date.split('-').map(Number);
             dateObject = new Date(year, month - 1, day);
         } 
-        // Si ya es un string de fecha válido
+        // Si la fecha está en formato DD/MM/YYYY
+        else if (date.includes('/')) {
+            const [day, month, year] = date.split('/').map(Number);
+            dateObject = new Date(year, month - 1, day);
+        }
+        // Otros formatos
         else {
             dateObject = new Date(date);
             // Ajustar por diferencia de zona horaria
@@ -1020,6 +1052,77 @@ class remindersData {
             month: 'long',
             day: 'numeric'
         });
+    }
+
+    private esManana(fechaStr: string): boolean {
+        if (!fechaStr) return false;
+    
+        try {
+            
+            // Parsear la fecha - manejar diferentes formatos
+            let fechaCita: Date;
+            
+            if (fechaStr.includes('-')) {
+                // Formato ISO: YYYY-MM-DD
+                const [year, month, day] = fechaStr.split('-').map(Number);
+                fechaCita = new Date(year, month - 1, day);
+            } else if (fechaStr.includes('/')) {
+                // Formato DD/MM/YYYY
+                const [day, month, year] = fechaStr.split('/').map(Number);
+                fechaCita = new Date(year, month - 1, day);
+            } else if (fechaStr.includes(' de ')) {
+                // Formato: "21 de marzo de 2026"
+                const meses: { [key: string]: number } = {
+                    'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+                    'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+                    'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
+                };
+                
+                const partes = fechaStr.split(' de ');
+                if (partes.length === 3) {
+                    const day = parseInt(partes[0]);
+                    const monthName = partes[1].toLowerCase();
+                    const year = parseInt(partes[2]);
+                    const month = meses[monthName];
+                    
+                    if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+                        fechaCita = new Date(year, month, day);
+                    }
+                }
+            } else {
+                fechaCita = new Date(fechaStr);
+                if (!isNaN(fechaCita.getTime())) {
+                    fechaCita.setMinutes(fechaCita.getMinutes() + fechaCita.getTimezoneOffset());
+                }
+            }
+            
+            if (!fechaCita || isNaN(fechaCita.getTime())) {
+                return false;
+            }
+            
+            // Obtener fecha actual (sin hora)
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            
+            // Resetear la hora de la fecha de cita para comparar solo días
+            fechaCita.setHours(0, 0, 0, 0);
+            
+            // Calcular la diferencia en días
+            const diffTime = fechaCita.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            return diffDays === 1;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // Formatear fecha para mostrar (usa "mañana" si corresponde)
+    private formatFechaParaMensaje(fechaStr: string): string {
+        if (this.esManana(fechaStr)) {
+            return "mañana";
+        }
+        return `el día ${this.formatDateLong(fechaStr)}`;
     }
 }
 
