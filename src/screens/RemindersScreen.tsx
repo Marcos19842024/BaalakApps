@@ -455,7 +455,7 @@ export const RemindersScreen = () => {
         }
     };
 
-    // Enviar mensaje por WhatsApp
+    // Enviar mensaje por WhatsApp Business usando Intent (forzando package name)
     const enviarPorWhatsApp = async (cliente: Cliente) => {
         try {
             // 1. Preparar mensaje completo
@@ -468,24 +468,21 @@ export const RemindersScreen = () => {
             // 2. Copiar número al portapapeles
             await Clipboard.setString(cliente.telefono);
             
-            // 3. Preparar URL de WhatsApp
+            // 3. Preparar mensaje codificado
             const mensajeCodificado = encodeURIComponent(mensajeCompleto);
-            let whatsappUrl = '';
             
-            if (Platform.OS === 'ios') {
-                whatsappUrl = `https://api.whatsapp.com/send?phone=${cliente.telefono}&text=${mensajeCodificado}`;
-            } else {
-                whatsappUrl = `whatsapp://send?phone=${cliente.telefono}&text=${mensajeCodificado}`;
-            }
+            // 4. Intent específico para WhatsApp Business
+            // Formato: intent://send?phone=NUMERO&text=TEXTO#Intent;package=com.whatsapp.w4b;scheme=https;end;
+            const whatsappBusinessIntent = `intent://send?phone=${cliente.telefono}&text=${mensajeCodificado}#Intent;package=com.whatsapp.w4b;scheme=https;end;`;
             
-            // 4. Verificar si WhatsApp está instalado
-            const canOpen = await Linking.canOpenURL(whatsappUrl);
+            // 5. Verificar si WhatsApp Business está instalado
+            const canOpen = await Linking.canOpenURL(whatsappBusinessIntent);
             
             if (canOpen) {
-                // 5. Abrir WhatsApp
-                await Linking.openURL(whatsappUrl);
+                // 6. Abrir WhatsApp Business forzosamente
+                await Linking.openURL(whatsappBusinessIntent);
                 
-                // 6. Marcar como enviado
+                // 7. Marcar como enviado
                 const updatedClientes = clientes.map(c => 
                     c.nombre === cliente.nombre && c.telefono === cliente.telefono
                     ? { ...c, status: true }
@@ -498,13 +495,13 @@ export const RemindersScreen = () => {
                 Toast.show({
                     type: 'success',
                     text1: 'Enviado',
-                    text2: `Mensaje preparado para ${cliente.nombre}`,
+                    text2: `Mensaje preparado para ${cliente.nombre} en WhatsApp Business`,
                 });
             } else {
                 Toast.show({
                     type: 'error',
-                    text1: 'WhatsApp no encontrado',
-                    text2: 'Por favor instala WhatsApp para enviar mensajes',
+                    text1: 'WhatsApp Business no instalado',
+                    text2: 'Por favor instala WhatsApp Business para enviar mensajes',
                 });
             }
         } catch (error) {
