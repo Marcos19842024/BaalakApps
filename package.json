@@ -60,6 +60,7 @@
   "devDependencies": {
     "@types/lodash": "^4.17.23",
     "@types/react": "~19.1.0",
+    "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-navigation": "^3.0.8",
     "expo-module-scripts": "^X.X.X",
     "typescript": "~5.9.2"

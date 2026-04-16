@@ -49,11 +49,16 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": {
-            "scheme": "https",
-            "host": "api.whatsapp.com",
-            "pathPrefix": "/send"
-          },
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.whatsapp.com",
+              "pathPrefix": "/send"
+            },
+            {
+              "scheme": "whatsapp"
+            }
+          ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]

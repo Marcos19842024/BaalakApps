@@ -7,7 +7,6 @@ import {
     FlatList,
     Clipboard,
     Linking,
-    Platform,
     ActivityIndicator,
     Alert,
     Modal,
@@ -455,7 +454,7 @@ export const RemindersScreen = () => {
         }
     };
 
-    // Enviar mensaje por WhatsApp Business usando Intent (forzando package name)
+    // Enviar mensaje priorizando WhatsApp Business
     const enviarPorWhatsApp = async (cliente: Cliente) => {
         try {
             // 1. Preparar mensaje completo
@@ -471,18 +470,52 @@ export const RemindersScreen = () => {
             // 3. Preparar mensaje codificado
             const mensajeCodificado = encodeURIComponent(mensajeCompleto);
             
-            // 4. Intent específico para WhatsApp Business
-            // Formato: intent://send?phone=NUMERO&text=TEXTO#Intent;package=com.whatsapp.w4b;scheme=https;end;
+            // 4. Primero intentar con WhatsApp Business usando Intent
             const whatsappBusinessIntent = `intent://send?phone=${cliente.telefono}&text=${mensajeCodificado}#Intent;package=com.whatsapp.w4b;scheme=https;end;`;
             
-            // 5. Verificar si WhatsApp Business está instalado
-            const canOpen = await Linking.canOpenURL(whatsappBusinessIntent);
+            let opened = false;
             
-            if (canOpen) {
-                // 6. Abrir WhatsApp Business forzosamente
-                await Linking.openURL(whatsappBusinessIntent);
-                
-                // 7. Marcar como enviado
+            // Intentar WhatsApp Business
+            try {
+                const canOpenBusiness = await Linking.canOpenURL(whatsappBusinessIntent);
+                if (canOpenBusiness) {
+                    await Linking.openURL(whatsappBusinessIntent);
+                    opened = true;
+                    console.log('✅ Abriendo WhatsApp Business');
+                }
+            } catch (err) {
+                console.log('❌ No se pudo abrir WhatsApp Business:', err);
+            }
+            
+            // Si no funcionó, intentar WhatsApp normal
+            if (!opened) {
+                try {
+                    const whatsappNormalUrl = `whatsapp://send?phone=${cliente.telefono}&text=${mensajeCodificado}`;
+                    const canOpenNormal = await Linking.canOpenURL(whatsappNormalUrl);
+                    if (canOpenNormal) {
+                        await Linking.openURL(whatsappNormalUrl);
+                        opened = true;
+                        console.log('✅ Abriendo WhatsApp Normal (Business no disponible)');
+                    }
+                } catch (err) {
+                    console.log('❌ No se pudo abrir WhatsApp normal:', err);
+                }
+            }
+            
+            // Si aún no funcionó, intentar web
+            if (!opened) {
+                try {
+                    const webUrl = `https://api.whatsapp.com/send?phone=${cliente.telefono}&text=${mensajeCodificado}`;
+                    await Linking.openURL(webUrl);
+                    opened = true;
+                    console.log('✅ Abriendo versión web');
+                } catch (err) {
+                    console.log('❌ No se pudo abrir versión web:', err);
+                }
+            }
+            
+            if (opened) {
+                // Marcar como enviado
                 const updatedClientes = clientes.map(c => 
                     c.nombre === cliente.nombre && c.telefono === cliente.telefono
                     ? { ...c, status: true }
@@ -495,13 +528,13 @@ export const RemindersScreen = () => {
                 Toast.show({
                     type: 'success',
                     text1: 'Enviado',
-                    text2: `Mensaje preparado para ${cliente.nombre} en WhatsApp Business`,
+                    text2: `Mensaje preparado para ${cliente.nombre}`,
                 });
             } else {
                 Toast.show({
                     type: 'error',
-                    text1: 'WhatsApp Business no instalado',
-                    text2: 'Por favor instala WhatsApp Business para enviar mensajes',
+                    text1: 'WhatsApp no disponible',
+                    text2: 'No se encontró ninguna versión de WhatsApp instalada',
                 });
             }
         } catch (error) {
