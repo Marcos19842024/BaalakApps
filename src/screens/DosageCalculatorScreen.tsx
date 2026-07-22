@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,7 @@ import {
 } from 'react-native';
 import {
   TextInput,
-  Button,
   Card,
-  Title,
   RadioButton,
 } from 'react-native-paper';
 import { stylesdosageCalculator } from 'src/styles/dosageCalculator';
@@ -17,9 +15,9 @@ import { stylesdosageCalculator } from 'src/styles/dosageCalculator';
 type DosisType = '1/4' | '1/2' | '3/4' | '1';
 
 export const DosageCalculatorScreen: React.FC = () => {
-  const [dosis, setDosis] = useState<DosisType>('1/2');
-  const [frecuencia, setFrecuencia] = useState<string>('8'); // horas entre dosis
-  const [duracion, setDuracion] = useState<string>('3'); // días
+  const [dosis, setDosis] = useState<DosisType>('1/4');
+  const [frecuencia, setFrecuencia] = useState<string>('6');
+  const [duracion, setDuracion] = useState<string>('5');
   const [totalTabletas, setTotalTabletas] = useState<number | null>(null);
   const [detalle, setDetalle] = useState<string>('');
 
@@ -80,31 +78,19 @@ export const DosageCalculatorScreen: React.FC = () => {
     setDetalle(detalleTexto);
   };
 
-  const limpiar = (): void => {
-    setTotalTabletas(null);
-    setDetalle('');
-    setFrecuencia('8');
-    setDuracion('3');
-    setDosis('1/2');
-  };
+  // Efecto para calcular automáticamente cuando cambien los valores
+  useEffect(() => {
+    calcular();
+  }, [dosis, frecuencia, duracion]);
 
   // Opciones rápidas de frecuencia
-  const frecuenciasRapidas = ['4', '6', '8', '12', '24'];
+  const frecuenciasRapidas = ['6', '8', '12', '24'];
 
   // Opciones rápidas de duración
-  const duracionesRapidas = ['1', '3', '5', '7', '10', '14', '30'];
+  const duracionesRapidas = ['5', '7', '10', '14', '30'];
 
   return (
     <ScrollView style={stylesdosageCalculator.container}>
-      <Card style={stylesdosageCalculator.card}>
-        <Card.Content>
-          <Title style={stylesdosageCalculator.title}>Calculadora de Dosis</Title>
-          <Text style={stylesdosageCalculator.subtitle}>
-            Calcula el total de tabletas para surtir una receta
-          </Text>
-        </Card.Content>
-      </Card>
-
       {/* Dosis */}
       <Card style={stylesdosageCalculator.card}>
         <Card.Content>
@@ -195,25 +181,6 @@ export const DosageCalculatorScreen: React.FC = () => {
         </Card.Content>
       </Card>
 
-      {/* Botones de acción */}
-      <View style={stylesdosageCalculator.buttonRow}>
-        <Button
-          mode="contained"
-          onPress={calcular}
-          style={[stylesdosageCalculator.button, stylesdosageCalculator.calculateButton]}
-          icon="calculator"
-        >
-          Calcular
-        </Button>
-        <Button
-          mode="outlined"
-          onPress={limpiar}
-          style={[stylesdosageCalculator.button, stylesdosageCalculator.clearButton]}
-        >
-          Limpiar
-        </Button>
-      </View>
-
       {/* Resultado */}
       {totalTabletas !== null && (
         <Card style={[stylesdosageCalculator.card, stylesdosageCalculator.resultCard]}>
@@ -221,22 +188,13 @@ export const DosageCalculatorScreen: React.FC = () => {
             <Text style={stylesdosageCalculator.resultTitle}>Resultado</Text>
             <View style={stylesdosageCalculator.resultTotalContainer}>
               <Text style={stylesdosageCalculator.resultTotal}>
-                {totalTabletas}
+                {Math.ceil(totalTabletas)}
               </Text>
               <Text style={stylesdosageCalculator.resultUnit}>tabletas</Text>
             </View>
             <View style={stylesdosageCalculator.divider} />
             <Text style={stylesdosageCalculator.detalleTitle}>Desglose:</Text>
             <Text style={stylesdosageCalculator.detalleText}>{detalle}</Text>
-
-            <View style={stylesdosageCalculator.recomendacionContainer}>
-              <Text style={stylesdosageCalculator.recomendacionTitle}>💊 Recomendación de surtido:</Text>
-              <Text style={stylesdosageCalculator.recomendacionText}>
-                {totalTabletas % 1 === 0 
-                  ? `Surtir ${totalTabletas} tabletas completas`
-                  : `Surtir ${Math.ceil(totalTabletas)} tabletas (${totalTabletas} exactas, redondea al siguiente número entero para evitar faltantes)`}
-              </Text>
-            </View>
           </Card.Content>
         </Card>
       )}
