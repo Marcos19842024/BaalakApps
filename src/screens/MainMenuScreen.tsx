@@ -67,6 +67,14 @@ export const MainMenuScreen = () => {
       route: 'Reports',
     },
     {
+      id: 'dosageCalculator',
+      title: 'Calculadora de Dosis',
+      description: 'Calcula tabletas para recetas',
+      icon: 'health-and-safety',
+      color: '#9C27B0',
+      route: 'DosageCalculator',
+    },
+    {
       id: 'driveFiles',
       title: 'Administrador de Documentos',
       description: 'Gestiona tus archivos',
@@ -202,6 +210,10 @@ export const MainMenuScreen = () => {
 
       case'Reports':
         navigation.navigate('Reports', { sucursalKey: sucursalKey });
+        break;
+
+      case 'DosageCalculator':
+        navigation.navigate('DosageCalculator', { sucursalKey: sucursalKey });
         break;
 
       case'DriveFiles':

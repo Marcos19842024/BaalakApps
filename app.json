@@ -26,7 +26,6 @@
     },
     "plugins": [
       "expo-updates",
-      "expo-web-browser",
       "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",
@@ -59,14 +58,20 @@
               "scheme": "whatsapp"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
     "ios": {
       "icon": "./assets/icon.png",
       "supportsTablet": true,
-      "bundleIdentifier": "com.marcos19842024sorganization.baalakapps"
+      "bundleIdentifier": "com.marcos19842024sorganization.baalakapps",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     }
   }
 }

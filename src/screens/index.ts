@@ -5,3 +5,4 @@ export { RemindersScreen } from './RemindersScreen';
 export { MessageBubble } from './MessageBubble';
 export { ReportsScreen } from './ReportScreen';
 export { DriveFilesScreen } from './DriveFilesScreen';
+export { DosageCalculatorScreen } from './DosageCalculatorScreen';

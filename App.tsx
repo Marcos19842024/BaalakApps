@@ -7,7 +7,8 @@ import {
   TemplateChecklistScreen,
   RemindersScreen,
   ReportsScreen,
-  DriveFilesScreen
+  DriveFilesScreen,
+  DosageCalculatorScreen
 } from './src/screens';
 
 const Stack = createStackNavigator();
@@ -68,6 +69,11 @@ export default function App() {
           options={{
             title: 'Generador de Reportes'
           }}
+        />
+        <Stack.Screen 
+          name="DosageCalculator" 
+          component={DosageCalculatorScreen} 
+          options={{ title: 'Calculadora de Dosis' }}
         />
         <Stack.Screen 
           name="DriveFiles" 

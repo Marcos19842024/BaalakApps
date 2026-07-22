@@ -5,6 +5,7 @@ export type RootStackParamList = {
   TemplateChecklist: { sucursalKey: string };
   Reminders: { sucursalKey: string };
   Reports: { sucursalKey: string };
+  DosageCalculator: { sucursalKey: string };
   DriveFiles: { sucursalKey: string };
 };
 
