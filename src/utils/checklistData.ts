@@ -168,6 +168,8 @@ const DEFAULT_TEMPLATES: Record<SucursalType, ChecklistArea[]> = {
         { id: 'rec-13', aspecto: 'Celular con carga al 100%' },
         { id: 'rec-14', aspecto: 'Ventilador limpio y funcional' },
         { id: 'rec-15', aspecto: 'Luces funcionales' },
+        { id: 'rec-16', aspecto: 'Inversores de los paneles solares' },
+        { id: 'rec-17', aspecto: 'Bomba de agua (apagar brake solo para el segundo turno)' },
       ]
     },
     {
